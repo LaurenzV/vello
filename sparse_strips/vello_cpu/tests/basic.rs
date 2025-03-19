@@ -5,10 +5,9 @@
 
 use crate::util::{check_ref, get_ctx, render_pixmap};
 use std::f64::consts::PI;
-use vello_common::color::palette::css::{
-    BEIGE, BLUE, DARK_GREEN, GREEN, LIME, MAROON, REBECCA_PURPLE, RED, YELLOW,
-};
+use vello_common::color::palette::css::{BEIGE, BLUE, DARK_GREEN, GREEN, LIME, MAROON, REBECCA_PURPLE, RED, WHITE, YELLOW};
 use vello_common::kurbo::{Affine, BezPath, Circle, Join, Point, Rect, Shape, Stroke};
+use vello_common::paint::{LinearGradient, Stop};
 use vello_common::peniko;
 use vello_common::peniko::Compose;
 use vello_cpu::RenderContext;
@@ -509,6 +508,32 @@ fn filled_vertical_hairline_rect_2() {
     ctx.fill_rect(&rect);
 
     check_ref(&ctx, "filled_vertical_hairline_rect_2");
+}
+
+#[test]
+fn gradient_test() {
+    let mut ctx = get_ctx(500, 500, false);
+    let rect = Rect::new(50.0, 40.0, 400.0, 400.0);
+
+    let gradient = LinearGradient {
+        x1: 0.0,
+        x2: 500.0,
+        stops: vec![
+            Stop {
+                offset: 0.0,
+                color: GREEN,
+            },
+            Stop {
+                offset: 1.0,
+                color: BLUE,
+            },
+        ],
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_test");
 }
 
 fn miter_stroke_2() -> Stroke {

@@ -10,6 +10,8 @@ use vello_common::{
     paint::Paint,
     tile::Tile,
 };
+use vello_common::color::palette::css::RED;
+use vello_common::paint::{LinearGradient, Stop};
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -18,9 +20,7 @@ pub(crate) const SCRATCH_BUF_SIZE: usize =
 
 pub(crate) type ScratchBuf = [u8; SCRATCH_BUF_SIZE];
 
-#[derive(Debug)]
-#[doc(hidden)]
-pub struct Fine<'a> {
+pub(crate) struct Fine<'a> {
     pub(crate) width: u16,
     pub(crate) height: u16,
     pub(crate) out_buf: &'a mut [u8],
@@ -28,10 +28,9 @@ pub struct Fine<'a> {
 }
 
 impl<'a> Fine<'a> {
-    /// Create a new fine rasterizer.
-    pub fn new(width: u16, height: u16, out_buf: &'a mut [u8]) -> Self {
+    pub(crate) fn new(width: u16, height: u16, out_buf: &'a mut [u8]) -> Self {
         let scratch = [0; SCRATCH_BUF_SIZE];
-
+  
         Self {
             width,
             height,
@@ -65,10 +64,10 @@ impl<'a> Fine<'a> {
         );
     }
 
-    pub(crate) fn run_cmd(&mut self, cmd: &Cmd, alphas: &[u32]) {
+    pub(crate) fn run_cmd(&mut self, tile_x: u16, cmd: &Cmd, alphas: &[u32]) {
         match cmd {
             Cmd::Fill(f) => {
-                self.fill(f.x as usize, f.width as usize, &f.paint);
+                self.fill(f.x as usize, tile_x, f.width as usize, &f.paint);
             }
             Cmd::AlphaFill(s) => {
                 let a_slice = &alphas[s.alpha_ix..];
@@ -77,15 +76,14 @@ impl<'a> Fine<'a> {
         }
     }
 
-    /// Fill at a given x and with a width with the paint.
-    pub fn fill(&mut self, x: usize, width: usize, paint: &Paint) {
+    pub(crate) fn fill(&mut self, x: usize, tile_x: u16, width: usize, paint: &Paint) {
+        let target = &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..]
+            [..TILE_HEIGHT_COMPONENTS * width];
+        
         match paint {
             Paint::Solid(c) => {
                 let color = c.premultiply().to_rgba8_fast();
-
-                let target = &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..]
-                    [..TILE_HEIGHT_COMPONENTS * width];
-
+                
                 // If color is completely opaque we can just memcopy the colors.
                 if color[3] == 255 {
                     for t in target.chunks_exact_mut(COLOR_COMPONENTS) {
@@ -97,11 +95,14 @@ impl<'a> Fine<'a> {
 
                 fill::src_over(target, &color);
             }
+            Paint::Gradient(g) => {
+                fill::src_over_grad(target, tile_x * WideTile::WIDTH + x as u16, g);
+            }
             _ => unimplemented!(),
         }
     }
 
-    pub fn strip(&mut self, x: usize, width: usize, alphas: &[u32], paint: &Paint) {
+    pub(crate) fn strip(&mut self, x: usize, width: usize, alphas: &[u32], paint: &Paint) {
         debug_assert!(
             alphas.len() >= width,
             "alpha buffer doesn't contain sufficient elements"
@@ -116,7 +117,14 @@ impl<'a> Fine<'a> {
 
                 strip::src_over(target, &color, alphas);
             }
-            _ => unimplemented!(),
+            _ => {
+                let color = RED.premultiply().to_rgba8_fast();
+
+                let target = &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..]
+                    [..TILE_HEIGHT_COMPONENTS * width];
+
+                strip::src_over(target, &color, alphas);
+            },
         }
     }
 }
@@ -152,13 +160,29 @@ pub(crate) mod fill {
     // See https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators for the
     // formulas.
 
-    use crate::fine::{COLOR_COMPONENTS, TILE_HEIGHT_COMPONENTS};
+    use vello_common::paint::LinearGradient;
+    use crate::fine::{GradientIter, COLOR_COMPONENTS, TILE_HEIGHT_COMPONENTS};
     use crate::util::scalar::div_255;
 
     pub(crate) fn src_over(target: &mut [u8], src_c: &[u8; COLOR_COMPONENTS]) {
         let src_a = src_c[3] as u16;
 
         for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
+            for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
+                for i in 0..COLOR_COMPONENTS {
+                    bg_c[i] = src_c[i] + div_255(bg_c[i] as u16 * (255 - src_a)) as u8;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn src_over_grad(target: &mut [u8], x: u16, grad: &LinearGradient) {
+        let mut iter = GradientIter::new(grad, x);
+
+        for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
+            let src_c = iter.next().unwrap();
+            let src_a = src_c[3] as u16;
+            
             for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
                 for i in 0..COLOR_COMPONENTS {
                     bg_c[i] = src_c[i] + div_255(bg_c[i] as u16 * (255 - src_a)) as u8;
@@ -191,3 +215,80 @@ pub(crate) mod strip {
         }
     }
 }
+
+pub struct GradientIter<'a> {
+    cur_x: u16,
+    c0: [u8; 4],
+    c1: [u8; 4],
+    colors: [u8;  TILE_HEIGHT_COMPONENTS],
+    gradient: &'a LinearGradient
+}
+
+impl<'a> GradientIter<'a> {
+    pub(crate) fn new(gradient: &'a LinearGradient, start_x: u16) -> Self {
+        let c0 = gradient.stops[0].color.premultiply().to_rgba8_fast();
+        let c1 = gradient.stops[1].color.premultiply().to_rgba8_fast();
+        
+        Self {
+            cur_x: start_x,
+            c0,
+            c1,
+            colors: [0; TILE_HEIGHT_COMPONENTS],
+            gradient
+        }
+    }
+}
+
+impl Iterator for GradientIter<'_> {
+    type Item = [u8;  TILE_HEIGHT_COMPONENTS];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let x0 =  self.gradient.x1;
+        let x1 = self.gradient.x2;
+        
+        for pix_idx in 0..Tile::HEIGHT as usize {
+            for col_idx in 0..COLOR_COMPONENTS {
+                let idx = pix_idx * COLOR_COMPONENTS + col_idx;
+                let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
+                let im2 = x1 - x0;
+                let im3 = self.cur_x as f32 - x0;
+                let combined = ((im1 / im2) * im3 + 0.5) as u8;
+                
+                self.colors[idx] = self.c0[col_idx] + combined
+            }
+        }
+        
+        self.cur_x += 1;
+        
+        Some(self.colors)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use vello_common::color::palette::css::{BLACK, BLUE, GREEN};
+    use vello_common::paint::{LinearGradient, Stop};
+    use crate::fine::GradientIter;
+
+    #[test]
+    fn gradient_iter_1() {
+        let gradient = LinearGradient {
+            x1: 10.0,
+            x2: 15.0,
+            stops: vec![
+                Stop {
+                    offset: 0.0,
+                    color: GREEN,
+                },
+                Stop {
+                    offset: 1.0,
+                    color: BLUE,
+                },
+            ],
+        };
+        
+        let mut iter = GradientIter::new(&gradient, 10);
+    }
+}
+
+

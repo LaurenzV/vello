@@ -135,15 +135,15 @@ impl RenderContext {
 
         let width_tiles = self.wide.width_tiles();
         let height_tiles = self.wide.height_tiles();
-        for y in 0..height_tiles {
-            for x in 0..width_tiles {
-                let tile = self.wide.get(x, y);
+        for tile_y in 0..height_tiles {
+            for tile_x in 0..width_tiles {
+                let tile = self.wide.get(tile_x, tile_y);
 
                 fine.clear(tile.bg.premultiply().to_rgba8_fast());
                 for cmd in &tile.cmds {
-                    fine.run_cmd(cmd, &self.alphas);
+                    fine.run_cmd(tile_x, cmd, &self.alphas);
                 }
-                fine.pack(x, y);
+                fine.pack(tile_x, tile_y);
             }
         }
     }
