@@ -253,12 +253,14 @@ impl Iterator for GradientIter<'_> {
         let x1 = self.gradient.x2;
         
         let mut cols = [0; 4];
+        
+        let target_x = (self.cur_x as f32).clamp(x0, x1);
 
         for col_idx in 0..COLOR_COMPONENTS {
             let idx = col_idx;
             let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
             let im2 = x1 - x0;
-            let im3 = self.cur_x as f32 - x0;
+            let im3 = target_x - x0;
             let combined = ((im1 / im2) * im3 + 0.5) as u8;
 
             cols[idx] = self.c0[col_idx] + combined;
