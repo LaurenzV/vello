@@ -94,7 +94,7 @@ impl<'a> Fine<'a> {
                     return;
                 }
 
-                fill::src_over(target, iter::repeat(splat_x4(&color)));
+                fill::src_over(target, iter::repeat(color));
             }
             Paint::Gradient(g) => {
                 fill::src_over_grad(target, tile_x * WideTile::WIDTH + x as u16, g);
@@ -165,16 +165,16 @@ pub(crate) mod fill {
     use crate::util::scalar::div_255;
     use vello_common::paint::LinearGradient;
 
-    pub(crate) fn src_over<T: Iterator<Item = [u8; TILE_HEIGHT_COMPONENTS]>>(
+    pub(crate) fn src_over<T: Iterator<Item = [u8; COLOR_COMPONENTS]>>(
         target: &mut [u8],
         mut color_iter: T,
     ) {
-        for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
-            let colors = color_iter.next().unwrap();
-            for (bg_c, src_c) in strip
+        for strip in target.chunks_exact_mut(COLOR_COMPONENTS) {
+            for bg_c in strip
                 .chunks_exact_mut(COLOR_COMPONENTS)
-                .zip(colors.chunks_exact(COLOR_COMPONENTS))
             {
+                let src_c = color_iter.next().unwrap();
+                
                 for i in 0..COLOR_COMPONENTS {
                     bg_c[i] = src_c[i] + div_255(bg_c[i] as u16 * (255 - src_c[3] as u16)) as u8;
                 }
