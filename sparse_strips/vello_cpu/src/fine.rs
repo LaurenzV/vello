@@ -169,7 +169,7 @@ pub(crate) mod fill {
         target: &mut [u8],
         mut color_iter: T,
     ) {
-        for strip in target.chunks_exact_mut(COLOR_COMPONENTS) {
+        for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
             for bg_c in strip
                 .chunks_exact_mut(COLOR_COMPONENTS)
             {
