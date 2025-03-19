@@ -5,7 +5,9 @@
 
 use crate::util::{check_ref, get_ctx, render_pixmap};
 use std::f64::consts::PI;
-use vello_common::color::palette::css::{BEIGE, BLUE, DARK_GREEN, GREEN, LIME, MAROON, REBECCA_PURPLE, RED, WHITE, YELLOW};
+use vello_common::color::palette::css::{
+    BEIGE, BLUE, DARK_GREEN, GREEN, LIME, MAROON, REBECCA_PURPLE, RED, WHITE, YELLOW,
+};
 use vello_common::kurbo::{Affine, BezPath, Circle, Join, Point, Rect, Shape, Stroke};
 use vello_common::paint::{LinearGradient, Stop};
 use vello_common::peniko;
