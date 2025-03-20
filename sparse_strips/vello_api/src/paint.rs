@@ -50,6 +50,7 @@ pub struct InnerLinearGradient {
     pub end: f32,
     pub offset: f32,
     pub stops: Vec<InnerStop>,
+    pub pad: bool,
 }
 
 impl From<LinearGradient> for InnerLinearGradient {
@@ -79,6 +80,7 @@ impl From<LinearGradient> for InnerLinearGradient {
             offset,
             end: x1 + offset,
             stops,
+            pad: value.extend == peniko::Extend::Pad
         }
     }
 }

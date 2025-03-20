@@ -215,7 +215,7 @@ pub(crate) mod strip {
 #[derive(Debug)]
 pub(crate) struct LinearGradientIter<'a> {
     /// The position of the next x that should be processed.
-    next_x: u16,
+    next_x: f32,
     /// The position of the current column we are generating pixels for.
     col_pos: u16,
     /// The index of the current right stop we are processing.
@@ -237,7 +237,7 @@ pub(crate) struct LinearGradientIter<'a> {
 impl<'a> LinearGradientIter<'a> {
     pub(crate) fn new(gradient: &'a InnerLinearGradient, start_x: u16) -> Self {
         let mut iter = Self {
-            next_x: start_x,
+            next_x: start_x as f32,
             col_pos: Tile::HEIGHT,
             stop_idx: 0,
             x0: 0.0,
@@ -248,8 +248,7 @@ impl<'a> LinearGradientIter<'a> {
             gradient,
         };
 
-        // Initialize with first two stops.
-        iter.advance_window();
+        iter.reset_to(0);
 
         iter
     }
@@ -265,31 +264,53 @@ impl LinearGradientIter<'_> {
         if !(self.stop_idx < (self.gradient.stops.len() - 1)) {
             // Reached the final two stops already, so simulate a dummy
             // final stop that is padded.
-            self.reset_to(usize::MAX);
-            return;
-        }
+            if self.gradient.pad {
+                self.reset_to(usize::MAX);
+            } else {
+                self.next_x -= self.gradient.end;
+                self.reset_to(1);
+            }
 
-        self.reset_to(self.stop_idx + 1);
+            return;
+        } else {
+            self.reset_to(self.stop_idx + 1);
+        }
     }
 
     fn reset_to(&mut self, stop_idx: usize) {
         self.stop_idx = stop_idx;
 
-        if self.stop_idx == usize::MAX {
-            let last = self.gradient.stops.last().unwrap();
-            self.x0 = self.gradient.end;
-            self.x1 = f32::MAX;
-            self.c0 = last.color;
-            self.c1 = self.c0;
-        } else {
-            let left_stop = &self.gradient.stops[self.stop_idx - 1];
-            let right_stop = &self.gradient.stops[self.stop_idx];
+        match self.stop_idx {
+            // Special case when passing the last stop.
+            usize::MAX => {
+                let last = self.gradient.stops.last().unwrap();
+                self.x0 = self.gradient.end;
+                self.x1 = f32::MAX;
+                self.c0 = last.color;
+                self.c1 = self.c0;
+            }
+            // Special case when being before the first stop.
+            0 => {
+                let first = self.gradient.stops.first().unwrap();
+                self.x0 = f32::MIN;
+                self.x1 = 0.0;
+                self.c0 = first.color;
+                self.c1 = self.c0;
+            }
+            _ => {
+                let left_stop = &self.gradient.stops[self.stop_idx - 1];
+                let right_stop = &self.gradient.stops[self.stop_idx];
 
-            self.x0 = self.gradient.end * left_stop.offset;
-            self.x1 = self.gradient.end * right_stop.offset;
-            self.c0 = left_stop.color;
-            self.c1 = right_stop.color;
+                self.x0 = self.gradient.end * left_stop.offset;
+                self.x1 = self.gradient.end * right_stop.offset;
+                self.c0 = left_stop.color;
+                self.c1 = right_stop.color;
+            }
         }
+    }
+
+    fn cur_x(&self) -> f32 {
+        self.next_x - 1.0 + self.gradient.offset
     }
 }
 
@@ -305,9 +326,9 @@ impl Iterator for LinearGradientIter<'_> {
         }
 
         self.col_pos = 0;
-        self.next_x += 1;
+        self.next_x += 1.0;
 
-        let cur_x = self.next_x as f32 - 1.0 + self.gradient.offset;
+        let cur_x = self.next_x - 1.0 + self.gradient.offset;
 
         // It's possible that we have to skip multiple stops.
         while cur_x > self.x1 {
@@ -315,7 +336,7 @@ impl Iterator for LinearGradientIter<'_> {
         }
 
         // Basically only needed for spread method clamp.
-        let cur_x = cur_x.clamp(0.0, self.gradient.end);
+        let cur_x = self.cur_x().clamp(0.0, self.gradient.end);
 
         for col_idx in 0..COLOR_COMPONENTS {
             let idx = col_idx;
