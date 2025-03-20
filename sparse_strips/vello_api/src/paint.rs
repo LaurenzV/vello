@@ -6,6 +6,7 @@
 use std::sync::Arc;
 use peniko::color::{AlphaColor, Srgb};
 
+/// A color stop.
 #[derive(Debug)]
 pub struct Stop {
     /// The normalized offset of the stop.

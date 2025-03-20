@@ -72,7 +72,7 @@ impl<'a> Fine<'a> {
             }
             Cmd::AlphaFill(s) => {
                 let a_slice = &alphas[s.alpha_ix..];
-                self.strip(s.x as usize, s.width as usize, a_slice, &s.paint);
+                self.strip(s.x as usize, tile_x, s.width as usize, a_slice, &s.paint);
             }
         }
     }
@@ -104,29 +104,26 @@ impl<'a> Fine<'a> {
         }
     }
 
-    pub fn strip(&mut self, x: usize, width: usize, alphas: &[u32], paint: &Paint) {
+    pub fn strip(&mut self, x: usize, tile_x: u16, width: usize, alphas: &[u32], paint: &Paint) {
         debug_assert!(
             alphas.len() >= width,
             "alpha buffer doesn't contain sufficient elements"
         );
 
+        let target =
+            &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+
         match paint {
             Paint::Solid(s) => {
                 let color = s.premultiply().to_rgba8_fast();
 
-                let target = &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..]
-                    [..TILE_HEIGHT_COMPONENTS * width];
-
                 strip::src_over(target, iter::repeat(color), alphas);
             }
-            _ => {
-                let color = RED.premultiply().to_rgba8_fast();
-
-                let target = &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..]
-                    [..TILE_HEIGHT_COMPONENTS * width];
-
-                strip::src_over(target, iter::repeat(color), alphas);
+            Paint::Gradient(g) => {
+                let start_x = tile_x * WideTile::WIDTH + x as u16;
+                strip::src_over(target, GradientIter::new(g, start_x), alphas);
             }
+            _ => unimplemented!(),
         }
     }
 }
@@ -208,7 +205,8 @@ pub(crate) mod strip {
     }
 }
 
-pub struct GradientIter<'a> {
+#[derive(Debug)]
+pub(crate) struct GradientIter<'a> {
     next_x: u16,
     strip_pos: u16,
     c0: [u8; 4],
