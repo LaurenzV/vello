@@ -98,7 +98,7 @@ impl<'a> Fine<'a> {
             }
             Paint::Gradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
-                fill::src_over(target, GradientIter::new(g, start_x));
+                fill::src_over(target, LinearGradientIter::new(g, start_x));
             }
             _ => unimplemented!(),
         }
@@ -121,7 +121,7 @@ impl<'a> Fine<'a> {
             }
             Paint::Gradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
-                strip::src_over(target, GradientIter::new(g, start_x), alphas);
+                strip::src_over(target, LinearGradientIter::new(g, start_x), alphas);
             }
             _ => unimplemented!(),
         }
@@ -206,7 +206,7 @@ pub(crate) mod strip {
 }
 
 #[derive(Debug)]
-pub(crate) struct GradientIter<'a> {
+pub(crate) struct LinearGradientIter<'a> {
     next_x: u16,
     strip_pos: u16,
     c0: [u8; 4],
@@ -215,7 +215,7 @@ pub(crate) struct GradientIter<'a> {
     gradient: &'a LinearGradient,
 }
 
-impl<'a> GradientIter<'a> {
+impl<'a> LinearGradientIter<'a> {
     pub(crate) fn new(gradient: &'a LinearGradient, start_x: u16) -> Self {
         let c0 = gradient.stops[0].color.premultiply().to_rgba8_fast();
         let c1 = gradient.stops[1].color.premultiply().to_rgba8_fast();
@@ -231,10 +231,12 @@ impl<'a> GradientIter<'a> {
     }
 }
 
-impl Iterator for GradientIter<'_> {
+impl Iterator for LinearGradientIter<'_> {
     type Item = [u8; COLOR_COMPONENTS];
 
     fn next(&mut self) -> Option<Self::Item> {
+        // For linear gradients with no skewing transform, the color values
+        // in a column are always the same, so we can cache them.
         if self.strip_pos < (Tile::HEIGHT - 1) {
             self.strip_pos += 1;
             return Some(self.colors);
@@ -264,7 +266,7 @@ impl Iterator for GradientIter<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::fine::GradientIter;
+    use crate::fine::LinearGradientIter;
     use vello_common::color::palette::css::{BLACK, BLUE, GREEN, WHITE};
     use vello_common::paint::{LinearGradient, Stop};
 
@@ -285,7 +287,7 @@ mod tests {
             ],
         };
 
-        let mut iter = GradientIter::new(&gradient, 10);
+        let mut iter = LinearGradientIter::new(&gradient, 10);
 
         for i in 0..20 {
             println!("{:?}", iter.next().unwrap());
