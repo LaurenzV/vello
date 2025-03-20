@@ -170,11 +170,9 @@ pub(crate) mod fill {
         mut color_iter: T,
     ) {
         for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
-            for bg_c in strip
-                .chunks_exact_mut(COLOR_COMPONENTS)
-            {
+            for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
                 let src_c = color_iter.next().unwrap();
-                
+
                 for i in 0..COLOR_COMPONENTS {
                     bg_c[i] = src_c[i] + div_255(bg_c[i] as u16 * (255 - src_c[3] as u16)) as u8;
                 }
@@ -186,10 +184,10 @@ pub(crate) mod fill {
         let mut iter = GradientIter::new(grad, x);
 
         for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
-            let src_c = iter.next().unwrap();
-            let src_a = src_c[3] as u16;
-
             for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
+                let src_c = iter.next().unwrap();
+                let src_a = src_c[3] as u16;
+
                 for i in 0..COLOR_COMPONENTS {
                     bg_c[i] = src_c[i] + div_255(bg_c[i] as u16 * (255 - src_a)) as u8;
                 }
@@ -223,10 +221,11 @@ pub(crate) mod strip {
 }
 
 pub struct GradientIter<'a> {
-    cur_x: u16,
+    next_x: u16,
+    strip_pos: u16,
     c0: [u8; 4],
     c1: [u8; 4],
-    colors: [u8; TILE_HEIGHT_COMPONENTS],
+    colors: [u8; COLOR_COMPONENTS],
     gradient: &'a LinearGradient,
 }
 
@@ -236,60 +235,51 @@ impl<'a> GradientIter<'a> {
         let c1 = gradient.stops[1].color.premultiply().to_rgba8_fast();
 
         Self {
-            cur_x: start_x,
+            next_x: start_x,
+            strip_pos: Tile::HEIGHT,
             c0,
             c1,
-            colors: [0; TILE_HEIGHT_COMPONENTS],
+            colors: [0; COLOR_COMPONENTS],
             gradient,
         }
     }
 }
 
 impl Iterator for GradientIter<'_> {
-    type Item = [u8; TILE_HEIGHT_COMPONENTS];
+    type Item = [u8; COLOR_COMPONENTS];
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.strip_pos < (Tile::HEIGHT - 1) {
+            self.strip_pos += 1;
+            return Some(self.colors);
+        }
+
+        self.strip_pos = 0;
+        self.next_x += 1;
+
         let x0 = self.gradient.x1;
         let x1 = self.gradient.x2;
-        
-        let mut cols = [0; 4];
-        
-        let target_x = (self.cur_x as f32).clamp(x0, x1);
+
+        let target_x = (self.next_x as f32 - 1.0).clamp(x0, x1);
 
         for col_idx in 0..COLOR_COMPONENTS {
             let idx = col_idx;
             let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
             let im2 = x1 - x0;
             let im3 = target_x - x0;
-            let combined = ((im1 / im2) * im3 + 0.5) as u8;
+            let combined = ((im1 / im2) * im3 + 0.5) as i16;
 
-            cols[idx] = self.c0[col_idx] + combined;
+            self.colors[idx] = (self.c0[col_idx] as i16 + combined) as u8;
         }
-        
-        self.colors = splat_x4(&cols);
-
-        self.cur_x += 1;
 
         Some(self.colors)
     }
 }
 
-fn splat_x4(val: &[u8; COLOR_COMPONENTS]) -> [u8; TILE_HEIGHT_COMPONENTS] {
-    let mut buf = [0; TILE_HEIGHT_COMPONENTS];
-
-    for i in 0..Tile::HEIGHT as usize {
-        let start = i * COLOR_COMPONENTS;
-        let end = (i + 1) * COLOR_COMPONENTS;
-        buf[start..end].copy_from_slice(val);
-    }
-
-    buf
-}
-
 #[cfg(test)]
 mod tests {
     use crate::fine::GradientIter;
-    use vello_common::color::palette::css::{BLACK, BLUE, GREEN};
+    use vello_common::color::palette::css::{BLACK, BLUE, GREEN, WHITE};
     use vello_common::paint::{LinearGradient, Stop};
 
     #[test]
@@ -300,15 +290,19 @@ mod tests {
             stops: vec![
                 Stop {
                     offset: 0.0,
-                    color: GREEN,
+                    color: WHITE,
                 },
                 Stop {
                     offset: 1.0,
-                    color: BLUE,
+                    color: BLACK,
                 },
             ],
         };
 
         let mut iter = GradientIter::new(&gradient, 10);
+
+        for i in 0..20 {
+            println!("{:?}", iter.next().unwrap());
+        }
     }
 }
