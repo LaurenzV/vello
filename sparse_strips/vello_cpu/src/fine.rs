@@ -267,8 +267,9 @@ impl LinearGradientIter<'_> {
             // Reached the final two stops already, so simulate a dummy
             // final stop that is padded.
             self.stop_idx = usize::MAX;
+            self.x0 = self.x1;
             self.x1 = f32::MAX;
-            self.c1 = self.c0;
+            self.c0 = self.c1;
             return;
         }
 
