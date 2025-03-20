@@ -215,7 +215,7 @@ pub(crate) mod strip {
 #[derive(Debug)]
 pub(crate) struct LinearGradientIter<'a> {
     /// The position of the next x that should be processed.
-    next_x: f32,
+    cur_x: f32,
     /// The position of the current column we are generating pixels for.
     col_pos: u16,
     /// The index of the current right stop we are processing.
@@ -237,7 +237,7 @@ pub(crate) struct LinearGradientIter<'a> {
 impl<'a> LinearGradientIter<'a> {
     pub(crate) fn new(gradient: &'a InnerLinearGradient, start_x: u16) -> Self {
         let mut iter = Self {
-            next_x: start_x as f32 + gradient.offset,
+            cur_x: start_x as f32 - 1.0 + gradient.offset,
             col_pos: Tile::HEIGHT,
             stop_idx: 0,
             x0: 0.0,
@@ -317,17 +317,15 @@ impl Iterator for LinearGradientIter<'_> {
         }
 
         self.col_pos = 0;
-        self.next_x += 1.0;
-
-        let cur_x = self.next_x - 1.0;
+        self.cur_x += 1.0;
 
         // It's possible that we have to skip multiple stops.
-        while cur_x > self.x1 {
+        while self.cur_x > self.x1 {
             self.advance_window();
         }
 
         // Basically only needed for spread method clamp.
-        let cur_x = cur_x.clamp(0.0, self.gradient.end);
+        let cur_x = self.cur_x.clamp(0.0, self.gradient.end);
 
         for col_idx in 0..COLOR_COMPONENTS {
             let idx = col_idx;
