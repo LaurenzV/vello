@@ -250,8 +250,17 @@ impl<'a> LinearGradientIter<'a> {
 
 impl LinearGradientIter<'_> {
     fn advance_window(&mut self) {
+        if self.stop_idx == usize::MAX {
+            // Already at the very end, nothing to advance.
+            return;
+        }
+
         if !(self.stop_idx < (self.gradient.stops.len() - 1)) {
-            // Reached the final two stops already.
+            // Reached the final two stops already, so simulate a dummy
+            // final stop that is padded.
+            self.stop_idx = usize::MAX;
+            self.x1 = f32::MAX;
+            self.c1 = self.c0;
             return;
         }
 
@@ -283,10 +292,9 @@ impl Iterator for LinearGradientIter<'_> {
 
         let mut cur_x = self.next_x as f32 - 1.0;
 
-        if cur_x > self.x1 {
+        // It's possible that we have to skip multiple stops.
+        while cur_x > self.x1 {
             self.advance_window();
-            // TODO: Might have to advance multiple times, but need to make sure we don't land
-            // in an infinity loop.
         }
 
         // Spread method `pad`
