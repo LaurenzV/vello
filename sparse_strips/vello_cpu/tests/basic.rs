@@ -524,6 +524,23 @@ fn filled_vertical_hairline_rect_2() {
 }
 
 #[test]
+fn gradient_on_3_wide_tiles() {
+    let mut ctx = get_ctx(600, 32, false);
+    let rect = Rect::new(4.0, 4.0, 596.0, 28.0);
+
+    let gradient = LinearGradient {
+        x0: 0.0,
+        x1: 600.0,
+        stops: stops_red_green(),
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_on_3_wide_tiles");
+}
+
+#[test]
 fn gradient_linear_2_stops() {
     let mut ctx = get_ctx(200, 200, false);
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
@@ -581,7 +598,7 @@ fn gradient_complex_shape() {
 
     let gradient = LinearGradient {
         x0: 0.0,
-        x1: 2000.0,
+        x1: 200.0,
         stops: stops_blue_green_red_yellow(),
     };
 
