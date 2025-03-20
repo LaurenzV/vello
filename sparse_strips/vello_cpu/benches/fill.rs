@@ -8,7 +8,7 @@ use criterion::Criterion;
 use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
 use vello_common::coarse::WideTile;
-use vello_common::color::palette::css::{BLUE, GREEN};
+use vello_common::color::palette::css::{BLUE, GREEN, PINK, RED};
 use vello_common::color::{AlphaColor, Srgb};
 use vello_common::paint::{LinearGradient, Paint, Stop};
 use vello_common::tile::Tile;
@@ -47,6 +47,14 @@ pub fn fill(c: &mut Criterion) {
             Stop {
                 offset: 0.0,
                 color: GREEN,
+            },
+            Stop {
+                offset: 0.3,
+                color: RED,
+            },
+            Stop {
+                offset: 0.6,
+                color: PINK,
             },
             Stop {
                 offset: 1.0,
