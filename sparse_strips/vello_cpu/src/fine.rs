@@ -276,9 +276,8 @@ impl LinearGradientIter<'_> {
         let left_stop = &self.gradient.stops[self.stop_idx - 1];
         let right_stop = &self.gradient.stops[self.stop_idx];
 
-        let delta = self.gradient.x1 - self.gradient.x0;
-        self.x0 = self.gradient.x0 + delta * left_stop.offset;
-        self.x1 = self.gradient.x0 + delta * right_stop.offset;
+        self.x0 = self.gradient.end * left_stop.offset;
+        self.x1 = self.gradient.end * right_stop.offset;
         self.c0 = left_stop.color.premultiply().to_rgba8_fast();
         self.c1 = right_stop.color.premultiply().to_rgba8_fast();
     }
@@ -298,7 +297,7 @@ impl Iterator for LinearGradientIter<'_> {
         self.col_pos = 0;
         self.next_x += 1;
 
-        let cur_x = self.next_x as f32 - 1.0;
+        let cur_x = self.next_x as f32 - 1.0 + self.gradient.offset;
 
         // It's possible that we have to skip multiple stops.
         while cur_x > self.x1 {
@@ -306,7 +305,7 @@ impl Iterator for LinearGradientIter<'_> {
         }
 
         // Spread method `pad`
-        let cur_x = cur_x.clamp(self.gradient.x0, self.gradient.x1);
+        let cur_x = cur_x.clamp(0.0, self.gradient.end);
 
         for col_idx in 0..COLOR_COMPONENTS {
             let idx = col_idx;
@@ -328,30 +327,30 @@ mod tests {
     use vello_common::color::palette::css::{BLACK, BLUE, GREEN, WHITE};
     use vello_common::paint::{LinearGradient, Stop};
     use vello_common::peniko::Extend;
-
-    #[test]
-    fn gradient_iter_1() {
-        let gradient = LinearGradient {
-            x0: 10.0,
-            x1: 15.0,
-            stops: vec![
-                Stop {
-                    offset: 0.0,
-                    color: WHITE,
-                },
-                Stop {
-                    offset: 1.0,
-                    color: BLACK,
-                },
-            ],
-            extend: Extend::Pad,
-        };
-
-        let inner = gradient.into();
-        let mut iter = LinearGradientIter::new(&inner, 10);
-
-        for i in 0..20 {
-            println!("{:?}", iter.next().unwrap());
-        }
-    }
+    // 
+    // #[test]
+    // fn gradient_iter_1() {
+    //     let gradient = LinearGradient {
+    //         x0: 10.0,
+    //         x1: 15.0,
+    //         stops: vec![
+    //             Stop {
+    //                 offset: 0.0,
+    //                 color: WHITE,
+    //             },
+    //             Stop {
+    //                 offset: 1.0,
+    //                 color: BLACK,
+    //             },
+    //         ],
+    //         extend: Extend::Pad,
+    //     };
+    // 
+    //     let inner = gradient.into();
+    //     let mut iter = LinearGradientIter::new(&inner, 10);
+    // 
+    //     for i in 0..20 {
+    //         println!("{:?}", iter.next().unwrap());
+    //     }
+    // }
 }

@@ -28,9 +28,8 @@ pub struct LinearGradient {
 
 #[derive(Debug, Clone)]
 pub struct InnerLinearGradient {
-    pub x0: f32,
-    /// The x coordinate of the second point.
-    pub x1: f32,
+    pub end: f32,
+    pub offset: f32,
     pub stops: Vec<Stop>,
 }
 
@@ -43,6 +42,7 @@ impl From<LinearGradient> for InnerLinearGradient {
             value.stops.clone()
         }   else {
             std::mem::swap(&mut x0, &mut x1);
+            
             value.stops.iter().rev().map(|s| {
                 Stop {
                     offset: 1.0 - s.offset,
@@ -51,9 +51,11 @@ impl From<LinearGradient> for InnerLinearGradient {
             }).collect::<Vec<_>>()
         };
         
+        let offset = -x0;
+        
         InnerLinearGradient {
-            x0,
-            x1,
+            offset,
+            end: x1 + offset,
             stops,
         }
     }
