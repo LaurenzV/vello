@@ -18,9 +18,9 @@ pub struct Stop {
 #[derive(Debug)]
 pub struct LinearGradient {
     /// The x coordinate of the first point.
-    pub x1: f32,
+    pub x0: f32,
     /// The x coordinate of the second point.
-    pub x2: f32,
+    pub x1: f32,
     /// The color stops of the linear gradient.
     ///
     /// Note that all stops need to be in the same color space.

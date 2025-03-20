@@ -41,8 +41,8 @@ pub fn fill(c: &mut Criterion) {
     fill_single!(opaque, &opaque_solid);
 
     let gradient: Paint = LinearGradient {
-        x1: 0.0,
-        x2: 256.0,
+        x0: 0.0,
+        x1: 256.0,
         stops: vec![
             Stop {
                 offset: 0.0,

@@ -518,8 +518,8 @@ fn gradient_test() {
     let rect = Rect::new(50.0, 40.0, 400.0, 400.0);
 
     let gradient = LinearGradient {
-        x1: 0.0,
-        x2: 500.0,
+        x0: 0.0,
+        x1: 500.0,
         stops: vec![
             Stop {
                 offset: 0.0,

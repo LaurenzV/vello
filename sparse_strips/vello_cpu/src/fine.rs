@@ -207,27 +207,63 @@ pub(crate) mod strip {
 
 #[derive(Debug)]
 pub(crate) struct LinearGradientIter<'a> {
+    /// The position of the next x that should be processed.
     next_x: u16,
-    strip_pos: u16,
+    /// The position of the current column we are generating pixels for.
+    col_pos: u16,
+    /// The index of the current right stop we are processing.
+    stop_idx: usize,
+    /// The x-position of the left stop.
+    x0: f32,
+    /// The x-position of the right stop.
+    x1: f32,
+    /// The color of the left stop.
     c0: [u8; 4],
+    /// The color of the right stop.
     c1: [u8; 4],
-    colors: [u8; COLOR_COMPONENTS],
+    /// The output buffer for emitting colors from the iterator.
+    color_buf: [u8; COLOR_COMPONENTS],
+    /// The underlying gradient.
     gradient: &'a LinearGradient,
 }
 
 impl<'a> LinearGradientIter<'a> {
     pub(crate) fn new(gradient: &'a LinearGradient, start_x: u16) -> Self {
-        let c0 = gradient.stops[0].color.premultiply().to_rgba8_fast();
-        let c1 = gradient.stops[1].color.premultiply().to_rgba8_fast();
-
-        Self {
+        let mut iter = Self {
             next_x: start_x,
-            strip_pos: Tile::HEIGHT,
-            c0,
-            c1,
-            colors: [0; COLOR_COMPONENTS],
+            col_pos: Tile::HEIGHT,
+            stop_idx: 0,
+            x0: 0.0,
+            x1: 0.0,
+            c0: [0; 4],
+            c1: [0; 4],
+            color_buf: [0; COLOR_COMPONENTS],
             gradient,
+        };
+
+        // Initialize with first two stops.
+        iter.advance_window();
+
+        iter
+    }
+}
+
+impl LinearGradientIter<'_> {
+    fn advance_window(&mut self) {
+        if !(self.stop_idx < (self.gradient.stops.len() - 1)) {
+            // Reached the final two stops already.
+            return;
         }
+
+        self.stop_idx += 1;
+        let left_stop = &self.gradient.stops[self.stop_idx - 1];
+        let right_stop = &self.gradient.stops[self.stop_idx];
+
+        let delta = self.x1 - self.x0;
+        self.x0 = self.x0 + delta * left_stop.offset;
+        self.x1 = self.x0 + delta * right_stop.offset;
+        self.c0 = left_stop.color.premultiply().to_rgba8_fast();
+        self.c1 = right_stop.color.premultiply().to_rgba8_fast();
     }
 }
 
@@ -237,16 +273,16 @@ impl Iterator for LinearGradientIter<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         // For linear gradients with no skewing transform, the color values
         // in a column are always the same, so we can cache them.
-        if self.strip_pos < (Tile::HEIGHT - 1) {
-            self.strip_pos += 1;
-            return Some(self.colors);
+        if self.col_pos < (Tile::HEIGHT - 1) {
+            self.col_pos += 1;
+            return Some(self.color_buf);
         }
 
-        self.strip_pos = 0;
+        self.col_pos = 0;
         self.next_x += 1;
 
-        let x0 = self.gradient.x1;
-        let x1 = self.gradient.x2;
+        let x0 = self.gradient.x0;
+        let x1 = self.gradient.x1;
 
         let target_x = (self.next_x as f32 - 1.0).clamp(x0, x1);
 
@@ -257,10 +293,10 @@ impl Iterator for LinearGradientIter<'_> {
             let im3 = target_x - x0;
             let combined = ((im1 / im2) * im3 + 0.5) as i16;
 
-            self.colors[idx] = (self.c0[col_idx] as i16 + combined) as u8;
+            self.color_buf[idx] = (self.c0[col_idx] as i16 + combined) as u8;
         }
 
-        Some(self.colors)
+        Some(self.color_buf)
     }
 }
 
@@ -273,8 +309,8 @@ mod tests {
     #[test]
     fn gradient_iter_1() {
         let gradient = LinearGradient {
-            x1: 10.0,
-            x2: 15.0,
+            x0: 10.0,
+            x1: 15.0,
             stops: vec![
                 Stop {
                     offset: 0.0,
