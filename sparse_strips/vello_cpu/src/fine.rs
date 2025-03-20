@@ -21,6 +21,9 @@ pub(crate) const SCRATCH_BUF_SIZE: usize =
 
 pub(crate) type ScratchBuf = [u8; SCRATCH_BUF_SIZE];
 
+#[derive(Debug)]
+#[doc(hidden)]
+/// This is an internal struct, do not access directly.
 pub struct Fine<'a> {
     pub(crate) width: u16,
     pub(crate) height: u16,
@@ -29,6 +32,7 @@ pub struct Fine<'a> {
 }
 
 impl<'a> Fine<'a> {
+    /// Create a new fine rasterizer.
     pub fn new(width: u16, height: u16, out_buf: &'a mut [u8]) -> Self {
         let scratch = [0; SCRATCH_BUF_SIZE];
 
@@ -65,7 +69,7 @@ impl<'a> Fine<'a> {
         );
     }
 
-    pub(crate) fn run_cmd(&mut self, tile_x: u16, cmd: &Cmd, alphas: &[u32]) {
+    pub(crate) fn run_cmd(&mut self, cmd: &Cmd, alphas: &[u8]) {
         match cmd {
             Cmd::Fill(f) => {
                 self.fill(f.x as usize, tile_x, f.width as usize, &f.paint);
@@ -77,6 +81,7 @@ impl<'a> Fine<'a> {
         }
     }
 
+    /// Fill at a given x and with a width using the given paint.
     pub fn fill(&mut self, x: usize, tile_x: u16, width: usize, paint: &Paint) {
         let target =
             &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
@@ -104,7 +109,8 @@ impl<'a> Fine<'a> {
         }
     }
 
-    pub fn strip(&mut self, x: usize, tile_x: u16, width: usize, alphas: &[u32], paint: &Paint) {
+    /// Strip at a given x and with a width using the given paint and alpha values.
+    pub fn strip(&mut self, x: usize, tile_x: u16, width: usize, alphas: &[u8], paint: &Paint) {
         debug_assert!(
             alphas.len() >= width,
             "alpha buffer doesn't contain sufficient elements"
@@ -186,7 +192,7 @@ pub(crate) mod strip {
     pub(crate) fn src_over<T: Iterator<Item = [u8; COLOR_COMPONENTS]>>(
         target: &mut [u8],
         mut color_iter: T,
-        alphas: &[u32],
+        alphas: &[u8],
     ) {
         for (bg_c, masks) in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS).zip(alphas) {
             for j in 0..usize::from(Tile::HEIGHT) {
