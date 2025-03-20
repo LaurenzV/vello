@@ -264,12 +264,7 @@ impl LinearGradientIter<'_> {
         if !(self.stop_idx < (self.gradient.stops.len() - 1)) {
             // Reached the final two stops already, so simulate a dummy
             // final stop that is padded.
-            if self.gradient.pad {
-                self.reset_to(usize::MAX);
-            } else {
-                self.next_x -= self.gradient.end;
-                self.reset_to(1);
-            }
+            self.reset_to(usize::MAX);
 
             return;
         } else {
