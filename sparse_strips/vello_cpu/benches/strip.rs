@@ -34,7 +34,7 @@ pub fn strip(c: &mut Criterion) {
                     let mut fine = Fine::new(WideTile::WIDTH, Tile::HEIGHT, &mut out);
 
                     for _ in 0..STRIP_ITERS {
-                        fine.strip(0, WideTile::WIDTH as usize, &alphas, $paint);
+                        fine.strip(0, 0, WideTile::WIDTH as usize, &alphas, $paint);
                     }
                 })
             });
