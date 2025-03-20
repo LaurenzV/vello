@@ -97,7 +97,10 @@ impl<'a> Fine<'a> {
                 fill::src_over(target, iter::repeat(color));
             }
             Paint::Gradient(g) => {
-                fill::src_over_grad(target, tile_x * WideTile::WIDTH + x as u16, g);
+                fill::src_over(
+                    target,
+                    GradientIter::new(g, tile_x * WideTile::WIDTH + x as u16),
+                );
             }
             _ => unimplemented!(),
         }
