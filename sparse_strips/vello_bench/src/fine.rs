@@ -37,7 +37,7 @@ pub fn fill(c: &mut Criterion) {
         x0: 0.0,
         x1: WideTile::WIDTH as f32,
         stops: stops_blue_green_red_yellow(),
-        extend: peniko::Extend::Pad
+        extend: peniko::Extend::Pad,
     }
     .into();
 

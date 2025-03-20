@@ -265,21 +265,31 @@ impl LinearGradientIter<'_> {
         if !(self.stop_idx < (self.gradient.stops.len() - 1)) {
             // Reached the final two stops already, so simulate a dummy
             // final stop that is padded.
-            self.stop_idx = usize::MAX;
-            self.x0 = self.x1;
-            self.x1 = f32::MAX;
-            self.c0 = self.c1;
+            self.reset_to(usize::MAX);
             return;
         }
 
-        self.stop_idx += 1;
-        let left_stop = &self.gradient.stops[self.stop_idx - 1];
-        let right_stop = &self.gradient.stops[self.stop_idx];
+        self.reset_to(self.stop_idx + 1);
+    }
+    
+    fn reset_to(&mut self, stop_idx: usize) {
+        self.stop_idx = stop_idx;
+        
+        if self.stop_idx == usize::MAX {
+            let last = self.gradient.stops.last().unwrap();
+            self.x0 = self.gradient.end;
+            self.x1 = f32::MAX;
+            self.c0 = last.color.premultiply().to_rgba8_fast();
+            self.c1 = self.c0;
+        }   else {
+            let left_stop = &self.gradient.stops[self.stop_idx - 1];
+            let right_stop = &self.gradient.stops[self.stop_idx];
 
-        self.x0 = self.gradient.end * left_stop.offset;
-        self.x1 = self.gradient.end * right_stop.offset;
-        self.c0 = left_stop.color.premultiply().to_rgba8_fast();
-        self.c1 = right_stop.color.premultiply().to_rgba8_fast();
+            self.x0 = self.gradient.end * left_stop.offset;
+            self.x1 = self.gradient.end * right_stop.offset;
+            self.c0 = left_stop.color.premultiply().to_rgba8_fast();
+            self.c1 = right_stop.color.premultiply().to_rgba8_fast();
+        }
     }
 }
 
@@ -303,8 +313,8 @@ impl Iterator for LinearGradientIter<'_> {
         while cur_x > self.x1 {
             self.advance_window();
         }
-
-        // Spread method `pad`
+        
+        // Basically only needed for spread method clamp.
         let cur_x = cur_x.clamp(0.0, self.gradient.end);
 
         for col_idx in 0..COLOR_COMPONENTS {
