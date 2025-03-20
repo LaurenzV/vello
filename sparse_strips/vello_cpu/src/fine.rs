@@ -175,7 +175,6 @@ pub(crate) mod fill {
         for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
             for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
                 let src_c = color_iter.next().unwrap();
-
                 for i in 0..COLOR_COMPONENTS {
                     bg_c[i] = src_c[i] + div_255(bg_c[i] as u16 * (255 - src_c[3] as u16)) as u8;
                 }
@@ -302,7 +301,7 @@ impl Iterator for LinearGradientIter<'_> {
         let mut cur_x = self.next_x as f32 - 1.0;
 
         // It's possible that we have to skip multiple stops.
-        if cur_x > self.x1 {
+        while cur_x > self.x1 {
             self.advance_window();
         }
 
