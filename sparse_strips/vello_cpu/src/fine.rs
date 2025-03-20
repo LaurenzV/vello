@@ -106,7 +106,7 @@ impl<'a> Fine<'a> {
         }
     }
 
-    pub(crate) fn strip(&mut self, x: usize, width: usize, alphas: &[u32], paint: &Paint) {
+    pub fn strip(&mut self, x: usize, width: usize, alphas: &[u32], paint: &Paint) {
         debug_assert!(
             alphas.len() >= width,
             "alpha buffer doesn't contain sufficient elements"

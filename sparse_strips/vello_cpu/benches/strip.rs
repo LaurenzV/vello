@@ -42,5 +42,5 @@ pub fn strip(c: &mut Criterion) {
     }
 
     let solid_paint: Paint = AlphaColor::from_rgba8(230, 129, 185, 160).into();
-    strip_single!(fill_transparent, &solid_paint);
+    strip_single!(transparent, &solid_paint);
 }
