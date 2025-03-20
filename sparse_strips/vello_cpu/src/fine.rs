@@ -271,24 +271,24 @@ impl LinearGradientIter<'_> {
 
         self.reset_to(self.stop_idx + 1);
     }
-    
+
     fn reset_to(&mut self, stop_idx: usize) {
         self.stop_idx = stop_idx;
-        
+
         if self.stop_idx == usize::MAX {
             let last = self.gradient.stops.last().unwrap();
             self.x0 = self.gradient.end;
             self.x1 = f32::MAX;
-            self.c0 = last.color.premultiply().to_rgba8_fast();
+            self.c0 = last.color;
             self.c1 = self.c0;
-        }   else {
+        } else {
             let left_stop = &self.gradient.stops[self.stop_idx - 1];
             let right_stop = &self.gradient.stops[self.stop_idx];
 
             self.x0 = self.gradient.end * left_stop.offset;
             self.x1 = self.gradient.end * right_stop.offset;
-            self.c0 = left_stop.color.premultiply().to_rgba8_fast();
-            self.c1 = right_stop.color.premultiply().to_rgba8_fast();
+            self.c0 = left_stop.color;
+            self.c1 = right_stop.color;
         }
     }
 }
@@ -313,7 +313,7 @@ impl Iterator for LinearGradientIter<'_> {
         while cur_x > self.x1 {
             self.advance_window();
         }
-        
+
         // Basically only needed for spread method clamp.
         let cur_x = cur_x.clamp(0.0, self.gradient.end);
 
@@ -337,7 +337,7 @@ mod tests {
     use vello_common::color::palette::css::{BLACK, BLUE, GREEN, WHITE};
     use vello_common::paint::{LinearGradient, Stop};
     use vello_common::peniko::Extend;
-    // 
+    //
     // #[test]
     // fn gradient_iter_1() {
     //     let gradient = LinearGradient {
@@ -355,10 +355,10 @@ mod tests {
     //         ],
     //         extend: Extend::Pad,
     //     };
-    // 
+    //
     //     let inner = gradient.into();
     //     let mut iter = LinearGradientIter::new(&inner, 10);
-    // 
+    //
     //     for i in 0..20 {
     //         println!("{:?}", iter.next().unwrap());
     //     }

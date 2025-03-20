@@ -5,14 +5,33 @@
 
 use std::sync::Arc;
 use peniko::color::{AlphaColor, Srgb};
+use crate::color::PremulColor;
 
 /// A color stop.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Stop {
     /// The normalized offset of the stop.
     pub offset: f32,
     /// The color of the stop.
     pub color: AlphaColor<Srgb>,
+}
+
+/// A color stop.
+#[derive(Debug, Clone)]
+pub struct InnerStop {
+    /// The normalized offset of the stop.
+    pub offset: f32,
+    /// The color of the stop.
+    pub color: [u8; 4],
+}
+
+impl From<Stop> for InnerStop {
+    fn from(value: Stop) -> Self {
+        Self {
+            offset: value.offset,
+            color: value.color.premultiply().to_rgba8_fast(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -30,7 +49,7 @@ pub struct LinearGradient {
 pub struct InnerLinearGradient {
     pub end: f32,
     pub offset: f32,
-    pub stops: Vec<Stop>,
+    pub stops: Vec<InnerStop>,
 }
 
 impl From<LinearGradient> for InnerLinearGradient {
@@ -39,14 +58,17 @@ impl From<LinearGradient> for InnerLinearGradient {
         let mut x1 = value.x1;
         
         let stops = if value.x0 <= value.x1 {
-            value.stops.clone()
+            value.stops.iter().map(|s| {
+                let s: InnerStop = (*s).into();
+                s
+            }).collect()
         }   else {
             std::mem::swap(&mut x0, &mut x1);
             
             value.stops.iter().rev().map(|s| {
-                Stop {
+                InnerStop {
                     offset: 1.0 - s.offset,
-                    color: s.color 
+                    color: s.color.premultiply().to_rgba8_fast() 
                 }
             }).collect::<Vec<_>>()
         };
@@ -84,5 +106,31 @@ impl From<AlphaColor<Srgb>> for Paint {
 impl From<LinearGradient> for Paint {
     fn from(value: LinearGradient) -> Self {
         Self::Gradient(Arc::new(InnerLinearGradient::from(value)))
+    }
+}
+
+
+pub(crate) trait ColorExt {
+    /// Using the already-existing `to_rgba8` is slow on x86 because it involves rounding, so
+    /// we use a fast method with just + 0.5.
+    fn to_rgba8_fast(&self) -> [u8; 4];
+}
+
+impl ColorExt for PremulColor<Srgb> {
+    #[inline(always)]
+    fn to_rgba8_fast(&self) -> [u8; 4] {
+        [
+            (self.components[0] * 255.0 + 0.5) as u8,
+            (self.components[1] * 255.0 + 0.5) as u8,
+            (self.components[2] * 255.0 + 0.5) as u8,
+            (self.components[3] * 255.0 + 0.5) as u8,
+        ]
+    }
+}
+
+pub(crate) mod scalar {
+    #[inline(always)]
+    pub(crate) const fn div_255(val: u16) -> u16 {
+        (val + 1 + (val >> 8)) >> 8
     }
 }
