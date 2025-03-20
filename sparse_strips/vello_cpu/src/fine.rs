@@ -299,7 +299,7 @@ impl Iterator for LinearGradientIter<'_> {
         self.col_pos = 0;
         self.next_x += 1;
 
-        let mut cur_x = self.next_x as f32 - 1.0;
+        let cur_x = self.next_x as f32 - 1.0;
 
         // It's possible that we have to skip multiple stops.
         while cur_x > self.x1 {

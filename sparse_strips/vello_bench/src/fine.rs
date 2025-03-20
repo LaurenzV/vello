@@ -6,7 +6,8 @@ use criterion::Criterion;
 use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
 use vello_common::coarse::WideTile;
-use vello_common::color::palette::css::ROYAL_BLUE;
+use vello_common::color::palette::css::{BLUE, GREEN, RED, ROYAL_BLUE, YELLOW};
+use vello_common::paint::{LinearGradient, Paint, Stop};
 use vello_common::tile::Tile;
 use vello_cpu::fine::Fine;
 
@@ -21,7 +22,7 @@ pub fn fill(c: &mut Criterion) {
                     let mut fine = Fine::new(WideTile::WIDTH, Tile::HEIGHT, &mut out);
 
                     for _ in 0..FINE_ITERS {
-                        fine.fill(0, WideTile::WIDTH as usize, $paint);
+                        fine.fill(0, 0, WideTile::WIDTH as usize, $paint);
                     }
                 })
             });
@@ -30,6 +31,15 @@ pub fn fill(c: &mut Criterion) {
 
     fill_single!(opaque, &ROYAL_BLUE.into());
     fill_single!(transparent, &ROYAL_BLUE.with_alpha(0.2).into());
+
+    let linear: Paint = LinearGradient {
+        x0: 0.0,
+        x1: WideTile::WIDTH as f32,
+        stops: stops_blue_green_red_yellow(),
+    }
+    .into();
+
+    fill_single!(linear_gradient, &linear);
 }
 
 pub fn strip(c: &mut Criterion) {
@@ -50,7 +60,7 @@ pub fn strip(c: &mut Criterion) {
                     let mut fine = Fine::new(WideTile::WIDTH, Tile::HEIGHT, &mut out);
 
                     for _ in 0..FINE_ITERS {
-                        fine.strip(0, WideTile::WIDTH as usize, &alphas, $paint);
+                        fine.strip(0, 0, WideTile::WIDTH as usize, &alphas, $paint);
                     }
                 })
             });
@@ -58,4 +68,34 @@ pub fn strip(c: &mut Criterion) {
     }
 
     strip_single!(basic, &ROYAL_BLUE.into());
+
+    let linear: Paint = LinearGradient {
+        x0: 0.0,
+        x1: WideTile::WIDTH as f32,
+        stops: stops_blue_green_red_yellow(),
+    }
+        .into();
+
+    strip_single!(linear_gradient, &linear);
+}
+
+fn stops_blue_green_red_yellow() -> Vec<Stop> {
+    vec![
+        Stop {
+            offset: 0.0,
+            color: BLUE,
+        },
+        Stop {
+            offset: 0.33,
+            color: GREEN,
+        },
+        Stop {
+            offset: 0.66,
+            color: RED,
+        },
+        Stop {
+            offset: 1.0,
+            color: YELLOW,
+        },
+    ]
 }
