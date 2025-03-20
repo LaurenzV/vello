@@ -6,7 +6,7 @@
 use crate::util::{check_ref, get_ctx, render_pixmap};
 use std::f64::consts::PI;
 use vello_common::color::palette::css::{
-    BEIGE, BLUE, DARK_GREEN, GREEN, LIME, MAROON, REBECCA_PURPLE, RED, WHITE, YELLOW,
+    BEIGE, BLACK, BLUE, DARK_GREEN, GREEN, LIME, MAROON, REBECCA_PURPLE, RED, WHITE, YELLOW,
 };
 use vello_common::kurbo::{Affine, BezPath, Circle, Join, Point, Rect, Shape, Stroke};
 use vello_common::paint::{LinearGradient, Stop};
@@ -524,29 +524,71 @@ fn filled_vertical_hairline_rect_2() {
 }
 
 #[test]
-fn gradient_test() {
-    let mut ctx = get_ctx(500, 500, false);
-    let rect = Rect::new(50.0, 40.0, 400.0, 400.0);
+fn gradient_linear_2_stops() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        x0: 0.0,
-        x1: 500.0,
-        stops: vec![
-            Stop {
-                offset: 0.0,
-                color: GREEN,
-            },
-            Stop {
-                offset: 1.0,
-                color: BLUE,
-            },
-        ],
+        x0: 20.0,
+        x1: 180.0,
+        stops: stops_red_green(),
     };
 
     ctx.set_paint(gradient.into());
     ctx.fill_rect(&rect);
 
-    check_ref(&ctx, "gradient_test");
+    check_ref(&ctx, "gradient_2_stops");
+}
+
+#[test]
+fn gradient_spread_method_pad() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = LinearGradient {
+        x0: 70.0,
+        x1: 130.0,
+        stops: stops_red_green(),
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_spread_method_pad");
+}
+
+#[test]
+fn gradient_linear_4_stops() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = LinearGradient {
+        x0: 20.0,
+        x1: 180.0,
+        stops: stops_blue_green_red_yellow(),
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_4_stops");
+}
+
+#[test]
+fn gradient_complex_shape() {
+    let mut ctx = get_ctx(200, 200, false);
+    let path = Affine::scale(2.0) * star_path();
+
+    let gradient = LinearGradient {
+        x0: 0.0,
+        x1: 2000.0,
+        stops: stops_blue_green_red_yellow(),
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_path(&path);
+
+    check_ref(&ctx, "gradient_complex_shape");
 }
 
 fn miter_stroke_2() -> Stroke {
@@ -594,4 +636,51 @@ macro_rules! compose_impl {
 #[test]
 fn compose_solid_src_over() {
     compose_impl!(Compose::SrcOver, "compose_solid_src_over");
+}
+
+fn stops_red_green() -> Vec<Stop> {
+    vec![
+        Stop {
+            offset: 0.0,
+            color: GREEN,
+        },
+        Stop {
+            offset: 1.0,
+            color: BLUE,
+        },
+    ]
+}
+
+fn stops_black_white() -> Vec<Stop> {
+    vec![
+        Stop {
+            offset: 0.0,
+            color: BLACK,
+        },
+        Stop {
+            offset: 1.0,
+            color: WHITE,
+        },
+    ]
+}
+
+fn stops_blue_green_red_yellow() -> Vec<Stop> {
+    vec![
+        Stop {
+            offset: 0.0,
+            color: BLUE,
+        },
+        Stop {
+            offset: 0.33,
+            color: GREEN,
+        },
+        Stop {
+            offset: 0.66,
+            color: RED,
+        },
+        Stop {
+            offset: 1.0,
+            color: YELLOW,
+        },
+    ]
 }
