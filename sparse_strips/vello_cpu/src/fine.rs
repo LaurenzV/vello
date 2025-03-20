@@ -259,9 +259,9 @@ impl LinearGradientIter<'_> {
         let left_stop = &self.gradient.stops[self.stop_idx - 1];
         let right_stop = &self.gradient.stops[self.stop_idx];
 
-        let delta = self.x1 - self.x0;
-        self.x0 = self.x0 + delta * left_stop.offset;
-        self.x1 = self.x0 + delta * right_stop.offset;
+        let delta = self.gradient.x1 - self.gradient.x0;
+        self.x0 = self.gradient.x0 + delta * left_stop.offset;
+        self.x1 = self.gradient.x0 + delta * right_stop.offset;
         self.c0 = left_stop.color.premultiply().to_rgba8_fast();
         self.c1 = right_stop.color.premultiply().to_rgba8_fast();
     }
@@ -281,16 +281,22 @@ impl Iterator for LinearGradientIter<'_> {
         self.col_pos = 0;
         self.next_x += 1;
 
-        let x0 = self.gradient.x0;
-        let x1 = self.gradient.x1;
+        let mut cur_x = self.next_x as f32 - 1.0;
 
-        let target_x = (self.next_x as f32 - 1.0).clamp(x0, x1);
+        if cur_x > self.x1 {
+            self.advance_window();
+            // TODO: Might have to advance multiple times, but need to make sure we don't land
+            // in an infinity loop.
+        }
+
+        // Spread method `pad`
+        let cur_x = cur_x.clamp(self.gradient.x0, self.gradient.x1);
 
         for col_idx in 0..COLOR_COMPONENTS {
             let idx = col_idx;
             let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
-            let im2 = x1 - x0;
-            let im3 = target_x - x0;
+            let im2 = self.x1 - self.x0;
+            let im3 = cur_x - self.x0;
             let combined = ((im1 / im2) * im3 + 0.5) as i16;
 
             self.color_buf[idx] = (self.c0[col_idx] as i16 + combined) as u8;
