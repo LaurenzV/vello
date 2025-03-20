@@ -97,10 +97,8 @@ impl<'a> Fine<'a> {
                 fill::src_over(target, iter::repeat(color));
             }
             Paint::Gradient(g) => {
-                fill::src_over(
-                    target,
-                    GradientIter::new(g, tile_x * WideTile::WIDTH + x as u16),
-                );
+                let start_x = tile_x * WideTile::WIDTH + x as u16;
+                fill::src_over(target, GradientIter::new(g, start_x));
             }
             _ => unimplemented!(),
         }
@@ -119,7 +117,7 @@ impl<'a> Fine<'a> {
                 let target = &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..]
                     [..TILE_HEIGHT_COMPONENTS * width];
 
-                strip::src_over(target, &color, alphas);
+                strip::src_over(target, iter::repeat(color), alphas);
             }
             _ => {
                 let color = RED.premultiply().to_rgba8_fast();
@@ -127,7 +125,7 @@ impl<'a> Fine<'a> {
                 let target = &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..]
                     [..TILE_HEIGHT_COMPONENTS * width];
 
-                strip::src_over(target, &color, alphas);
+                strip::src_over(target, iter::repeat(color), alphas);
             }
         }
     }
@@ -164,9 +162,8 @@ pub(crate) mod fill {
     // See https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators for the
     // formulas.
 
-    use crate::fine::{COLOR_COMPONENTS, GradientIter, TILE_HEIGHT_COMPONENTS};
+    use crate::fine::{COLOR_COMPONENTS, TILE_HEIGHT_COMPONENTS};
     use crate::util::scalar::div_255;
-    use vello_common::paint::LinearGradient;
 
     pub(crate) fn src_over<T: Iterator<Item = [u8; COLOR_COMPONENTS]>>(
         target: &mut [u8],
@@ -182,21 +179,6 @@ pub(crate) mod fill {
             }
         }
     }
-
-    pub(crate) fn src_over_grad(target: &mut [u8], x: u16, grad: &LinearGradient) {
-        let mut iter = GradientIter::new(grad, x);
-
-        for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
-            for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
-                let src_c = iter.next().unwrap();
-                let src_a = src_c[3] as u16;
-
-                for i in 0..COLOR_COMPONENTS {
-                    bg_c[i] = src_c[i] + div_255(bg_c[i] as u16 * (255 - src_a)) as u8;
-                }
-            }
-        }
-    }
 }
 
 pub(crate) mod strip {
@@ -204,13 +186,16 @@ pub(crate) mod strip {
     use crate::util::scalar::div_255;
     use vello_common::tile::Tile;
 
-    pub(crate) fn src_over(target: &mut [u8], src_c: &[u8; COLOR_COMPONENTS], alphas: &[u32]) {
-        let src_a = src_c[3] as u16;
-
+    pub(crate) fn src_over<T: Iterator<Item = [u8; COLOR_COMPONENTS]>>(
+        target: &mut [u8],
+        mut color_iter: T,
+        alphas: &[u32],
+    ) {
         for (bg_c, masks) in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS).zip(alphas) {
             for j in 0..usize::from(Tile::HEIGHT) {
+                let src_c = color_iter.next().unwrap();
                 let mask_a = ((*masks >> (j * 8)) & 0xff) as u16;
-                let inv_src_a_mask_a = 255 - div_255(mask_a * src_a);
+                let inv_src_a_mask_a = 255 - div_255(mask_a * src_c[3] as u16);
 
                 for i in 0..COLOR_COMPONENTS {
                     let im1 = bg_c[j * COLOR_COMPONENTS + i] as u16 * inv_src_a_mask_a;
