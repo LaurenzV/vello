@@ -7,7 +7,7 @@ use std::sync::Arc;
 use peniko::color::{AlphaColor, Srgb};
 
 /// A color stop.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Stop {
     /// The normalized offset of the stop.
     pub offset: f32,
@@ -15,7 +15,7 @@ pub struct Stop {
     pub color: AlphaColor<Srgb>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LinearGradient {
     /// The x coordinate of the first point.
     pub x0: f32,
@@ -27,6 +27,39 @@ pub struct LinearGradient {
     pub stops: Vec<Stop>,
 }
 
+#[derive(Debug, Clone)]
+pub struct InnerLinearGradient {
+    pub x0: f32,
+    /// The x coordinate of the second point.
+    pub x1: f32,
+    pub stops: Vec<Stop>,
+}
+
+impl From<LinearGradient> for InnerLinearGradient {
+    fn from(value: LinearGradient) -> Self {
+        if value.x0 <= value.x1 {
+            InnerLinearGradient {
+                x0: value.x0,
+                x1: value.x1,
+                stops: value.stops.clone(),
+            }
+        }   else {
+            let stops = value.stops.iter().rev().map(|s| {
+                Stop {
+                    offset: 1.0 - s.offset,
+                    color: s.color 
+                }
+            }).collect::<Vec<_>>();
+            
+            InnerLinearGradient {
+                x0: value.x1,
+                x1: value.x0,
+                stops,
+            }
+        }
+    }
+}
+
 // TODO: This will probably turn into a generic type where
 // vello-hybrid and vello-cpu provide their own instantiations for
 // a `Pattern` type.
@@ -36,7 +69,7 @@ pub enum Paint {
     /// A solid color.
     Solid(AlphaColor<Srgb>),
     /// A gradient.
-    Gradient(Arc<LinearGradient>),
+    Gradient(Arc<InnerLinearGradient>),
     /// A pattern.
     Pattern(()),
 }
@@ -49,6 +82,6 @@ impl From<AlphaColor<Srgb>> for Paint {
 
 impl From<LinearGradient> for Paint {
     fn from(value: LinearGradient) -> Self {
-        Self::Gradient(Arc::new(value))
+        Self::Gradient(Arc::new(InnerLinearGradient::from(value)))
     }
 }

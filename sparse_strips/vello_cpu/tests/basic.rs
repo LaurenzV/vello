@@ -531,7 +531,7 @@ fn gradient_on_3_wide_tiles() {
     let gradient = LinearGradient {
         x0: 0.0,
         x1: 600.0,
-        stops: stops_red_green(),
+        stops: stops_green_blue(),
     };
 
     ctx.set_paint(gradient.into());
@@ -548,13 +548,30 @@ fn gradient_linear_2_stops() {
     let gradient = LinearGradient {
         x0: 20.0,
         x1: 180.0,
-        stops: stops_red_green(),
+        stops: stops_green_blue(),
     };
 
     ctx.set_paint(gradient.into());
     ctx.fill_rect(&rect);
 
     check_ref(&ctx, "gradient_2_stops");
+}
+
+#[test]
+fn gradient_linear_negative_direction() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = LinearGradient {
+        x0: 180.0,
+        x1: 20.0,
+        stops: stops_green_blue(),
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_linear_negative_direction");
 }
 
 #[test]
@@ -565,7 +582,7 @@ fn gradient_spread_method_pad() {
     let gradient = LinearGradient {
         x0: 70.0,
         x1: 130.0,
-        stops: stops_red_green(),
+        stops: stops_green_blue(),
     };
 
     ctx.set_paint(gradient.into());
@@ -655,7 +672,7 @@ fn compose_solid_src_over() {
     compose_impl!(Compose::SrcOver, "compose_solid_src_over");
 }
 
-fn stops_red_green() -> Vec<Stop> {
+fn stops_green_blue() -> Vec<Stop> {
     vec![
         Stop {
             offset: 0.0,

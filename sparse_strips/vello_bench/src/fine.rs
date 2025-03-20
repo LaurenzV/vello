@@ -74,7 +74,7 @@ pub fn strip(c: &mut Criterion) {
         x1: WideTile::WIDTH as f32,
         stops: stops_blue_green_red_yellow(),
     }
-        .into();
+    .into();
 
     strip_single!(linear_gradient, &linear);
 }

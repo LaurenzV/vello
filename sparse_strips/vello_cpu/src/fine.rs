@@ -6,8 +6,7 @@
 
 use crate::util::ColorExt;
 use std::iter;
-use vello_common::color::palette::css::RED;
-use vello_common::paint::{LinearGradient, Stop};
+use vello_common::paint::InnerLinearGradient;
 use vello_common::{
     coarse::{Cmd, WideTile},
     paint::Paint,
@@ -232,11 +231,11 @@ pub(crate) struct LinearGradientIter<'a> {
     /// The output buffer for emitting colors from the iterator.
     color_buf: [u8; COLOR_COMPONENTS],
     /// The underlying gradient.
-    gradient: &'a LinearGradient,
+    gradient: &'a InnerLinearGradient,
 }
 
 impl<'a> LinearGradientIter<'a> {
-    pub(crate) fn new(gradient: &'a LinearGradient, start_x: u16) -> Self {
+    pub(crate) fn new(gradient: &'a InnerLinearGradient, start_x: u16) -> Self {
         let mut iter = Self {
             next_x: start_x,
             col_pos: Tile::HEIGHT,
@@ -346,7 +345,8 @@ mod tests {
             ],
         };
 
-        let mut iter = LinearGradientIter::new(&gradient, 10);
+        let inner = gradient.into();
+        let mut iter = LinearGradientIter::new(&inner, 10);
 
         for i in 0..20 {
             println!("{:?}", iter.next().unwrap());
