@@ -11,7 +11,7 @@ use vello_common::color::palette::css::{
 use vello_common::kurbo::{Affine, BezPath, Circle, Join, Point, Rect, Shape, Stroke};
 use vello_common::paint::{LinearGradient, Stop};
 use vello_common::peniko;
-use vello_common::peniko::Compose;
+use vello_common::peniko::{Compose, Extend};
 use vello_cpu::RenderContext;
 
 mod util;
@@ -532,6 +532,7 @@ fn gradient_on_3_wide_tiles() {
         x0: 0.0,
         x1: 600.0,
         stops: stops_green_blue(),
+        extend: Extend::Pad,
     };
 
     ctx.set_paint(gradient.into());
@@ -549,6 +550,7 @@ fn gradient_linear_2_stops() {
         x0: 20.0,
         x1: 180.0,
         stops: stops_green_blue(),
+        extend: Extend::Pad,
     };
 
     ctx.set_paint(gradient.into());
@@ -566,6 +568,7 @@ fn gradient_linear_negative_direction() {
         x0: 180.0,
         x1: 20.0,
         stops: stops_green_blue(),
+        extend: Extend::Pad,
     };
 
     ctx.set_paint(gradient.into());
@@ -583,6 +586,7 @@ fn gradient_spread_method_pad() {
         x0: 70.0,
         x1: 130.0,
         stops: stops_green_blue(),
+        extend: Extend::Pad,
     };
 
     ctx.set_paint(gradient.into());
@@ -600,6 +604,7 @@ fn gradient_linear_4_stops() {
         x0: 20.0,
         x1: 180.0,
         stops: stops_blue_green_red_yellow(),
+        extend: Extend::Pad,
     };
 
     ctx.set_paint(gradient.into());
@@ -617,6 +622,7 @@ fn gradient_complex_shape() {
         x0: 0.0,
         x1: 200.0,
         stops: stops_blue_green_red_yellow(),
+        extend: Extend::Pad,
     };
 
     ctx.set_paint(gradient.into());

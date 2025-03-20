@@ -8,6 +8,7 @@ use rand::{Rng, SeedableRng};
 use vello_common::coarse::WideTile;
 use vello_common::color::palette::css::{BLUE, GREEN, RED, ROYAL_BLUE, YELLOW};
 use vello_common::paint::{LinearGradient, Paint, Stop};
+use vello_common::peniko;
 use vello_common::tile::Tile;
 use vello_cpu::fine::Fine;
 
@@ -36,6 +37,7 @@ pub fn fill(c: &mut Criterion) {
         x0: 0.0,
         x1: WideTile::WIDTH as f32,
         stops: stops_blue_green_red_yellow(),
+        extend: peniko::Extend::Pad
     }
     .into();
 
@@ -73,6 +75,7 @@ pub fn strip(c: &mut Criterion) {
         x0: 0.0,
         x1: WideTile::WIDTH as f32,
         stops: stops_blue_green_red_yellow(),
+        extend: peniko::Extend::Pad,
     }
     .into();
 

@@ -22,9 +22,8 @@ pub struct LinearGradient {
     /// The x coordinate of the second point.
     pub x1: f32,
     /// The color stops of the linear gradient.
-    ///
-    /// Note that all stops need to be in the same color space.
     pub stops: Vec<Stop>,
+    pub extend: peniko::Extend
 }
 
 #[derive(Debug, Clone)]
@@ -37,25 +36,25 @@ pub struct InnerLinearGradient {
 
 impl From<LinearGradient> for InnerLinearGradient {
     fn from(value: LinearGradient) -> Self {
-        if value.x0 <= value.x1 {
-            InnerLinearGradient {
-                x0: value.x0,
-                x1: value.x1,
-                stops: value.stops.clone(),
-            }
+        let mut x0 = value.x0;
+        let mut x1 = value.x1;
+        
+        let stops = if value.x0 <= value.x1 {
+            value.stops.clone()
         }   else {
-            let stops = value.stops.iter().rev().map(|s| {
+            std::mem::swap(&mut x0, &mut x1);
+            value.stops.iter().rev().map(|s| {
                 Stop {
                     offset: 1.0 - s.offset,
                     color: s.color 
                 }
-            }).collect::<Vec<_>>();
-            
-            InnerLinearGradient {
-                x0: value.x1,
-                x1: value.x0,
-                stops,
-            }
+            }).collect::<Vec<_>>()
+        };
+        
+        InnerLinearGradient {
+            x0,
+            x1,
+            stops,
         }
     }
 }

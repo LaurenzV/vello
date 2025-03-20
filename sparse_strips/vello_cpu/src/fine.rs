@@ -327,6 +327,7 @@ mod tests {
     use crate::fine::LinearGradientIter;
     use vello_common::color::palette::css::{BLACK, BLUE, GREEN, WHITE};
     use vello_common::paint::{LinearGradient, Stop};
+    use vello_common::peniko::Extend;
 
     #[test]
     fn gradient_iter_1() {
@@ -343,6 +344,7 @@ mod tests {
                     color: BLACK,
                 },
             ],
+            extend: Extend::Pad,
         };
 
         let inner = gradient.into();
