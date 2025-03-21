@@ -529,8 +529,8 @@ fn gradient_on_3_wide_tiles() {
     let rect = Rect::new(4.0, 4.0, 596.0, 28.0);
 
     let gradient = LinearGradient {
-        x0: 0.0,
-        x1: 600.0,
+        p0: Point::new(0.0, 0.0),
+        p1: Point::new(600.0, 0.0),
         stops: stops_green_blue(),
         extend: Extend::Pad,
     };
@@ -547,8 +547,8 @@ fn gradient_linear_2_stops() {
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        x0: 20.0,
-        x1: 180.0,
+        p0: Point::new(20.0, 0.0),
+        p1: Point::new(180.0, 0.0),
         stops: stops_green_blue(),
         extend: Extend::Pad,
     };
@@ -565,8 +565,8 @@ fn gradient_linear_negative_direction() {
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        x0: 180.0,
-        x1: 20.0,
+        p0: Point::new(180.0, 0.0),
+        p1: Point::new(20.0, 0.0),
         stops: stops_green_blue(),
         extend: Extend::Pad,
     };
@@ -583,8 +583,8 @@ fn gradient_spread_method_pad() {
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        x0: 70.0,
-        x1: 130.0,
+        p0: Point::new(70.0, 0.0),
+        p1: Point::new(130.0, 0.0),
         stops: stops_green_blue(),
         extend: Extend::Pad,
     };
@@ -601,8 +601,8 @@ fn gradient_spread_method_repeat() {
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        x0: 90.0,
-        x1: 110.0,
+        p0: Point::new(90.0, 0.0),
+        p1: Point::new(110.0, 0.0),
         stops: stops_green_blue(),
         extend: Extend::Repeat,
     };
@@ -619,8 +619,8 @@ fn gradient_spread_method_reflect() {
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        x0: 90.0,
-        x1: 110.0,
+        p0: Point::new(90.0, 0.0),
+        p1: Point::new(110.0, 0.0),
         stops: stops_green_blue(),
         extend: Extend::Reflect,
     };
@@ -637,8 +637,8 @@ fn gradient_linear_4_stops() {
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        x0: 20.0,
-        x1: 180.0,
+        p0: Point::new(20.0, 0.0),
+        p1: Point::new(180.0, 0.0),
         stops: stops_blue_green_red_yellow(),
         extend: Extend::Pad,
     };
@@ -655,8 +655,8 @@ fn gradient_complex_shape() {
     let path = Affine::scale(2.0) * star_path();
 
     let gradient = LinearGradient {
-        x0: 0.0,
-        x1: 200.0,
+        p0: Point::new(0.0, 0.0),
+        p1: Point::new(200.0, 0.0),
         stops: stops_blue_green_red_yellow(),
         extend: Extend::Pad,
     };

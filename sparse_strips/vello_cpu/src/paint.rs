@@ -1,15 +1,14 @@
+use crate::util::ColorExt;
 use std::sync::Arc;
 use vello_common::color::{AlphaColor, Srgb};
 use vello_common::paint::{LinearGradient, Paint, Stop};
 use vello_common::peniko::Extend;
-use crate::util::ColorExt;
 
 #[derive(Clone, Debug)]
 pub enum EncodedPaint {
     Solid([u8; 4]),
-    LinearGradient(Arc<EncodedLinearGradient>)
+    LinearGradient(Arc<EncodedLinearGradient>),
 }
-
 
 #[derive(Debug, Clone)]
 pub struct EncodedLinearGradient {
@@ -21,27 +20,36 @@ pub struct EncodedLinearGradient {
 
 impl From<LinearGradient> for EncodedLinearGradient {
     fn from(value: LinearGradient) -> Self {
-        let mut x0 = value.x0;
-        let mut x1 = value.x1;
+        let mut p0 = value.p0;
+        let mut p1 = value.p1;
 
-        let mut stops = if value.x0 <= value.x1 {
-            value.stops.iter().map(|s| {
-                let s: EncodedStop = (*s).into();
-                s
-            }).collect()
-        }   else {
-            std::mem::swap(&mut x0, &mut x1);
+        let mut stops = if value.p0.x <= value.p1.x {
+            value
+                .stops
+                .iter()
+                .map(|s| {
+                    let s: EncodedStop = (*s).into();
+                    s
+                })
+                .collect()
+        } else {
+            std::mem::swap(&mut p0, &mut p1);
 
-            value.stops.iter().rev().map(|s| {
-                EncodedStop {
+            value
+                .stops
+                .iter()
+                .rev()
+                .map(|s| EncodedStop {
                     offset: 1.0 - s.offset,
-                    color: s.color.premultiply().to_rgba8_fast()
-                }
-            }).collect::<Vec<_>>()
+                    color: s.color.premultiply().to_rgba8_fast(),
+                })
+                .collect::<Vec<_>>()
         };
 
+        // Double the length of the iterator, and append stops in reverse order.
+        // Then we can treat it the same as repeated gradients.
         if value.extend == Extend::Reflect {
-            x1 += x1 - x0;
+            p1.x += p1.x - p0.x;
 
             let first_half = stops.iter().map(|s| EncodedStop {
                 offset: s.offset / 2.0,
@@ -57,13 +65,13 @@ impl From<LinearGradient> for EncodedLinearGradient {
             stops = combined;
         }
 
-        let offset = -x0;
+        let offset = -p0.x as f32;
 
         EncodedLinearGradient {
             offset,
-            end: x1 + offset,
+            end: p1.x as f32 + offset,
             stops,
-            pad: value.extend == Extend::Pad
+            pad: value.extend == Extend::Pad,
         }
     }
 }
@@ -91,7 +99,7 @@ impl From<Paint> for EncodedPaint {
         match value {
             Paint::Solid(c) => c.into(),
             Paint::LinearGradient(l) => l.into(),
-            Paint::Pattern(_) => unimplemented!()
+            Paint::Pattern(_) => unimplemented!(),
         }
     }
 }

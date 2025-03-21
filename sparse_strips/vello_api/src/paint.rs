@@ -3,10 +3,9 @@
 
 //! Types for paints.
 
-use std::sync::Arc;
 use peniko::color::{AlphaColor, Srgb};
 use peniko::Extend;
-use crate::color::PremulColor;
+use crate::kurbo::Point;
 
 /// A color stop.
 #[derive(Debug, Clone, Copy)]
@@ -20,9 +19,9 @@ pub struct Stop {
 #[derive(Debug, Clone)]
 pub struct LinearGradient {
     /// The x coordinate of the first point.
-    pub x0: f32,
+    pub p0: Point,
     /// The x coordinate of the second point.
-    pub x1: f32,
+    pub p1: Point,
     /// The color stops of the linear gradient.
     pub stops: Vec<Stop>,
     pub extend: Extend

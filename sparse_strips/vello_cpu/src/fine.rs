@@ -4,6 +4,7 @@
 //! Fine rasterization runs the commands in each wide tile to determine the final RGBA value
 //! of each pixel and pack it into the pixmap.
 
+use crate::paint::{EncodedLinearGradient, EncodedPaint};
 use crate::util::ColorExt;
 use std::iter;
 use vello_common::{
@@ -11,7 +12,6 @@ use vello_common::{
     paint::Paint,
     tile::Tile,
 };
-use crate::paint::{EncodedLinearGradient, EncodedPaint};
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -74,11 +74,22 @@ impl<'a> Fine<'a> {
     pub(crate) fn run_cmd(&mut self, tile_x: u16, cmd: &Cmd, alphas: &[u8]) {
         match cmd {
             Cmd::Fill(f) => {
-                self.fill(f.x as usize, tile_x, f.width as usize, &f.paint.clone().into());
+                self.fill(
+                    f.x as usize,
+                    tile_x,
+                    f.width as usize,
+                    &f.paint.clone().into(),
+                );
             }
             Cmd::AlphaFill(s) => {
                 let a_slice = &alphas[s.alpha_ix..];
-                self.strip(s.x as usize, tile_x, s.width as usize, a_slice, &s.paint.clone().into());
+                self.strip(
+                    s.x as usize,
+                    tile_x,
+                    s.width as usize,
+                    a_slice,
+                    &s.paint.clone().into(),
+                );
             }
         }
     }
@@ -118,7 +129,14 @@ impl<'a> Fine<'a> {
     }
 
     /// Strip at a given x and with a width using the given paint and alpha values.
-    pub fn strip(&mut self, x: usize, tile_x: u16, width: usize, alphas: &[u8], paint: &EncodedPaint) {
+    pub fn strip(
+        &mut self,
+        x: usize,
+        tile_x: u16,
+        width: usize,
+        alphas: &[u8],
+        paint: &EncodedPaint,
+    ) {
         debug_assert!(
             alphas.len() >= width,
             "alpha buffer doesn't contain sufficient elements"

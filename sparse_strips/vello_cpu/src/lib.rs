@@ -16,8 +16,8 @@ mod render;
 #[doc(hidden)]
 /// This is an internal module, do not access directly.
 pub mod fine;
-mod util;
 pub mod paint;
+mod util;
 
 pub use render::RenderContext;
 pub use vello_common::pixmap::Pixmap;
