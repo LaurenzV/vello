@@ -7,6 +7,7 @@ use rand::prelude::StdRng;
 use rand::{Rng, SeedableRng};
 use vello_common::coarse::WideTile;
 use vello_common::color::palette::css::{BLUE, GREEN, RED, ROYAL_BLUE, YELLOW};
+use vello_common::kurbo::Point;
 use vello_common::paint::{LinearGradient, Paint, Stop};
 use vello_common::peniko;
 use vello_common::tile::Tile;
@@ -37,8 +38,8 @@ pub fn fill(c: &mut Criterion) {
     macro_rules! fill_single_linear {
         ($name:ident, $extend:ident) => {
             let linear: EncodedPaint = LinearGradient {
-                x0: 0.0,
-                x1: WideTile::WIDTH as f32,
+                p0: Point::new(0.0, 0.0),
+                p1: Point::new(WideTile::WIDTH as f64, 0.0),
                 stops: stops_blue_green_red_yellow(),
                 extend: peniko::Extend::$extend,
             }
@@ -83,8 +84,8 @@ pub fn strip(c: &mut Criterion) {
     macro_rules! strip_single_linear {
         ($name:ident, $extend:ident) => {
             let linear: EncodedPaint = LinearGradient {
-                x0: 0.0,
-                x1: WideTile::WIDTH as f32,
+                p0: Point::new(0.0, 0.0),
+                p1: Point::new(WideTile::WIDTH as f64, 0.0),
                 stops: stops_blue_green_red_yellow(),
                 extend: peniko::Extend::$extend,
             }
