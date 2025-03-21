@@ -27,8 +27,8 @@ pub struct Fine<'a> {
     pub(crate) width: u16,
     pub(crate) height: u16,
     pub(crate) out_buf: &'a mut [u8],
-    pub(crate) scratch: ScratchBuf,
-    pub(crate) color_scratch: ScratchBuf,
+    pub(crate) blend_buf: ScratchBuf,
+    pub(crate) color_buf: ScratchBuf,
 }
 
 impl<'a> Fine<'a> {
@@ -41,8 +41,8 @@ impl<'a> Fine<'a> {
             width,
             height,
             out_buf,
-            scratch,
-            color_scratch
+            blend_buf: scratch,
+            color_buf: color_scratch
         }
     }
 
@@ -52,9 +52,9 @@ impl<'a> Fine<'a> {
             && premul_color[2] == premul_color[3]
         {
             // All components are the same, so we can use memset instead.
-            self.scratch.fill(premul_color[0]);
+            self.blend_buf.fill(premul_color[0]);
         } else {
-            for z in self.scratch.chunks_exact_mut(COLOR_COMPONENTS) {
+            for z in self.blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
                 z.copy_from_slice(&premul_color);
             }
         }
@@ -63,7 +63,7 @@ impl<'a> Fine<'a> {
     pub(crate) fn pack(&mut self, x: u16, y: u16) {
         pack(
             self.out_buf,
-            &self.scratch,
+            &self.blend_buf,
             self.width.into(),
             self.height.into(),
             x.into(),
@@ -85,10 +85,10 @@ impl<'a> Fine<'a> {
 
     /// Fill at a given x and with a width using the given paint.
     pub fn fill(&mut self, x: usize, tile_x: u16, width: usize, paint: &Paint) {
-        let target =
-            &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-        let color_target =
-            &mut self.color_scratch[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let blend_buf =
+            &mut self.blend_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let color_buf =
+            &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
         
         match paint {
             Paint::Solid(c) => {
@@ -96,21 +96,21 @@ impl<'a> Fine<'a> {
 
                 // If color is completely opaque we can just memcopy the colors.
                 if color[3] == 255 {
-                    for t in target.chunks_exact_mut(COLOR_COMPONENTS) {
+                    for t in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
                         t.copy_from_slice(&color);
                     }
 
                     return;
                 }
 
-                fill::src_over(target, iter::repeat(color));
+                fill::src_over(blend_buf, iter::repeat(color));
             }
             Paint::Gradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
-                let mut iter = LinearGradientIter::new(g, start_x);
-                iter.fill(color_target, start_x);
+                let mut iter = GradientFiller::new(g, start_x);
+                iter.run(color_buf);
                 
-                fill::src_over(target, color_target.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]));
+                fill::src_over(blend_buf, color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]));
             }
             _ => unimplemented!(),
         }
@@ -123,22 +123,21 @@ impl<'a> Fine<'a> {
             "alpha buffer doesn't contain sufficient elements"
         );
 
-        let target =
-            &mut self.scratch[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-        let color_target =
-            &mut self.color_scratch[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let blend_buf =
+            &mut self.blend_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let color_buf =
+            &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
         match paint {
             Paint::Solid(s) => {
                 let color = s.premultiply().to_rgba8_fast();
-
-                strip::src_over(target, iter::repeat(color), alphas);
+                strip::src_over(blend_buf, iter::repeat(color), alphas);
             }
             Paint::Gradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
-                let mut iter = LinearGradientIter::new(g, start_x);
-                iter.fill(color_target, start_x);
-                strip::src_over(target, color_target.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]), alphas);
+                let mut iter = GradientFiller::new(g, start_x);
+                iter.run(color_buf);
+                strip::src_over(blend_buf, color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]), alphas);
             }
             _ => unimplemented!(),
         }
@@ -225,7 +224,7 @@ pub(crate) mod strip {
 }
 
 #[derive(Debug)]
-pub(crate) struct LinearGradientIter<'a> {
+pub(crate) struct GradientFiller<'a> {
     /// The position of the next x that should be processed.
     cur_x: f32,
     /// The position of the current column we are generating pixels for.
@@ -246,9 +245,9 @@ pub(crate) struct LinearGradientIter<'a> {
     gradient: &'a InnerLinearGradient,
 }
 
-impl<'a> LinearGradientIter<'a> {
+impl<'a> GradientFiller<'a> {
     pub(crate) fn new(gradient: &'a InnerLinearGradient, start_x: u16) -> Self {
-        let mut iter = Self {
+        let mut filler = Self {
             cur_x: start_x as f32 - 1.0 + gradient.offset,
             col_pos: Tile::HEIGHT,
             stop_idx: gradient.stops.len(),
@@ -260,13 +259,13 @@ impl<'a> LinearGradientIter<'a> {
             gradient,
         };
 
-        iter.advance();
+        filler.advance();
 
-        iter
+        filler
     }
 }
 
-impl LinearGradientIter<'_> {
+impl GradientFiller<'_> {
     fn advance(&mut self) {
         self.stop_idx += 1;
         
@@ -283,7 +282,7 @@ impl LinearGradientIter<'_> {
         self.c1 = right_stop.color;
     }
     
-    fn fill(mut self, target: &mut [u8], start_x: u16) {
+    fn run(mut self, target: &mut [u8]) {
         target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS).for_each(|col| {
             self.cur_x += 1.0;
             let cur_x = self.cur_x.clamp(0.0, self.gradient.end);
@@ -308,38 +307,4 @@ impl LinearGradientIter<'_> {
             }
         })
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::fine::LinearGradientIter;
-    use vello_common::color::palette::css::{BLACK, BLUE, GREEN, WHITE};
-    use vello_common::paint::{LinearGradient, Stop};
-    use vello_common::peniko::Extend;
-    //
-    // #[test]
-    // fn gradient_iter_1() {
-    //     let gradient = LinearGradient {
-    //         x0: 10.0,
-    //         x1: 15.0,
-    //         stops: vec![
-    //             Stop {
-    //                 offset: 0.0,
-    //                 color: WHITE,
-    //             },
-    //             Stop {
-    //                 offset: 1.0,
-    //                 color: BLACK,
-    //             },
-    //         ],
-    //         extend: Extend::Pad,
-    //     };
-    //
-    //     let inner = gradient.into();
-    //     let mut iter = LinearGradientIter::new(&inner, 10);
-    //
-    //     for i in 0..20 {
-    //         println!("{:?}", iter.next().unwrap());
-    //     }
-    // }
 }
