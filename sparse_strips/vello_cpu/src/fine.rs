@@ -249,8 +249,6 @@ pub(crate) mod strip {
 pub(crate) struct GradientFiller<'a> {
     /// The position of the next x that should be processed.
     cur_x: f32,
-    /// The position of the current column we are generating pixels for.
-    col_pos: u16,
     /// The index of the current right stop we are processing.
     stop_idx: usize,
     /// The x-position of the left stop.
@@ -271,7 +269,6 @@ impl<'a> GradientFiller<'a> {
     pub(crate) fn new(gradient: &'a EncodedLinearGradient, start_x: u16) -> Self {
         let mut filler = Self {
             cur_x: start_x as f32 - 1.0 + gradient.x_offset,
-            col_pos: Tile::HEIGHT,
             stop_idx: gradient.stops.len(),
             x0: 0.0,
             x1: 0.0,
