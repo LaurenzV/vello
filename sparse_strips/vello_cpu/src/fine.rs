@@ -270,7 +270,7 @@ pub(crate) struct GradientFiller<'a> {
 impl<'a> GradientFiller<'a> {
     pub(crate) fn new(gradient: &'a EncodedLinearGradient, start_x: u16) -> Self {
         let mut filler = Self {
-            cur_x: start_x as f32 - 1.0 + gradient.offset,
+            cur_x: start_x as f32 - 1.0 + gradient.x_offset,
             col_pos: Tile::HEIGHT,
             stop_idx: gradient.stops.len(),
             x0: 0.0,
