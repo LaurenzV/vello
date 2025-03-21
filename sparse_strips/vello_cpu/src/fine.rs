@@ -6,12 +6,12 @@
 
 use crate::util::ColorExt;
 use std::iter;
-use vello_common::paint::InnerLinearGradient;
 use vello_common::{
     coarse::{Cmd, WideTile},
     paint::Paint,
     tile::Tile,
 };
+use crate::paint::{EncodedLinearGradient, EncodedPaint};
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -74,38 +74,36 @@ impl<'a> Fine<'a> {
     pub(crate) fn run_cmd(&mut self, tile_x: u16, cmd: &Cmd, alphas: &[u8]) {
         match cmd {
             Cmd::Fill(f) => {
-                self.fill(f.x as usize, tile_x, f.width as usize, &f.paint);
+                self.fill(f.x as usize, tile_x, f.width as usize, &f.paint.clone().into());
             }
             Cmd::AlphaFill(s) => {
                 let a_slice = &alphas[s.alpha_ix..];
-                self.strip(s.x as usize, tile_x, s.width as usize, a_slice, &s.paint);
+                self.strip(s.x as usize, tile_x, s.width as usize, a_slice, &s.paint.clone().into());
             }
         }
     }
 
     /// Fill at a given x and with a width using the given paint.
-    pub fn fill(&mut self, x: usize, tile_x: u16, width: usize, paint: &Paint) {
+    pub fn fill(&mut self, x: usize, tile_x: u16, width: usize, paint: &EncodedPaint) {
         let blend_buf =
             &mut self.blend_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
         let color_buf =
             &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
         match paint {
-            Paint::Solid(c) => {
-                let color = c.premultiply().to_rgba8_fast();
-
+            EncodedPaint::Solid(color) => {
                 // If color is completely opaque we can just memcopy the colors.
                 if color[3] == 255 {
                     for t in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
-                        t.copy_from_slice(&color);
+                        t.copy_from_slice(color);
                     }
 
                     return;
                 }
 
-                fill::src_over(blend_buf, iter::repeat(color));
+                fill::src_over(blend_buf, iter::repeat(*color));
             }
-            Paint::Gradient(g) => {
+            EncodedPaint::LinearGradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
                 let mut iter = GradientFiller::new(g, start_x);
                 iter.run(color_buf);
@@ -120,7 +118,7 @@ impl<'a> Fine<'a> {
     }
 
     /// Strip at a given x and with a width using the given paint and alpha values.
-    pub fn strip(&mut self, x: usize, tile_x: u16, width: usize, alphas: &[u8], paint: &Paint) {
+    pub fn strip(&mut self, x: usize, tile_x: u16, width: usize, alphas: &[u8], paint: &EncodedPaint) {
         debug_assert!(
             alphas.len() >= width,
             "alpha buffer doesn't contain sufficient elements"
@@ -132,11 +130,10 @@ impl<'a> Fine<'a> {
             &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
         match paint {
-            Paint::Solid(s) => {
-                let color = s.premultiply().to_rgba8_fast();
-                strip::src_over(blend_buf, iter::repeat(color), alphas);
+            EncodedPaint::Solid(color) => {
+                strip::src_over(blend_buf, iter::repeat(*color), alphas);
             }
-            Paint::Gradient(g) => {
+            EncodedPaint::LinearGradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
                 let mut iter = GradientFiller::new(g, start_x);
                 iter.run(color_buf);
@@ -249,11 +246,11 @@ pub(crate) struct GradientFiller<'a> {
     /// The output buffer for emitting colors from the iterator.
     color_buf: [u8; COLOR_COMPONENTS],
     /// The underlying gradient.
-    gradient: &'a InnerLinearGradient,
+    gradient: &'a EncodedLinearGradient,
 }
 
 impl<'a> GradientFiller<'a> {
-    pub(crate) fn new(gradient: &'a InnerLinearGradient, start_x: u16) -> Self {
+    pub(crate) fn new(gradient: &'a EncodedLinearGradient, start_x: u16) -> Self {
         let mut filler = Self {
             cur_x: start_x as f32 - 1.0 + gradient.offset,
             col_pos: Tile::HEIGHT,

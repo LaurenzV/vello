@@ -11,6 +11,7 @@ use vello_common::paint::{LinearGradient, Paint, Stop};
 use vello_common::peniko;
 use vello_common::tile::Tile;
 use vello_cpu::fine::Fine;
+use vello_cpu::paint::EncodedPaint;
 
 pub fn fill(c: &mut Criterion) {
     let mut g = c.benchmark_group("fine/fill");
@@ -35,7 +36,7 @@ pub fn fill(c: &mut Criterion) {
 
     macro_rules! fill_single_linear {
         ($name:ident, $extend:ident) => {
-            let linear: Paint = LinearGradient {
+            let linear: EncodedPaint = LinearGradient {
                 x0: 0.0,
                 x1: WideTile::WIDTH as f32,
                 stops: stops_blue_green_red_yellow(),
@@ -81,7 +82,7 @@ pub fn strip(c: &mut Criterion) {
 
     macro_rules! strip_single_linear {
         ($name:ident, $extend:ident) => {
-            let linear: Paint = LinearGradient {
+            let linear: EncodedPaint = LinearGradient {
                 x0: 0.0,
                 x1: WideTile::WIDTH as f32,
                 stops: stops_blue_green_red_yellow(),

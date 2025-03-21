@@ -17,6 +17,7 @@ mod render;
 /// This is an internal module, do not access directly.
 pub mod fine;
 mod util;
+pub mod paint;
 
 pub use render::RenderContext;
 pub use vello_common::pixmap::Pixmap;
