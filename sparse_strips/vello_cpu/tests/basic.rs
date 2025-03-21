@@ -614,6 +614,24 @@ fn gradient_spread_method_repeat() {
 }
 
 #[test]
+fn gradient_spread_method_reflect() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = LinearGradient {
+        x0: 90.0,
+        x1: 110.0,
+        stops: stops_green_blue(),
+        extend: Extend::Reflect,
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_spread_method_reflect");
+}
+
+#[test]
 fn gradient_linear_4_stops() {
     let mut ctx = get_ctx(200, 200, false);
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);

@@ -33,15 +33,23 @@ pub fn fill(c: &mut Criterion) {
     fill_single!(opaque, &ROYAL_BLUE.into());
     fill_single!(transparent, &ROYAL_BLUE.with_alpha(0.2).into());
 
-    let linear: Paint = LinearGradient {
-        x0: 0.0,
-        x1: WideTile::WIDTH as f32,
-        stops: stops_blue_green_red_yellow(),
-        extend: peniko::Extend::Pad,
-    }
-    .into();
+    macro_rules! fill_single_linear {
+        ($name:ident, $extend:ident) => {
+            let linear: Paint = LinearGradient {
+                x0: 0.0,
+                x1: WideTile::WIDTH as f32,
+                stops: stops_blue_green_red_yellow(),
+                extend: peniko::Extend::$extend,
+            }
+            .into();
 
-    fill_single!(linear_gradient, &linear);
+            fill_single!($name, &linear);
+        };
+    }
+
+    fill_single_linear!(linear_gradient_pad, Pad);
+    fill_single_linear!(linear_gradient_repeat, Repeat);
+    // Reflect is just a special case of repeat, so not extra benchmarks.
 }
 
 pub fn strip(c: &mut Criterion) {
@@ -71,15 +79,23 @@ pub fn strip(c: &mut Criterion) {
 
     strip_single!(basic, &ROYAL_BLUE.into());
 
-    let linear: Paint = LinearGradient {
-        x0: 0.0,
-        x1: WideTile::WIDTH as f32,
-        stops: stops_blue_green_red_yellow(),
-        extend: peniko::Extend::Pad,
-    }
-    .into();
+    macro_rules! strip_single_linear {
+        ($name:ident, $extend:ident) => {
+            let linear: Paint = LinearGradient {
+                x0: 0.0,
+                x1: WideTile::WIDTH as f32,
+                stops: stops_blue_green_red_yellow(),
+                extend: peniko::Extend::$extend,
+            }
+            .into();
 
-    strip_single!(linear_gradient, &linear);
+            strip_single!($name, &linear);
+        };
+    }
+
+    strip_single_linear!(linear_gradient_pad, Pad);
+    strip_single_linear!(linear_gradient_repeat, Repeat);
+    // Reflect is just a special case of repeat, so not extra benchmarks.
 }
 
 fn stops_blue_green_red_yellow() -> Vec<Stop> {

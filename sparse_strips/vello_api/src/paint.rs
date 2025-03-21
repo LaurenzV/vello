@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 use peniko::color::{AlphaColor, Srgb};
+use peniko::Extend;
 use crate::color::PremulColor;
 
 /// A color stop.
@@ -42,7 +43,7 @@ pub struct LinearGradient {
     pub x1: f32,
     /// The color stops of the linear gradient.
     pub stops: Vec<Stop>,
-    pub extend: peniko::Extend
+    pub extend: Extend
 }
 
 #[derive(Debug, Clone)]
@@ -58,7 +59,7 @@ impl From<LinearGradient> for InnerLinearGradient {
         let mut x0 = value.x0;
         let mut x1 = value.x1;
         
-        let stops = if value.x0 <= value.x1 {
+        let mut stops = if value.x0 <= value.x1 {
             value.stops.iter().map(|s| {
                 let s: InnerStop = (*s).into();
                 s
@@ -74,13 +75,30 @@ impl From<LinearGradient> for InnerLinearGradient {
             }).collect::<Vec<_>>()
         };
         
+        if value.extend == Extend::Reflect {
+            x1 += x1 - x0;
+            
+            let first_half = stops.iter().map(|s| InnerStop {
+                offset: s.offset / 2.0,
+                color: s.color,
+            });
+            
+            let second_half = stops.iter().rev().map(|s| InnerStop {
+                offset: 0.5 + (1.0 - s.offset) / 2.0,
+                color: s.color,
+            });
+            
+            let combined = first_half.chain(second_half).collect::<Vec<_>>();
+            stops = combined;
+        }
+        
         let offset = -x0;
         
         InnerLinearGradient {
             offset,
             end: x1 + offset,
             stops,
-            pad: value.extend == peniko::Extend::Pad
+            pad: value.extend == Extend::Pad
         }
     }
 }
