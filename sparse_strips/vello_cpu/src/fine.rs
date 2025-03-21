@@ -256,33 +256,19 @@ impl<'a> LinearGradientIter<'a> {
 
 impl LinearGradientIter<'_> {
     fn advance(&mut self) {
-        let min = 0;
-        let max = self.gradient.stops.len();
-        self.stop_idx = (self.stop_idx + 1) % (max + 1);
-
-        if self.stop_idx == max {
-            // Special case when passing the last stop.
-            let last = self.gradient.stops.last().unwrap();
-            self.x0 = self.gradient.end;
-            self.x1 = f32::MAX;
-            self.c0 = last.color;
-            self.c1 = self.c0;
-        } else if self.stop_idx == min {
-            // Special case when being before the first stop.
-            let first = self.gradient.stops.first().unwrap();
-            self.x0 = f32::MIN;
-            self.x1 = 0.0;
-            self.c0 = first.color;
-            self.c1 = self.c0;
-        } else {
-            let left_stop = &self.gradient.stops[self.stop_idx - 1];
-            let right_stop = &self.gradient.stops[self.stop_idx];
-
-            self.x0 = self.gradient.end * left_stop.offset;
-            self.x1 = self.gradient.end * right_stop.offset;
-            self.c0 = left_stop.color;
-            self.c1 = right_stop.color;
+        self.stop_idx += 1;
+        
+        if self.stop_idx >= self.gradient.stops.len() {
+            self.stop_idx = 1;
         }
+        
+        let left_stop = &self.gradient.stops[self.stop_idx - 1];
+        let right_stop = &self.gradient.stops[self.stop_idx];
+
+        self.x0 = self.gradient.end * left_stop.offset;
+        self.x1 = self.gradient.end * right_stop.offset;
+        self.c0 = left_stop.color;
+        self.c1 = right_stop.color;
     }
 }
 
@@ -300,13 +286,12 @@ impl Iterator for LinearGradientIter<'_> {
         self.col_pos = 0;
         self.cur_x += 1.0;
 
+        let cur_x = self.cur_x.clamp(0.0, self.gradient.end);
+
         // It's possible that we have to skip multiple stops.
-        while self.cur_x > self.x1 || self.cur_x < self.x0 {
+        while cur_x > self.x1 || cur_x < self.x0 {
             self.advance();
         }
-
-        // Basically only needed for spread method clamp.
-        let cur_x = self.cur_x.clamp(0.0, self.gradient.end);
 
         for col_idx in 0..COLOR_COMPONENTS {
             let idx = col_idx;
