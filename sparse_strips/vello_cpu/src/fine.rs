@@ -239,7 +239,7 @@ impl<'a> LinearGradientIter<'a> {
         let mut iter = Self {
             cur_x: start_x as f32 - 1.0 + gradient.offset,
             col_pos: Tile::HEIGHT,
-            stop_idx: 0,
+            stop_idx: gradient.stops.len(),
             x0: 0.0,
             x1: 0.0,
             c0: [0; 4],
@@ -248,59 +248,40 @@ impl<'a> LinearGradientIter<'a> {
             gradient,
         };
 
-        iter.reset_to(0);
+        iter.advance();
 
         iter
     }
 }
 
 impl LinearGradientIter<'_> {
-    fn advance_window(&mut self) {
-        if self.stop_idx == usize::MAX {
-            // Already at the very end, nothing to advance.
-            return;
-        }
+    fn advance(&mut self) {
+        let min = 0;
+        let max = self.gradient.stops.len();
+        self.stop_idx = (self.stop_idx + 1) % (max + 1);
 
-        if !(self.stop_idx < (self.gradient.stops.len() - 1)) {
-            // Reached the final two stops already, so simulate a dummy
-            // final stop that is padded.
-            self.reset_to(usize::MAX);
-
-            return;
-        } else {
-            self.reset_to(self.stop_idx + 1);
-        }
-    }
-
-    fn reset_to(&mut self, stop_idx: usize) {
-        self.stop_idx = stop_idx;
-
-        match self.stop_idx {
+        if self.stop_idx == max {
             // Special case when passing the last stop.
-            usize::MAX => {
-                let last = self.gradient.stops.last().unwrap();
-                self.x0 = self.gradient.end;
-                self.x1 = f32::MAX;
-                self.c0 = last.color;
-                self.c1 = self.c0;
-            }
+            let last = self.gradient.stops.last().unwrap();
+            self.x0 = self.gradient.end;
+            self.x1 = f32::MAX;
+            self.c0 = last.color;
+            self.c1 = self.c0;
+        } else if self.stop_idx == min {
             // Special case when being before the first stop.
-            0 => {
-                let first = self.gradient.stops.first().unwrap();
-                self.x0 = f32::MIN;
-                self.x1 = 0.0;
-                self.c0 = first.color;
-                self.c1 = self.c0;
-            }
-            _ => {
-                let left_stop = &self.gradient.stops[self.stop_idx - 1];
-                let right_stop = &self.gradient.stops[self.stop_idx];
+            let first = self.gradient.stops.first().unwrap();
+            self.x0 = f32::MIN;
+            self.x1 = 0.0;
+            self.c0 = first.color;
+            self.c1 = self.c0;
+        } else {
+            let left_stop = &self.gradient.stops[self.stop_idx - 1];
+            let right_stop = &self.gradient.stops[self.stop_idx];
 
-                self.x0 = self.gradient.end * left_stop.offset;
-                self.x1 = self.gradient.end * right_stop.offset;
-                self.c0 = left_stop.color;
-                self.c1 = right_stop.color;
-            }
+            self.x0 = self.gradient.end * left_stop.offset;
+            self.x1 = self.gradient.end * right_stop.offset;
+            self.c0 = left_stop.color;
+            self.c1 = right_stop.color;
         }
     }
 }
@@ -320,8 +301,8 @@ impl Iterator for LinearGradientIter<'_> {
         self.cur_x += 1.0;
 
         // It's possible that we have to skip multiple stops.
-        while self.cur_x > self.x1 {
-            self.advance_window();
+        while self.cur_x > self.x1 || self.cur_x < self.x0 {
+            self.advance();
         }
 
         // Basically only needed for spread method clamp.
