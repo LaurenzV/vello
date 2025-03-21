@@ -42,7 +42,7 @@ impl<'a> Fine<'a> {
             height,
             out_buf,
             blend_buf: scratch,
-            color_buf: color_scratch
+            color_buf: color_scratch,
         }
     }
 
@@ -89,7 +89,7 @@ impl<'a> Fine<'a> {
             &mut self.blend_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
         let color_buf =
             &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-        
+
         match paint {
             Paint::Solid(c) => {
                 let color = c.premultiply().to_rgba8_fast();
@@ -109,8 +109,11 @@ impl<'a> Fine<'a> {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
                 let mut iter = GradientFiller::new(g, start_x);
                 iter.run(color_buf);
-                
-                fill::src_over(blend_buf, color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]));
+
+                fill::src_over(
+                    blend_buf,
+                    color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
+                );
             }
             _ => unimplemented!(),
         }
@@ -137,7 +140,11 @@ impl<'a> Fine<'a> {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
                 let mut iter = GradientFiller::new(g, start_x);
                 iter.run(color_buf);
-                strip::src_over(blend_buf, color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]), alphas);
+                strip::src_over(
+                    blend_buf,
+                    color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
+                    alphas,
+                );
             }
             _ => unimplemented!(),
         }
@@ -268,11 +275,11 @@ impl<'a> GradientFiller<'a> {
 impl GradientFiller<'_> {
     fn advance(&mut self) {
         self.stop_idx += 1;
-        
+
         if self.stop_idx >= self.gradient.stops.len() {
             self.stop_idx = 1;
         }
-        
+
         let left_stop = &self.gradient.stops[self.stop_idx - 1];
         let right_stop = &self.gradient.stops[self.stop_idx];
 
@@ -281,30 +288,36 @@ impl GradientFiller<'_> {
         self.c0 = left_stop.color;
         self.c1 = right_stop.color;
     }
-    
+
     fn run(mut self, target: &mut [u8]) {
-        target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS).for_each(|col| {
-            self.cur_x += 1.0;
-            let cur_x = self.cur_x.clamp(0.0, self.gradient.end);
+        target
+            .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
+            .for_each(|col| {
+                self.cur_x += 1.0;
+                let cur_x = if self.gradient.pad {
+                    self.cur_x.clamp(0.0, self.gradient.end)
+                } else {
+                    self.cur_x.rem_euclid(self.gradient.end)
+                };
 
-            // It's possible that we have to skip multiple stops.
-            while cur_x > self.x1 || cur_x < self.x0 {
-                self.advance();
-            }
+                // It's possible that we have to skip multiple stops.
+                while cur_x > self.x1 || cur_x < self.x0 {
+                    self.advance();
+                }
 
-            for col_idx in 0..COLOR_COMPONENTS {
-                let idx = col_idx;
-                let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
-                let im2 = self.x1 - self.x0;
-                let im3 = cur_x - self.x0;
-                let combined = ((im1 / im2) * im3 + 0.5) as i16;
+                for col_idx in 0..COLOR_COMPONENTS {
+                    let idx = col_idx;
+                    let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
+                    let im2 = self.x1 - self.x0;
+                    let im3 = cur_x - self.x0;
+                    let combined = ((im1 / im2) * im3 + 0.5) as i16;
 
-                self.color_buf[idx] = (self.c0[col_idx] as i16 + combined) as u8;
-            }
-            
-            for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
-                pixel[..COLOR_COMPONENTS].copy_from_slice(&self.color_buf);
-            }
-        })
+                    self.color_buf[idx] = (self.c0[col_idx] as i16 + combined) as u8;
+                }
+
+                for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
+                    pixel[..COLOR_COMPONENTS].copy_from_slice(&self.color_buf);
+                }
+            })
     }
 }
