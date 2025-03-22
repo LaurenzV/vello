@@ -191,8 +191,8 @@ fn gradient_linear_with_y_repeat() {
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(40.0, 40.0),
-        p1: Point::new(160.0, 160.0),
+        p0: Point::new(95.0, 95.0),
+        p1: Point::new(101.0, 105.0),
         stops: stops_green_blue(),
         extend: vello_common::peniko::Extend::Repeat,
     };

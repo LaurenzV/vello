@@ -4,8 +4,9 @@
 //! Tests for Github issues.
 
 use crate::util::{check_ref, get_ctx, render_pixmap};
-use vello_common::color::palette::css::{DARK_BLUE, LIME};
-use vello_common::kurbo::{BezPath, Stroke};
+use vello_common::color::palette::css::{BLUE, DARK_BLUE, GREEN, LIME};
+use vello_common::kurbo::{BezPath, Point, Rect, Stroke};
+use vello_common::paint::{LinearGradient, Stop};
 use vello_common::peniko::Fill;
 
 mod util;
@@ -291,4 +292,33 @@ fn eo_filling_missing_anti_aliasing() {
     ctx.fill_path(&path);
 
     check_ref(&ctx, "eo_filling_missing_anti_aliasing");
+}
+
+// Currently renders with an artifact. The border between green and blue should be 
+// colored consistently.
+#[test]
+fn gradient_linear_with_diagonal_direction() {
+    let mut ctx = get_ctx(30, 4, true);
+    let rect = Rect::new(0.0, 0.0, 30.0, 4.0);
+
+    let gradient = LinearGradient {
+        p0: Point::new(15.0, 15.0),
+        p1: Point::new(40.0, 40.0),
+        stops: vec![
+            Stop {
+                offset: 0.0,
+                color: GREEN,
+            },
+            Stop {
+                offset: 1.0,
+                color: BLUE,
+            },
+        ],
+        extend: vello_common::peniko::Extend::Repeat,
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_linear_with_diagonal_direction");
 }
