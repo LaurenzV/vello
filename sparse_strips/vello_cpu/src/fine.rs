@@ -328,13 +328,13 @@ impl GradientFiller<'_> {
         target
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|col| {
-                let mut cur_pos = if self.gradient.pad {
-                    self.cur_pos.clamp(0.0, self.gradient.end)
-                } else {
-                    self.cur_pos.rem_euclid(self.gradient.end)
-                };
-
                 for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
+                    let mut cur_pos = if self.gradient.pad {
+                        self.cur_pos.clamp(0.0, self.gradient.end)
+                    } else {
+                        self.cur_pos.rem_euclid(self.gradient.end)
+                    };
+
                     // It's possible that we have to skip multiple stops.
                     while cur_pos > self.x1 || cur_pos < self.x0 {
                         self.advance();
