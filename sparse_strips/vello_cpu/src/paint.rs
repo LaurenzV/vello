@@ -13,8 +13,7 @@ pub enum EncodedPaint {
 #[derive(Debug, Clone)]
 pub struct EncodedLinearGradient {
     pub end: f32,
-    pub x_offset: f32,
-    pub y_offset: f32,
+    pub offsets: (f32, f32),
     pub stops: Vec<EncodedStop>,
     pub pad: bool,
     pub has_opacities: bool,
@@ -71,10 +70,10 @@ impl From<LinearGradient> for EncodedLinearGradient {
 
         let x_offset = -p0.x as f32;
         let y_offset = -p0.y as f32;
+        
 
         EncodedLinearGradient {
-            x_offset,
-            y_offset,
+            offsets: (x_offset, y_offset),
             end: p1.x as f32 + x_offset,
             stops,
             pad: value.extend == Extend::Pad,
