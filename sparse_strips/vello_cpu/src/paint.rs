@@ -14,6 +14,7 @@ pub enum EncodedPaint {
 pub struct EncodedLinearGradient {
     pub end: f32,
     pub offsets: (f32, f32),
+    pub advances: (f32, f32),
     pub stops: Vec<EncodedStop>,
     pub pad: bool,
     pub has_opacities: bool,
@@ -70,10 +71,23 @@ impl From<LinearGradient> for EncodedLinearGradient {
 
         let x_offset = -p0.x as f32;
         let y_offset = -p0.y as f32;
-        
+
+        let dx = p1.x as f32 + x_offset;
+        let dy = p1.y as f32 + y_offset;
+
+        let dy_dx = (dy / dx);
+        let dx_dy = (dx / dy);
+
+        // How much do we advance in the direction of the gradient, when taking one step to the right
+        // (i.e. when processing a new column in the strip)?
+        let x_advance = (1.0 + dy_dx * dy_dx).sqrt();
+        // How much do we advance in the direction of the gradient, when taking one step to the bottom
+        // (i.e. when processing a new pixel in the current column)?
+        let y_advance = (1.0 + dx_dy * dx_dy).sqrt();
 
         EncodedLinearGradient {
             offsets: (x_offset, y_offset),
+            advances: (x_advance, y_advance),
             end: p1.x as f32 + x_offset,
             stops,
             pad: value.extend == Extend::Pad,
