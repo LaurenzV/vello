@@ -25,7 +25,7 @@ pub fn fill(c: &mut Criterion) {
                     let mut fine = Fine::new(WideTile::WIDTH, Tile::HEIGHT, &mut out);
 
                     for _ in 0..FINE_ITERS {
-                        fine.fill(0, 0, WideTile::WIDTH as usize, $paint);
+                        fine.fill(0, 0, 0, WideTile::WIDTH as usize, $paint);
                     }
                 })
             });
@@ -81,7 +81,7 @@ pub fn strip(c: &mut Criterion) {
                     let mut fine = Fine::new(WideTile::WIDTH, Tile::HEIGHT, &mut out);
 
                     for _ in 0..FINE_ITERS {
-                        fine.strip(0, 0, WideTile::WIDTH as usize, &alphas, $paint);
+                        fine.strip(0, 0, 0, WideTile::WIDTH as usize, &alphas, $paint);
                     }
                 })
             });

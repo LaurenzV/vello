@@ -257,7 +257,9 @@ pub(crate) mod strip {
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a> {
     /// The position of the next x that should be processed.
-    cur_x: f32,
+    cur_pos: f32,
+    x_advance: f32,
+    y_advance: f32,
     /// The index of the current right stop we are processing.
     stop_idx: usize,
     /// The x-position of the left stop.
@@ -275,9 +277,21 @@ pub(crate) struct GradientFiller<'a> {
 }
 
 impl<'a> GradientFiller<'a> {
-    pub(crate) fn new(gradient: &'a EncodedLinearGradient, start_x: u16, start_y: u16) -> Self {
+    pub(crate) fn new(
+        gradient: &'a EncodedLinearGradient,
+        mut start_x: u16,
+        mut start_y: u16,
+    ) -> Self {
+        // The actual starting point of the strip.
+        let x0 = start_x as f32 + gradient.offsets.0;
+        let y0 = start_y as f32 + gradient.offsets.1;
+
+        let cur_pos = (x0 * gradient.fact1 - y0 * gradient.fact2) / gradient.denom;
+
         let mut filler = Self {
-            cur_x: start_x as f32 + gradient.offsets.0,
+            cur_pos,
+            x_advance: gradient.advances.0,
+            y_advance: gradient.advances.1,
             stop_idx: gradient.stops.len(),
             x0: 0.0,
             x1: 0.0,
@@ -314,32 +328,32 @@ impl GradientFiller<'_> {
         target
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|col| {
-                let cur_x = if self.gradient.pad {
-                    self.cur_x.clamp(0.0, self.gradient.end)
+                let mut cur_pos = if self.gradient.pad {
+                    self.cur_pos.clamp(0.0, self.gradient.end)
                 } else {
-                    self.cur_x.rem_euclid(self.gradient.end)
+                    self.cur_pos.rem_euclid(self.gradient.end)
                 };
 
-                // It's possible that we have to skip multiple stops.
-                while cur_x > self.x1 || cur_x < self.x0 {
-                    self.advance();
-                }
-
-                for col_idx in 0..COLOR_COMPONENTS {
-                    let idx = col_idx;
-                    let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
-                    let im2 = self.x1 - self.x0;
-                    let im3 = cur_x - self.x0;
-                    let combined = ((im1 / im2) * im3 + 0.5) as i16;
-
-                    self.color_buf[idx] = (self.c0[col_idx] as i16 + combined) as u8;
-                }
-
                 for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
-                    pixel[..COLOR_COMPONENTS].copy_from_slice(&self.color_buf);
+                    // It's possible that we have to skip multiple stops.
+                    while cur_pos > self.x1 || cur_pos < self.x0 {
+                        self.advance();
+                    }
+
+                    for col_idx in 0..COLOR_COMPONENTS {
+                        let idx = col_idx;
+                        let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
+                        let im2 = self.x1 - self.x0;
+                        let im3 = cur_pos - self.x0;
+                        let combined = ((im1 / im2) * im3 + 0.5) as i16;
+
+                        pixel[idx] = (self.c0[col_idx] as i16 + combined) as u8;
+                    }
+
+                    cur_pos += self.y_advance;
                 }
 
-                self.cur_x += 1.0;
+                self.cur_pos += self.x_advance;
             })
     }
 }

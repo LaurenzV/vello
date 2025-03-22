@@ -15,6 +15,15 @@ pub struct EncodedLinearGradient {
     pub end: f32,
     pub offsets: (f32, f32),
     pub advances: (f32, f32),
+    // Below are the factors that will be used to later on calculate
+    // the distance of a strip to the line making up the gradient. Basis of the formula
+    // is https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
+    // sqrt((y2 - y1)ˆ2 + (x2 - x1)ˆ2)
+    pub denom: f32,
+    // (y2 - y1)
+    pub fact1: f32,
+    // (x2 - x1)
+    pub fact2: f32,
     pub stops: Vec<EncodedStop>,
     pub pad: bool,
     pub has_opacities: bool,
@@ -74,20 +83,35 @@ impl From<LinearGradient> for EncodedLinearGradient {
 
         let dx = p1.x as f32 + x_offset;
         let dy = p1.y as f32 + y_offset;
+        let norm = (-dy, dx);
 
-        let dy_dx = dy / dx;
-        let dx_dy = dx / dy;
+        let denom = (norm.1 * norm.1 + norm.0 * norm.0).sqrt();
+        let fact1 = norm.1;
+        let fact2 = norm.0;
 
         // How much do we advance in the direction of the gradient, when taking one step to the right
         // (i.e. when processing a new column in the strip)?
-        let x_advance = (1.0 + dy_dx * dy_dx).sqrt();
+        let x_advance = if dx == 0.0 {
+            0.0
+        } else {
+            let dy_dx = dy / dx;
+            (1.0 + dy_dx * dy_dx).sqrt()
+        };
         // How much do we advance in the direction of the gradient, when taking one step to the bottom
         // (i.e. when processing a new pixel in the current column)?
-        let y_advance = (1.0 + dx_dy * dx_dy).sqrt();
+        let y_advance = if dy == 0.0 {
+            0.0
+        } else {
+            let dx_dy = dx / dy;
+            (1.0 + dx_dy * dx_dy).sqrt()
+        };
 
         EncodedLinearGradient {
             offsets: (x_offset, y_offset),
             advances: (x_advance, y_advance),
+            denom,
+            fact1,
+            fact2,
             end: p1.x as f32 + x_offset,
             stops,
             pad: value.extend == Extend::Pad,
