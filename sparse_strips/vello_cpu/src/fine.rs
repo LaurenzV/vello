@@ -125,6 +125,8 @@ impl<'a> Fine<'a> {
                         color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
                     );
                 } else {
+                    // Similarly to solid colors we can just override the previous values
+                    // if all colors in the gradient are fully opaque.
                     iter.run(blend_buf);
                 }
             }

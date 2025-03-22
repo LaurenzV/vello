@@ -36,11 +36,11 @@ pub fn fill(c: &mut Criterion) {
     fill_single!(transparent, &ROYAL_BLUE.with_alpha(0.2).into());
 
     macro_rules! fill_single_linear {
-        ($name:ident, $extend:ident) => {
+        ($name:ident, $extend:ident, $stops:expr) => {
             let linear: EncodedPaint = LinearGradient {
                 p0: Point::new(0.0, 0.0),
                 p1: Point::new(WideTile::WIDTH as f64, 0.0),
-                stops: stops_blue_green_red_yellow(),
+                stops: $stops,
                 extend: peniko::Extend::$extend,
             }
             .into();
@@ -49,9 +49,18 @@ pub fn fill(c: &mut Criterion) {
         };
     }
 
-    fill_single_linear!(linear_gradient_pad, Pad);
-    fill_single_linear!(linear_gradient_repeat, Repeat);
-    // Reflect is just a special case of repeat, so not extra benchmarks.
+    fill_single_linear!(
+        linear_gradient_opaque,
+        Pad,
+        stops_blue_green_red_yellow_opaque()
+    );
+    fill_single_linear!(linear_gradient_pad, Pad, stops_blue_green_red_yellow());
+    fill_single_linear!(
+        linear_gradient_repeat,
+        Repeat,
+        stops_blue_green_red_yellow()
+    );
+    // Reflect is just a special case of repeat, so no extra benchmarks.
 }
 
 pub fn strip(c: &mut Criterion) {
@@ -100,6 +109,27 @@ pub fn strip(c: &mut Criterion) {
     // Reflect is just a special case of repeat, so not extra benchmarks.
 }
 
+fn stops_blue_green_red_yellow_opaque() -> Vec<Stop> {
+    vec![
+        Stop {
+            offset: 0.0,
+            color: BLUE,
+        },
+        Stop {
+            offset: 0.33,
+            color: GREEN,
+        },
+        Stop {
+            offset: 0.66,
+            color: RED,
+        },
+        Stop {
+            offset: 1.0,
+            color: YELLOW,
+        },
+    ]
+}
+
 fn stops_blue_green_red_yellow() -> Vec<Stop> {
     vec![
         Stop {
@@ -116,7 +146,7 @@ fn stops_blue_green_red_yellow() -> Vec<Stop> {
         },
         Stop {
             offset: 1.0,
-            color: YELLOW,
+            color: YELLOW.with_alpha(0.7),
         },
     ]
 }
