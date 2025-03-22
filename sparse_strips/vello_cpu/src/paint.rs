@@ -95,7 +95,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             0.0
         } else {
             let dy_dx = dy / dx;
-            (1.0 + dy_dx * dy_dx).sqrt()
+            1.0 / (1.0 + dy_dx * dy_dx).sqrt()
         };
         // How much do we advance in the direction of the gradient, when taking one step to the bottom
         // (i.e. when processing a new pixel in the current column)?
@@ -103,7 +103,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             0.0
         } else {
             let dx_dy = dx / dy;
-            (1.0 + dx_dy * dx_dy).sqrt()
+            1.0 / (1.0 + dx_dy * dx_dy).sqrt()
         };
 
         EncodedLinearGradient {
@@ -112,7 +112,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             denom,
             fact1,
             fact2,
-            end: p1.x as f32 + x_offset,
+            end: (dx * dx + dy * dy).sqrt(),
             stops,
             pad: value.extend == Extend::Pad,
             has_opacities,
