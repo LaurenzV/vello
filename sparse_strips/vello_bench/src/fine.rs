@@ -108,7 +108,7 @@ fn stops_blue_green_red_yellow() -> Vec<Stop> {
         },
         Stop {
             offset: 0.33,
-            color: GREEN,
+            color: GREEN.with_alpha(0.5),
         },
         Stop {
             offset: 0.66,

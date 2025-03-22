@@ -117,14 +117,17 @@ impl<'a> Fine<'a> {
             EncodedPaint::LinearGradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
                 let mut iter = GradientFiller::new(g, start_x);
-                iter.run(color_buf);
 
-                fill::src_over(
-                    blend_buf,
-                    color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
-                );
+                if g.has_opacities {
+                    iter.run(color_buf);
+                    fill::src_over(
+                        blend_buf,
+                        color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
+                    );
+                } else {
+                    iter.run(blend_buf);
+                }
             }
-            _ => unimplemented!(),
         }
     }
 
@@ -161,7 +164,6 @@ impl<'a> Fine<'a> {
                     alphas,
                 );
             }
-            _ => unimplemented!(),
         }
     }
 }

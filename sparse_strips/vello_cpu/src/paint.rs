@@ -17,12 +17,15 @@ pub struct EncodedLinearGradient {
     pub y_offset: f32,
     pub stops: Vec<EncodedStop>,
     pub pad: bool,
+    pub has_opacities: bool,
 }
 
 impl From<LinearGradient> for EncodedLinearGradient {
     fn from(value: LinearGradient) -> Self {
         let mut p0 = value.p0;
         let mut p1 = value.p1;
+
+        let has_opacities = value.stops.iter().any(|s| s.color.components[3] != 1.0);
 
         let mut stops = if value.p0.x <= value.p1.x {
             value
@@ -75,6 +78,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             end: p1.x as f32 + x_offset,
             stops,
             pad: value.extend == Extend::Pad,
+            has_opacities,
         }
     }
 }

@@ -560,6 +560,24 @@ fn gradient_linear_2_stops() {
 }
 
 #[test]
+fn gradient_linear_2_stops_with_alpha() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = LinearGradient {
+        p0: Point::new(20.0, 0.0),
+        p1: Point::new(180.0, 0.0),
+        stops: stops_green_blue_with_alpha(),
+        extend: Extend::Pad,
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_linear_2_stops_with_alpha");
+}
+
+#[test]
 fn gradient_linear_negative_direction() {
     let mut ctx = get_ctx(200, 200, false);
     let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
@@ -723,6 +741,19 @@ fn stops_green_blue() -> Vec<Stop> {
         Stop {
             offset: 1.0,
             color: BLUE,
+        },
+    ]
+}
+
+fn stops_green_blue_with_alpha() -> Vec<Stop> {
+    vec![
+        Stop {
+            offset: 0.0,
+            color: GREEN.with_alpha(0.25),
+        },
+        Stop {
+            offset: 1.0,
+            color: BLUE.with_alpha(0.75),
         },
     ]
 }
