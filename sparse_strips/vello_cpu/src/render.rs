@@ -141,7 +141,7 @@ impl RenderContext {
 
                 fine.clear(tile.bg.premultiply().to_rgba8_fast());
                 for cmd in &tile.cmds {
-                    fine.run_cmd(tile_x, cmd, &self.alphas);
+                    fine.run_cmd(tile_x, tile_y, cmd, &self.alphas);
                 }
                 fine.pack(tile_x, tile_y);
             }

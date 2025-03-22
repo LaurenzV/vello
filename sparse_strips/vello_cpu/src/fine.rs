@@ -71,12 +71,13 @@ impl<'a> Fine<'a> {
         );
     }
 
-    pub(crate) fn run_cmd(&mut self, tile_x: u16, cmd: &Cmd, alphas: &[u8]) {
+    pub(crate) fn run_cmd(&mut self, tile_x: u16, tile_y: u16, cmd: &Cmd, alphas: &[u8]) {
         match cmd {
             Cmd::Fill(f) => {
                 self.fill(
                     f.x as usize,
                     tile_x,
+                    tile_y,
                     f.width as usize,
                     &f.paint.clone().into(),
                 );
@@ -86,6 +87,7 @@ impl<'a> Fine<'a> {
                 self.strip(
                     s.x as usize,
                     tile_x,
+                    tile_y,
                     s.width as usize,
                     a_slice,
                     &s.paint.clone().into(),
@@ -95,7 +97,7 @@ impl<'a> Fine<'a> {
     }
 
     /// Fill at a given x and with a width using the given paint.
-    pub fn fill(&mut self, x: usize, tile_x: u16, width: usize, paint: &EncodedPaint) {
+    pub fn fill(&mut self, x: usize, tile_x: u16, tile_y: u16, width: usize, paint: &EncodedPaint) {
         let blend_buf =
             &mut self.blend_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
         let color_buf =
@@ -116,7 +118,8 @@ impl<'a> Fine<'a> {
             }
             EncodedPaint::LinearGradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
-                let mut iter = GradientFiller::new(g, start_x);
+                let start_y = tile_y * Tile::HEIGHT;
+                let mut iter = GradientFiller::new(g, start_x, start_y);
 
                 if g.has_opacities {
                     iter.run(color_buf);
@@ -138,6 +141,7 @@ impl<'a> Fine<'a> {
         &mut self,
         x: usize,
         tile_x: u16,
+        tile_y: u16,
         width: usize,
         alphas: &[u8],
         paint: &EncodedPaint,
@@ -158,7 +162,8 @@ impl<'a> Fine<'a> {
             }
             EncodedPaint::LinearGradient(g) => {
                 let start_x = tile_x * WideTile::WIDTH + x as u16;
-                let mut iter = GradientFiller::new(g, start_x);
+                let start_y = tile_y * Tile::HEIGHT;
+                let mut iter = GradientFiller::new(g, start_x, start_y);
                 iter.run(color_buf);
                 strip::src_over(
                     blend_buf,
@@ -270,9 +275,9 @@ pub(crate) struct GradientFiller<'a> {
 }
 
 impl<'a> GradientFiller<'a> {
-    pub(crate) fn new(gradient: &'a EncodedLinearGradient, start_x: u16) -> Self {
+    pub(crate) fn new(gradient: &'a EncodedLinearGradient, start_x: u16, start_y: u16) -> Self {
         let mut filler = Self {
-            cur_x: start_x as f32 - 1.0 + gradient.offsets.0,
+            cur_x: start_x as f32 + gradient.offsets.0,
             stop_idx: gradient.stops.len(),
             x0: 0.0,
             x1: 0.0,
@@ -309,7 +314,6 @@ impl GradientFiller<'_> {
         target
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|col| {
-                self.cur_x += 1.0;
                 let cur_x = if self.gradient.pad {
                     self.cur_x.clamp(0.0, self.gradient.end)
                 } else {
@@ -334,6 +338,8 @@ impl GradientFiller<'_> {
                 for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
                     pixel[..COLOR_COMPONENTS].copy_from_slice(&self.color_buf);
                 }
+
+                self.cur_x += 1.0;
             })
     }
 }
