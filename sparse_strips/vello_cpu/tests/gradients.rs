@@ -167,6 +167,24 @@ fn gradient_complex_shape() {
     check_ref(&ctx, "gradient_complex_shape");
 }
 
+#[test]
+fn gradient_linear_with_y_pad() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = LinearGradient {
+        p0: Point::new(40.0, 40.0),
+        p1: Point::new(160.0, 160.0),
+        stops: stops_green_blue(),
+        extend: vello_common::peniko::Extend::Pad,
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_linear_with_y_pad");
+}
+
 fn stops_green_blue() -> Vec<Stop> {
     vec![
         Stop {
