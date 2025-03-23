@@ -17,6 +17,17 @@ pub struct Stop {
 }
 
 #[derive(Debug, Clone)]
+pub struct SweepGradient {
+    /// The x coordinate of the first point.
+    pub center: Point,
+    pub start_angle: f32,
+    pub end_angle: f32,
+    /// The color stops of the linear gradient.
+    pub stops: Vec<Stop>,
+    pub extend: Extend
+}
+
+#[derive(Debug, Clone)]
 pub struct LinearGradient {
     /// The x coordinate of the first point.
     pub p0: Point,
@@ -37,6 +48,8 @@ pub enum Paint {
     Solid(AlphaColor<Srgb>),
     /// A gradient.
     LinearGradient(LinearGradient),
+    /// A gradient.
+    SweepGradient(SweepGradient),
     /// A pattern.
     Pattern(()),
 }
@@ -50,5 +63,11 @@ impl From<AlphaColor<Srgb>> for Paint {
 impl From<LinearGradient> for Paint {
     fn from(value: LinearGradient) -> Self {
         Self::LinearGradient(value)
+    }
+}
+
+impl From<SweepGradient> for Paint {
+    fn from(value: SweepGradient) -> Self {
+        Self::SweepGradient(value)
     }
 }

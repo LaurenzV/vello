@@ -103,6 +103,9 @@ impl<'a> Fine<'a> {
         let color_buf =
             &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
+        let start_x = tile_x * WideTile::WIDTH + x as u16;
+        let start_y = tile_y * Tile::HEIGHT;
+
         match paint {
             EncodedPaint::Solid(color) => {
                 // If color is completely opaque we can just memcopy the colors.
@@ -117,9 +120,7 @@ impl<'a> Fine<'a> {
                 fill::src_over(blend_buf, iter::repeat(*color));
             }
             EncodedPaint::LinearGradient(g) => {
-                let start_x = tile_x * WideTile::WIDTH + x as u16;
-                let start_y = tile_y * Tile::HEIGHT;
-                let mut iter = GradientFiller::new(g, start_x, start_y);
+                let mut iter = LinearGradientFiller::new(g, start_x, start_y);
 
                 if g.has_opacities {
                     iter.run(color_buf);
@@ -133,6 +134,7 @@ impl<'a> Fine<'a> {
                     iter.run(blend_buf);
                 }
             }
+            _ => unimplemented!(),
         }
     }
 
@@ -156,14 +158,15 @@ impl<'a> Fine<'a> {
         let color_buf =
             &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
+        let start_x = tile_x * WideTile::WIDTH + x as u16;
+        let start_y = tile_y * Tile::HEIGHT;
+
         match paint {
             EncodedPaint::Solid(color) => {
                 strip::src_over(blend_buf, iter::repeat(*color), alphas);
             }
             EncodedPaint::LinearGradient(g) => {
-                let start_x = tile_x * WideTile::WIDTH + x as u16;
-                let start_y = tile_y * Tile::HEIGHT;
-                let mut iter = GradientFiller::new(g, start_x, start_y);
+                let mut iter = LinearGradientFiller::new(g, start_x, start_y);
                 iter.run(color_buf);
                 strip::src_over(
                     blend_buf,
@@ -171,6 +174,7 @@ impl<'a> Fine<'a> {
                     alphas,
                 );
             }
+            _ => unimplemented!(),
         }
     }
 }
@@ -255,7 +259,7 @@ pub(crate) mod strip {
 }
 
 #[derive(Debug)]
-pub(crate) struct GradientFiller<'a> {
+pub(crate) struct LinearGradientFiller<'a> {
     /// The position of the next x that should be processed.
     cur_pos: f32,
     x_advance: f32,
@@ -279,7 +283,7 @@ pub(crate) struct GradientFiller<'a> {
     gradient: &'a EncodedLinearGradient,
 }
 
-impl<'a> GradientFiller<'a> {
+impl<'a> LinearGradientFiller<'a> {
     pub(crate) fn new(
         gradient: &'a EncodedLinearGradient,
         mut start_x: u16,
@@ -311,9 +315,7 @@ impl<'a> GradientFiller<'a> {
 
         filler
     }
-}
 
-impl GradientFiller<'_> {
     fn advance(&mut self) {
         self.stop_idx += 1;
 
@@ -399,12 +401,12 @@ impl Extend for Repeat {
 }
 
 trait Advance {
-    fn advance(gf: &mut GradientFiller, target_pos: f32);
+    fn advance(gf: &mut LinearGradientFiller, target_pos: f32);
 }
 
 struct Advancer;
 impl Advance for Advancer {
-    fn advance(gf: &mut GradientFiller, target_pos: f32) {
+    fn advance(gf: &mut LinearGradientFiller, target_pos: f32) {
         // It's possible that we have to skip multiple stops.
         while target_pos > gf.x1 || target_pos < gf.x0 {
             gf.advance();
@@ -414,5 +416,5 @@ impl Advance for Advancer {
 
 struct NoAdvancer;
 impl Advance for NoAdvancer {
-    fn advance(_: &mut GradientFiller, _: f32) {}
+    fn advance(_: &mut LinearGradientFiller, _: f32) {}
 }

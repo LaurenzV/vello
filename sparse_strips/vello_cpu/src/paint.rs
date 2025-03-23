@@ -1,13 +1,66 @@
 use crate::util::ColorExt;
 use std::sync::Arc;
 use vello_common::color::{AlphaColor, Srgb};
-use vello_common::paint::{LinearGradient, Paint, Stop};
+use vello_common::paint::{LinearGradient, Paint, Stop, SweepGradient};
 use vello_common::peniko::Extend;
 
 #[derive(Clone, Debug)]
 pub enum EncodedPaint {
     Solid([u8; 4]),
     LinearGradient(Arc<EncodedLinearGradient>),
+    SweepGradient(Arc<SweepGradient>),
+}
+
+pub struct EncodedSweepGradient {
+    pub rotation: f32,
+    pub end_angle: f32,
+    pub offsets: (f32, f32),
+    pub stops: Vec<EncodedStop>,
+    pub pad: bool,
+    pub has_opacities: bool,
+}
+
+impl From<SweepGradient> for EncodedSweepGradient {
+    fn from(value: SweepGradient) -> Self {
+        let mut start_angle = value.start_angle;
+        let mut end_angle = value.end_angle;
+
+        let has_opacities = value.stops.iter().any(|s| s.color.components[3] != 1.0);
+
+        let mut stops = if start_angle <= end_angle {
+            value
+                .stops
+                .iter()
+                .map(|s| {
+                    let s: EncodedStop = (*s).into();
+                    s
+                })
+                .collect()
+        } else {
+            std::mem::swap(&mut start_angle, &mut end_angle);
+
+            value
+                .stops
+                .iter()
+                .rev()
+                .map(|s| EncodedStop {
+                    offset: 1.0 - s.offset,
+                    color: s.color.premultiply().to_rgba8_fast(),
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let offsets = (-value.center.x as f32, -value.center.y as f32);
+
+        Self {
+            rotation: -start_angle,
+            end_angle: end_angle - start_angle,
+            offsets,
+            stops,
+            pad: true,
+            has_opacities,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -144,8 +197,15 @@ impl From<Paint> for EncodedPaint {
         match value {
             Paint::Solid(c) => c.into(),
             Paint::LinearGradient(l) => l.into(),
+            Paint::SweepGradient(s) => s.into(),
             Paint::Pattern(_) => unimplemented!(),
         }
+    }
+}
+
+impl From<SweepGradient> for EncodedPaint {
+    fn from(value: SweepGradient) -> Self {
+        EncodedPaint::SweepGradient(Arc::new(value.into()))
     }
 }
 
