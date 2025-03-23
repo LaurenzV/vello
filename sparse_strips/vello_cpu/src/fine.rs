@@ -338,6 +338,15 @@ impl GradientFiller<'_> {
     }
 
     fn run(mut self, target: &mut [u8]) {
+        if self.gradient.pad {
+            self.run_inner::<Pad>(target);
+        } else {
+            self.run_inner::<Repeat>(target);
+        }
+    }
+
+    #[inline(always)]
+    fn run_inner<T: Extend>(mut self, target: &mut [u8]) {
         let mut col_positions = [0.0; Tile::HEIGHT as usize];
 
         target
@@ -345,22 +354,19 @@ impl GradientFiller<'_> {
             .for_each(|col| {
                 for i in 0..COLOR_COMPONENTS {
                     let base_pos = self.cur_pos + i as f32 * self.y_advance;
-                    col_positions[i] = if self.gradient.pad {
-                        base_pos.clamp(0.0, self.gradient.end)
-                    } else {
-                        base_pos.rem_euclid(self.gradient.end)
-                    };
+                    // TODO: Repeat is still very slow
+                    col_positions[i] = T::extend(base_pos, 0.0, self.gradient.end);
                 }
 
                 // TODO: Use NoAdvancer
-                self.run_inner::<Advancer>(col, &col_positions);
+                self.run_col::<Advancer>(col, &col_positions);
 
                 self.cur_pos += self.x_advance;
             })
     }
 
     #[inline(always)]
-    fn run_inner<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
+    fn run_col<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
         for (pixel, target_pos) in column.chunks_exact_mut(COLOR_COMPONENTS).zip(positions) {
             T::advance(self, *target_pos);
 
@@ -371,6 +377,24 @@ impl GradientFiller<'_> {
                 pixel[col_idx] = (self.c0[col_idx] as i16 + combined) as u8;
             }
         }
+    }
+}
+
+trait Extend {
+    fn extend(val: f32, min: f32, max: f32) -> f32;
+}
+
+struct Pad;
+impl Extend for Pad {
+    fn extend(val: f32, min: f32, max: f32) -> f32 {
+        val.clamp(min, max)
+    }
+}
+
+struct Repeat;
+impl Extend for Repeat {
+    fn extend(val: f32, _: f32, max: f32) -> f32 {
+        val.rem_euclid(max)
     }
 }
 
