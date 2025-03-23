@@ -294,7 +294,7 @@ fn eo_filling_missing_anti_aliasing() {
     check_ref(&ctx, "eo_filling_missing_anti_aliasing");
 }
 
-// Currently renders with an artifact. The border between green and blue should be 
+// Currently renders with an artifact. The border between green and blue should be
 // colored consistently.
 #[test]
 fn gradient_linear_with_diagonal_direction() {

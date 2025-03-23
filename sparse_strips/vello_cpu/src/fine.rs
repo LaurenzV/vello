@@ -270,6 +270,9 @@ pub(crate) struct GradientFiller<'a> {
     c0: [u8; 4],
     /// The color of the right stop.
     c1: [u8; 4],
+    im1: [f32; 4],
+    im2: f32,
+    im3: [f32; 4],
     /// The output buffer for emitting colors from the iterator.
     color_buf: [u8; COLOR_COMPONENTS],
     /// The underlying gradient.
@@ -297,6 +300,9 @@ impl<'a> GradientFiller<'a> {
             x1: 0.0,
             c0: [0; 4],
             c1: [0; 4],
+            im1: [0.0; 4],
+            im2: 0.0,
+            im3: [0.0; 4],
             color_buf: [0; COLOR_COMPONENTS],
             gradient,
         };
@@ -322,6 +328,13 @@ impl GradientFiller<'_> {
         self.x1 = self.gradient.end * right_stop.offset;
         self.c0 = left_stop.color;
         self.c1 = right_stop.color;
+
+        self.im2 = self.x1 - self.x0;
+
+        for i in 0..COLOR_COMPONENTS {
+            self.im1[i] = self.c1[i] as f32 - self.c0[i] as f32;
+            self.im3[i] = self.im1[i] / self.im2;
+        }
     }
 
     fn run(mut self, target: &mut [u8]) {
@@ -343,13 +356,10 @@ impl GradientFiller<'_> {
                     }
 
                     for col_idx in 0..COLOR_COMPONENTS {
-                        let idx = col_idx;
-                        let im1 = self.c1[col_idx] as f32 - self.c0[col_idx] as f32;
-                        let im2 = self.x1 - self.x0;
                         let im3 = target_pos - self.x0;
-                        let combined = ((im1 / im2) * im3 + 0.5) as i16;
+                        let combined = (self.im3[col_idx] * im3 + 0.5) as i16;
 
-                        pixel[idx] = (self.c0[col_idx] as i16 + combined) as u8;
+                        pixel[col_idx] = (self.c0[col_idx] as i16 + combined) as u8;
                     }
 
                     cur_pos += self.y_advance;
