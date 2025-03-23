@@ -456,7 +456,7 @@ impl<'a> SweepGradientFiller<'a> {
         }
 
         let mut filler = Self {
-            cur_pos: (start_point.x as f32, start_point.y as f32),
+            cur_pos: (start_point.x as f32, start_point.y as f32 + 0.5),
             c0,
             c1,
             x1,
