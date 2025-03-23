@@ -1,4 +1,5 @@
 use crate::util::ColorExt;
+use std::f32::consts::PI;
 use std::sync::Arc;
 use vello_common::color::{AlphaColor, Srgb};
 use vello_common::paint::{LinearGradient, Paint, Stop, SweepGradient};
@@ -8,9 +9,10 @@ use vello_common::peniko::Extend;
 pub enum EncodedPaint {
     Solid([u8; 4]),
     LinearGradient(Arc<EncodedLinearGradient>),
-    SweepGradient(Arc<SweepGradient>),
+    SweepGradient(Arc<EncodedSweepGradient>),
 }
 
+#[derive(Debug)]
 pub struct EncodedSweepGradient {
     pub rotation: f32,
     pub end_angle: f32,
@@ -22,8 +24,8 @@ pub struct EncodedSweepGradient {
 
 impl From<SweepGradient> for EncodedSweepGradient {
     fn from(value: SweepGradient) -> Self {
-        let mut start_angle = value.start_angle;
-        let mut end_angle = value.end_angle;
+        let mut start_angle = value.start_angle * (PI / 180.0);
+        let mut end_angle = value.end_angle * (PI / 180.0);
 
         let has_opacities = value.stops.iter().any(|s| s.color.components[3] != 1.0);
 

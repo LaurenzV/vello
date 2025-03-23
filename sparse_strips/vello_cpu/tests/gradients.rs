@@ -1,9 +1,10 @@
 mod util;
 
 use crate::util::{check_ref, get_ctx, render_pixmap, star_path};
+use vello_common::color::AlphaColor;
 use vello_common::color::palette::css::{BLACK, BLUE, GREEN, RED, WHITE, YELLOW};
 use vello_common::kurbo::{Affine, Point, Rect};
-use vello_common::paint::{LinearGradient, Stop};
+use vello_common::paint::{LinearGradient, Stop, SweepGradient};
 
 #[test]
 fn gradient_on_3_wide_tiles() {
@@ -219,6 +220,25 @@ fn gradient_linear_with_y_reflect() {
     ctx.fill_rect(&rect);
 
     check_ref(&ctx, "gradient_linear_with_y_reflect");
+}
+
+#[test]
+fn gradient_sweep_2_stops() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = SweepGradient {
+        center: Point::new(100.0, 100.0),
+        start_angle: 0.0,
+        end_angle: 360.0,
+        stops: stops_green_blue(),
+        extend: vello_common::peniko::Extend::Pad,
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_sweep_2_stops");
 }
 
 fn stops_green_blue() -> Vec<Stop> {
