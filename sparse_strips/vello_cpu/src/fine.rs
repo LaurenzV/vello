@@ -338,34 +338,57 @@ impl GradientFiller<'_> {
     }
 
     fn run(mut self, target: &mut [u8]) {
+        let mut col_positions = [0.0; Tile::HEIGHT as usize];
+
         target
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|col| {
-                let mut cur_pos = self.cur_pos;
-
-                for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
-                    let target_pos = if self.gradient.pad {
-                        cur_pos.clamp(0.0, self.gradient.end)
+                for i in 0..COLOR_COMPONENTS {
+                    let base_pos = self.cur_pos + i as f32 * self.y_advance;
+                    col_positions[i] = if self.gradient.pad {
+                        base_pos.clamp(0.0, self.gradient.end)
                     } else {
-                        cur_pos.rem_euclid(self.gradient.end)
+                        base_pos.rem_euclid(self.gradient.end)
                     };
-
-                    // It's possible that we have to skip multiple stops.
-                    while target_pos > self.x1 || target_pos < self.x0 {
-                        self.advance();
-                    }
-
-                    for col_idx in 0..COLOR_COMPONENTS {
-                        let im3 = target_pos - self.x0;
-                        let combined = (self.im3[col_idx] * im3 + 0.5) as i16;
-
-                        pixel[col_idx] = (self.c0[col_idx] as i16 + combined) as u8;
-                    }
-
-                    cur_pos += self.y_advance;
                 }
+
+                // TODO: Use NoAdvancer
+                self.run_inner::<Advancer>(col, &col_positions);
 
                 self.cur_pos += self.x_advance;
             })
     }
+
+    #[inline(always)]
+    fn run_inner<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
+        for (pixel, target_pos) in column.chunks_exact_mut(COLOR_COMPONENTS).zip(positions) {
+            T::advance(self, *target_pos);
+
+            for col_idx in 0..COLOR_COMPONENTS {
+                let im3 = target_pos - self.x0;
+                let combined = (self.im3[col_idx] * im3 + 0.5) as i16;
+
+                pixel[col_idx] = (self.c0[col_idx] as i16 + combined) as u8;
+            }
+        }
+    }
+}
+
+trait Advance {
+    fn advance(gf: &mut GradientFiller, target_pos: f32);
+}
+
+struct Advancer;
+impl Advance for Advancer {
+    fn advance(gf: &mut GradientFiller, target_pos: f32) {
+        // It's possible that we have to skip multiple stops.
+        while target_pos > gf.x1 || target_pos < gf.x0 {
+            gf.advance();
+        }
+    }
+}
+
+struct NoAdvancer;
+impl Advance for NoAdvancer {
+    fn advance(_: &mut GradientFiller, _: f32) {}
 }
