@@ -63,6 +63,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
         // Then we can treat it the same as repeated gradients.
         if value.extend == Extend::Reflect {
             p1.x += p1.x - p0.x;
+            p1.y += p1.y - p0.y;
 
             let first_half = stops.iter().map(|s| EncodedStop {
                 offset: s.offset / 2.0,

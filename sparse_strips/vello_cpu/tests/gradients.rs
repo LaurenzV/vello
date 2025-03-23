@@ -193,7 +193,7 @@ fn gradient_linear_with_y_repeat() {
     let gradient = LinearGradient {
         p0: Point::new(95.0, 95.0),
         p1: Point::new(101.0, 105.0),
-        stops: stops_green_blue(),
+        stops: stops_blue_green_red_yellow(),
         extend: vello_common::peniko::Extend::Repeat,
     };
 
@@ -201,6 +201,24 @@ fn gradient_linear_with_y_repeat() {
     ctx.fill_rect(&rect);
 
     check_ref(&ctx, "gradient_linear_with_y_repeat");
+}
+
+#[test]
+fn gradient_linear_with_y_reflect() {
+    let mut ctx = get_ctx(200, 200, false);
+    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+
+    let gradient = LinearGradient {
+        p0: Point::new(95.0, 95.0),
+        p1: Point::new(101.0, 105.0),
+        stops: stops_blue_green_red_yellow(),
+        extend: vello_common::peniko::Extend::Reflect,
+    };
+
+    ctx.set_paint(gradient.into());
+    ctx.fill_rect(&rect);
+
+    check_ref(&ctx, "gradient_linear_with_y_reflect");
 }
 
 fn stops_green_blue() -> Vec<Stop> {
