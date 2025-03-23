@@ -26,12 +26,12 @@ fn gradient_on_3_wide_tiles() {
 
 #[test]
 fn gradient_linear_2_stops() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(20.0, 0.0),
-        p1: Point::new(180.0, 0.0),
+        p0: Point::new(10.0, 0.0),
+        p1: Point::new(90.0, 0.0),
         stops: stops_green_blue(),
         extend: vello_common::peniko::Extend::Pad,
     };
@@ -44,12 +44,12 @@ fn gradient_linear_2_stops() {
 
 #[test]
 fn gradient_linear_2_stops_with_alpha() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(20.0, 0.0),
-        p1: Point::new(180.0, 0.0),
+        p0: Point::new(10.0, 0.0),
+        p1: Point::new(90.0, 0.0),
         stops: stops_green_blue_with_alpha(),
         extend: vello_common::peniko::Extend::Pad,
     };
@@ -62,12 +62,12 @@ fn gradient_linear_2_stops_with_alpha() {
 
 #[test]
 fn gradient_linear_negative_direction() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(180.0, 0.0),
-        p1: Point::new(20.0, 0.0),
+        p0: Point::new(90.0, 0.0),
+        p1: Point::new(10.0, 0.0),
         stops: stops_green_blue(),
         extend: vello_common::peniko::Extend::Pad,
     };
@@ -80,12 +80,12 @@ fn gradient_linear_negative_direction() {
 
 #[test]
 fn gradient_spread_method_pad() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(70.0, 0.0),
-        p1: Point::new(130.0, 0.0),
+        p0: Point::new(35.0, 0.0),
+        p1: Point::new(65.0, 0.0),
         stops: stops_green_blue(),
         extend: vello_common::peniko::Extend::Pad,
     };
@@ -98,12 +98,12 @@ fn gradient_spread_method_pad() {
 
 #[test]
 fn gradient_spread_method_repeat() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(90.0, 0.0),
-        p1: Point::new(110.0, 0.0),
+        p0: Point::new(45.0, 0.0),
+        p1: Point::new(55.0, 0.0),
         stops: stops_green_blue(),
         extend: vello_common::peniko::Extend::Repeat,
     };
@@ -116,12 +116,12 @@ fn gradient_spread_method_repeat() {
 
 #[test]
 fn gradient_spread_method_reflect() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
-
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
+    
     let gradient = LinearGradient {
-        p0: Point::new(90.0, 0.0),
-        p1: Point::new(110.0, 0.0),
+        p0: Point::new(45.0, 0.0),
+        p1: Point::new(55.0, 0.0),
         stops: stops_green_blue(),
         extend: vello_common::peniko::Extend::Reflect,
     };
@@ -134,12 +134,12 @@ fn gradient_spread_method_reflect() {
 
 #[test]
 fn gradient_linear_4_stops() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(20.0, 0.0),
-        p1: Point::new(180.0, 0.0),
+        p0: Point::new(10.0, 0.0),
+        p1: Point::new(90.0, 0.0),
         stops: stops_blue_green_red_yellow(),
         extend: vello_common::peniko::Extend::Pad,
     };
@@ -152,12 +152,12 @@ fn gradient_linear_4_stops() {
 
 #[test]
 fn gradient_complex_shape() {
-    let mut ctx = get_ctx(200, 200, false);
-    let path = Affine::scale(2.0) * star_path();
+    let mut ctx = get_ctx(100, 100, false);
+    let path = star_path();
 
     let gradient = LinearGradient {
         p0: Point::new(0.0, 0.0),
-        p1: Point::new(200.0, 0.0),
+        p1: Point::new(100.0, 0.0),
         stops: stops_blue_green_red_yellow(),
         extend: vello_common::peniko::Extend::Pad,
     };
@@ -170,12 +170,12 @@ fn gradient_complex_shape() {
 
 #[test]
 fn gradient_linear_with_y_pad() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(40.0, 40.0),
-        p1: Point::new(160.0, 160.0),
+        p0: Point::new(20.0, 20.0),
+        p1: Point::new(80.0, 80.0),
         stops: stops_green_blue(),
         extend: vello_common::peniko::Extend::Pad,
     };
@@ -188,12 +188,12 @@ fn gradient_linear_with_y_pad() {
 
 #[test]
 fn gradient_linear_with_y_repeat() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(95.0, 95.0),
-        p1: Point::new(101.0, 105.0),
+        p0: Point::new(47.5, 47.5),
+        p1: Point::new(50.5, 52.5),
         stops: stops_blue_green_red_yellow(),
         extend: vello_common::peniko::Extend::Repeat,
     };
@@ -206,12 +206,12 @@ fn gradient_linear_with_y_repeat() {
 
 #[test]
 fn gradient_linear_with_y_reflect() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = LinearGradient {
-        p0: Point::new(95.0, 95.0),
-        p1: Point::new(101.0, 105.0),
+        p0: Point::new(47.5, 47.5),
+        p1: Point::new(50.5, 52.5),
         stops: stops_blue_green_red_yellow(),
         extend: vello_common::peniko::Extend::Reflect,
     };
@@ -224,11 +224,11 @@ fn gradient_linear_with_y_reflect() {
 
 #[test]
 fn gradient_sweep_2_stops() {
-    let mut ctx = get_ctx(200, 200, false);
-    let rect = Rect::new(20.0, 20.0, 180.0, 180.0);
+    let mut ctx = get_ctx(100, 100, false);
+    let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
 
     let gradient = SweepGradient {
-        center: Point::new(100.0, 100.0),
+        center: Point::new(50.0, 50.0),
         start_angle: 0.0,
         end_angle: 360.0,
         stops: stops_green_blue(),
