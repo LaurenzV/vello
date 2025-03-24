@@ -314,8 +314,8 @@ impl<'a> LinearGradientFiller<'a> {
         mut start_y: u16,
     ) -> Self {
         // The actual starting point of the strip.
-        let x0 = start_x as f32 + gradient.offsets.0;
-        let y0 = start_y as f32 + gradient.offsets.1;
+        let x0 = start_x as f32 + gradient.offsets.0 + 0.5;
+        let y0 = start_y as f32 + gradient.offsets.1 + 0.5;
 
         let cur_pos = (x0 * gradient.fact1 - y0 * gradient.fact2) / gradient.denom;
 
