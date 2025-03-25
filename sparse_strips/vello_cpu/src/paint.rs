@@ -92,24 +92,40 @@ impl From<LinearGradient> for EncodedLinearGradient {
 
         let has_opacities = value.stops.iter().any(|s| s.color.components[3] != 1.0);
 
+        let mut stops = if value.p0.x <= value.p1.x {
+            value.stops
+        } else {
+            std::mem::swap(&mut p0, &mut p1);
+
+            value
+                .stops
+                .iter()
+                .rev()
+                .map(|s| Stop {
+                    offset: 1.0 - s.offset,
+                    color: s.color,
+                })
+                .collect::<Vec<_>>()
+        };
+
         // Double the length of the iterator, and append stops in reverse order.
         // Then we can treat it the same as repeated gradients.
         if value.extend == Extend::Reflect {
-            // p1.x += p1.x - p0.x;
-            // p1.y += p1.y - p0.y;
-            // 
-            // let first_half = stops.iter().map(|s| GradientRange {
-            //     offset: s.offset / 2.0,
-            //     color: s.color,
-            // });
-            // 
-            // let second_half = stops.iter().rev().map(|s| GradientRange {
-            //     offset: 0.5 + (1.0 - s.offset) / 2.0,
-            //     color: s.color,
-            // });
-            // 
-            // let combined = first_half.chain(second_half).collect::<Vec<_>>();
-            // stops = combined;
+            p1.x += p1.x - p0.x;
+            p1.y += p1.y - p0.y;
+            
+            let first_half = stops.iter().map(|s| Stop {
+                offset: s.offset / 2.0,
+                color: s.color,
+            });
+            
+            let second_half = stops.iter().rev().map(|s| Stop {
+                offset: 0.5 + (1.0 - s.offset) / 2.0,
+                color: s.color,
+            });
+            
+            let combined = first_half.chain(second_half).collect::<Vec<_>>();
+            stops = combined;
         }
 
         let x_offset = -p0.x as f32;
@@ -142,8 +158,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
         
         let end = (dx * dx + dy * dy).sqrt();
 
-        let mut stops = value
-            .stops
+        let mut stops = stops
             .windows(2)
             .map(|s| {
                 let left_stop = &s[0];

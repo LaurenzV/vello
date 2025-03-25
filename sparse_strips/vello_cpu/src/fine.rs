@@ -341,14 +341,20 @@ impl<'a> LinearGradientFiller<'a> {
         target
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|col| {
+                let mut needs_advance = false;
+                let range = &self.gradient.ranges[self.range_idx];
                 for i in 0..COLOR_COMPONENTS {
                     let base_pos = self.cur_pos + i as f32 * self.y_advance;
+                    needs_advance |= base_pos > range.x1;
                     // TODO: Repeat is still very slow
                     col_positions[i] = T::extend(base_pos, 0.0, self.gradient.end);
                 }
-
-                // TODO: Use NoAdvancer
-                self.run_col::<Advancer>(col, &col_positions);
+                
+                if needs_advance {
+                    self.run_col::<Advancer>(col, &col_positions);
+                }   else {
+                    self.run_col::<NoAdvancer>(col, &col_positions);
+                }
 
                 self.cur_pos += self.x_advance;
             })
