@@ -290,19 +290,6 @@ pub(crate) struct LinearGradientFiller<'a> {
     y_advance: f32,
     /// The index of the current right stop we are processing.
     range_idx: usize,
-    /// The x-position of the left stop.
-    x0: f32,
-    /// The x-position of the right stop.
-    x1: f32,
-    /// The color of the left stop.
-    c0: [u8; 4],
-    /// The color of the right stop.
-    c1: [u8; 4],
-    im1: [f32; 4],
-    im2: f32,
-    im3: [f32; 4],
-    /// The output buffer for emitting colors from the iterator.
-    color_buf: [u8; COLOR_COMPONENTS],
     /// The underlying gradient.
     gradient: &'a EncodedLinearGradient,
 }
@@ -324,14 +311,6 @@ impl<'a> LinearGradientFiller<'a> {
             x_advance: gradient.advances.0,
             y_advance: gradient.advances.1,
             range_idx: gradient.ranges.len(),
-            x0: 0.0,
-            x1: 0.0,
-            c0: [0; 4],
-            c1: [0; 4],
-            im1: [0.0; 4],
-            im2: 0.0,
-            im3: [0.0; 4],
-            color_buf: [0; COLOR_COMPONENTS],
             gradient,
         };
 
@@ -346,16 +325,6 @@ impl<'a> LinearGradientFiller<'a> {
         if self.range_idx >= self.gradient.ranges.len() {
             self.range_idx = 0;
         }
-
-        let range = &self.gradient.ranges[self.range_idx];
-
-        self.x0 = range.x0;
-        self.x1 = range.x1;
-        self.c0 = range.c0;
-        self.c1 = range.c1;
-        self.im1 = range.im1;
-        self.im2 = range.im2;
-        self.im3 = range.im3;
     }
 
     fn run(mut self, target: &mut [u8]) {
@@ -385,15 +354,17 @@ impl<'a> LinearGradientFiller<'a> {
             })
     }
     
+    #[inline(always)]
     fn run_col<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
         for (pixel, target_pos) in column.chunks_exact_mut(COLOR_COMPONENTS).zip(positions) {
             T::advance(self, *target_pos);
+            let range = &self.gradient.ranges[self.range_idx];
 
             for col_idx in 0..COLOR_COMPONENTS {
-                let im3 = target_pos - self.x0;
-                let combined = (self.im3[col_idx] * im3 + 0.5) as i16;
+                let im3 = target_pos - range.x0;
+                let combined = (range.im3[col_idx] * im3 + 0.5) as i16;
 
-                pixel[col_idx] = (self.c0[col_idx] as i16 + combined) as u8;
+                pixel[col_idx] = (range.c0[col_idx] as i16 + combined) as u8;
             }
         }
     }
