@@ -38,8 +38,8 @@ pub fn fill(c: &mut Criterion) {
     macro_rules! fill_single_linear {
         ($name:ident, $extend:ident, $stops:expr) => {
             let linear: EncodedPaint = LinearGradient {
-                p0: Point::new(0.0, 0.0),
-                p1: Point::new(WideTile::WIDTH as f64, 0.0),
+                p0: Point::new(80.0, 0.0),
+                p1: Point::new(120.0, 0.0),
                 stops: $stops,
                 extend: peniko::Extend::$extend,
             }
