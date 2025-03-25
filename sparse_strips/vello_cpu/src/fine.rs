@@ -289,7 +289,7 @@ pub(crate) struct LinearGradientFiller<'a> {
     x_advance: f32,
     y_advance: f32,
     /// The index of the current right stop we are processing.
-    stop_idx: usize,
+    range_idx: usize,
     /// The x-position of the left stop.
     x0: f32,
     /// The x-position of the right stop.
@@ -323,7 +323,7 @@ impl<'a> LinearGradientFiller<'a> {
             cur_pos,
             x_advance: gradient.advances.0,
             y_advance: gradient.advances.1,
-            stop_idx: gradient.stops.len(),
+            range_idx: gradient.ranges.len(),
             x0: 0.0,
             x1: 0.0,
             c0: [0; 4],
@@ -341,26 +341,21 @@ impl<'a> LinearGradientFiller<'a> {
     }
 
     fn advance(&mut self) {
-        self.stop_idx += 1;
+        self.range_idx += 1;
 
-        if self.stop_idx >= self.gradient.stops.len() {
-            self.stop_idx = 1;
+        if self.range_idx >= self.gradient.ranges.len() {
+            self.range_idx = 0;
         }
 
-        let left_stop = &self.gradient.stops[self.stop_idx - 1];
-        let right_stop = &self.gradient.stops[self.stop_idx];
+        let range = &self.gradient.ranges[self.range_idx];
 
-        self.x0 = self.gradient.end * left_stop.offset;
-        self.x1 = self.gradient.end * right_stop.offset;
-        self.c0 = left_stop.color;
-        self.c1 = right_stop.color;
-
-        self.im2 = self.x1 - self.x0;
-
-        for i in 0..COLOR_COMPONENTS {
-            self.im1[i] = self.c1[i] as f32 - self.c0[i] as f32;
-            self.im3[i] = self.im1[i] / self.im2;
-        }
+        self.x0 = range.x0;
+        self.x1 = range.x1;
+        self.c0 = range.c0;
+        self.c1 = range.c1;
+        self.im1 = range.im1;
+        self.im2 = range.im2;
+        self.im3 = range.im3;
     }
 
     fn run(mut self, target: &mut [u8]) {
@@ -370,8 +365,7 @@ impl<'a> LinearGradientFiller<'a> {
             self.run_inner::<Repeat>(target);
         }
     }
-
-    #[inline(always)]
+    
     fn run_inner<T: Extend>(mut self, target: &mut [u8]) {
         let mut col_positions = [0.0; Tile::HEIGHT as usize];
 
@@ -390,8 +384,7 @@ impl<'a> LinearGradientFiller<'a> {
                 self.cur_pos += self.x_advance;
             })
     }
-
-    #[inline(always)]
+    
     fn run_col<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
         for (pixel, target_pos) in column.chunks_exact_mut(COLOR_COMPONENTS).zip(positions) {
             T::advance(self, *target_pos);
@@ -521,7 +514,7 @@ struct Advancer;
 impl Advance for Advancer {
     fn advance(gf: &mut LinearGradientFiller, target_pos: f32) {
         // It's possible that we have to skip multiple stops.
-        while target_pos > gf.x1 || target_pos < gf.x0 {
+        while target_pos > gf.gradient.ranges[gf.range_idx].x1 || target_pos < gf.gradient.ranges[gf.range_idx].x0 {
             gf.advance();
         }
     }

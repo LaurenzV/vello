@@ -4,6 +4,7 @@ use std::sync::Arc;
 use vello_common::color::{AlphaColor, Srgb};
 use vello_common::paint::{LinearGradient, Paint, Stop, SweepGradient};
 use vello_common::peniko::Extend;
+use crate::fine::COLOR_COMPONENTS;
 
 #[derive(Clone, Debug)]
 pub enum EncodedPaint {
@@ -79,7 +80,7 @@ pub struct EncodedLinearGradient {
     pub fact1: f32,
     // (x2 - x1)
     pub fact2: f32,
-    pub stops: Vec<EncodedLinearStop>,
+    pub ranges: Vec<GradientRange>,
     pub pad: bool,
     pub has_opacities: bool,
 }
@@ -91,47 +92,24 @@ impl From<LinearGradient> for EncodedLinearGradient {
 
         let has_opacities = value.stops.iter().any(|s| s.color.components[3] != 1.0);
 
-        let mut stops = if value.p0.x <= value.p1.x {
-            value
-                .stops
-                .iter()
-                .map(|s| {
-                    let s: EncodedLinearStop = (*s).into();
-                    s
-                })
-                .collect()
-        } else {
-            std::mem::swap(&mut p0, &mut p1);
-
-            value
-                .stops
-                .iter()
-                .rev()
-                .map(|s| EncodedLinearStop {
-                    offset: 1.0 - s.offset,
-                    color: s.color.premultiply().to_rgba8_fast(),
-                })
-                .collect::<Vec<_>>()
-        };
-
         // Double the length of the iterator, and append stops in reverse order.
         // Then we can treat it the same as repeated gradients.
         if value.extend == Extend::Reflect {
-            p1.x += p1.x - p0.x;
-            p1.y += p1.y - p0.y;
-
-            let first_half = stops.iter().map(|s| EncodedLinearStop {
-                offset: s.offset / 2.0,
-                color: s.color,
-            });
-
-            let second_half = stops.iter().rev().map(|s| EncodedLinearStop {
-                offset: 0.5 + (1.0 - s.offset) / 2.0,
-                color: s.color,
-            });
-
-            let combined = first_half.chain(second_half).collect::<Vec<_>>();
-            stops = combined;
+            // p1.x += p1.x - p0.x;
+            // p1.y += p1.y - p0.y;
+            // 
+            // let first_half = stops.iter().map(|s| GradientRange {
+            //     offset: s.offset / 2.0,
+            //     color: s.color,
+            // });
+            // 
+            // let second_half = stops.iter().rev().map(|s| GradientRange {
+            //     offset: 0.5 + (1.0 - s.offset) / 2.0,
+            //     color: s.color,
+            // });
+            // 
+            // let combined = first_half.chain(second_half).collect::<Vec<_>>();
+            // stops = combined;
         }
 
         let x_offset = -p0.x as f32;
@@ -161,6 +139,41 @@ impl From<LinearGradient> for EncodedLinearGradient {
             let dx_dy = dx / dy;
             1.0 / (1.0 + dx_dy * dx_dy).sqrt()
         };
+        
+        let end = (dx * dx + dy * dy).sqrt();
+
+        let mut stops = value
+            .stops
+            .windows(2)
+            .map(|s| {
+                let left_stop = &s[0];
+                let right_stop = &s[1];
+
+                let x0 = end * left_stop.offset;
+                let x1 = end * right_stop.offset;
+                let c0 = left_stop.color.premultiply().to_rgba8_fast();
+                let c1 = right_stop.color.premultiply().to_rgba8_fast();
+
+                let mut im1 = [0.0; 4];
+                let im2 = x1 - x0;
+                let mut im3 = [0.0; 4];
+
+                for i in 0..COLOR_COMPONENTS {
+                    im1[i] = c1[i] as f32 - c0[i] as f32;
+                    im3[i] = im1[i] / im2;
+                }
+                
+                GradientRange {
+                    x0,
+                    x1,
+                    c0,
+                    c1,
+                    im1,
+                    im2,
+                    im3,
+                }
+            })
+            .collect();
 
         EncodedLinearGradient {
             offsets: (x_offset, y_offset),
@@ -169,7 +182,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             fact1,
             fact2,
             end: (dx * dx + dy * dy).sqrt(),
-            stops,
+            ranges: stops,
             pad: value.extend == Extend::Pad,
             has_opacities,
         }
@@ -178,20 +191,14 @@ impl From<LinearGradient> for EncodedLinearGradient {
 
 /// A color stop.
 #[derive(Debug, Clone)]
-pub struct EncodedLinearStop {
-    /// The normalized offset of the stop.
-    pub offset: f32,
-    /// The color of the stop.
-    pub color: [u8; 4],
-}
-
-impl From<Stop> for EncodedLinearStop {
-    fn from(value: Stop) -> Self {
-        Self {
-            offset: value.offset,
-            color: value.color.premultiply().to_rgba8_fast(),
-        }
-    }
+pub struct GradientRange {
+    pub(crate) x0: f32,
+    pub(crate) x1: f32,
+    pub(crate) c0: [u8; 4],
+    pub(crate) c1: [u8; 4],
+    pub(crate) im1: [f32; 4],
+    pub(crate) im2: f32,
+    pub(crate) im3: [f32; 4],
 }
 
 /// A color stop.
