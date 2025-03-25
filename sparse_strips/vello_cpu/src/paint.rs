@@ -1,10 +1,10 @@
+use crate::fine::COLOR_COMPONENTS;
 use crate::util::ColorExt;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use vello_common::color::{AlphaColor, Srgb};
 use vello_common::paint::{LinearGradient, Paint, Stop, SweepGradient};
 use vello_common::peniko::Extend;
-use crate::fine::COLOR_COMPONENTS;
 
 #[derive(Clone, Debug)]
 pub enum EncodedPaint {
@@ -113,17 +113,17 @@ impl From<LinearGradient> for EncodedLinearGradient {
         if value.extend == Extend::Reflect {
             p1.x += p1.x - p0.x;
             p1.y += p1.y - p0.y;
-            
+
             let first_half = stops.iter().map(|s| Stop {
                 offset: s.offset / 2.0,
                 color: s.color,
             });
-            
+
             let second_half = stops.iter().rev().map(|s| Stop {
                 offset: 0.5 + (1.0 - s.offset) / 2.0,
                 color: s.color,
             });
-            
+
             let combined = first_half.chain(second_half).collect::<Vec<_>>();
             stops = combined;
         }
@@ -155,7 +155,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             let dx_dy = dx / dy;
             1.0 / (1.0 + dx_dy * dx_dy).sqrt()
         };
-        
+
         let end = (dx * dx + dy * dy).sqrt();
 
         let mut stops = stops
@@ -177,7 +177,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
                     im1[i] = c1[i] as f32 - c0[i] as f32;
                     im3[i] = im1[i] / im2;
                 }
-                
+
                 GradientRange {
                     x0,
                     x1,

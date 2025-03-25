@@ -118,7 +118,7 @@ fn gradient_spread_method_repeat() {
 fn gradient_spread_method_reflect() {
     let mut ctx = get_ctx(100, 100, false);
     let rect = Rect::new(10.0, 10.0, 90.0, 90.0);
-    
+
     let gradient = LinearGradient {
         p0: Point::new(45.0, 0.0),
         p1: Point::new(55.0, 0.0),

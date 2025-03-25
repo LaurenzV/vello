@@ -334,7 +334,7 @@ impl<'a> LinearGradientFiller<'a> {
             self.run_inner::<Repeat>(target);
         }
     }
-    
+
     fn run_inner<T: Extend>(mut self, target: &mut [u8]) {
         let mut col_positions = [0.0; Tile::HEIGHT as usize];
 
@@ -349,17 +349,17 @@ impl<'a> LinearGradientFiller<'a> {
                     // TODO: Repeat is still very slow
                     col_positions[i] = T::extend(base_pos, 0.0, self.gradient.end);
                 }
-                
+
                 if needs_advance {
                     self.run_col::<Advancer>(col, &col_positions);
-                }   else {
+                } else {
                     self.run_col::<NoAdvancer>(col, &col_positions);
                 }
 
                 self.cur_pos += self.x_advance;
             })
     }
-    
+
     #[inline(always)]
     fn run_col<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
         for (pixel, target_pos) in column.chunks_exact_mut(COLOR_COMPONENTS).zip(positions) {
@@ -491,7 +491,9 @@ struct Advancer;
 impl Advance for Advancer {
     fn advance(gf: &mut LinearGradientFiller, target_pos: f32) {
         // It's possible that we have to skip multiple stops.
-        while target_pos > gf.gradient.ranges[gf.range_idx].x1 || target_pos < gf.gradient.ranges[gf.range_idx].x0 {
+        while target_pos > gf.gradient.ranges[gf.range_idx].x1
+            || target_pos < gf.gradient.ranges[gf.range_idx].x0
+        {
             gf.advance();
         }
     }
