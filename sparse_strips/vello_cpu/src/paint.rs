@@ -91,14 +91,18 @@ impl From<LinearGradient> for EncodedLinearGradient {
         let mut p1 = value.p1;
 
         let has_opacities = value.stops.iter().any(|s| s.color.components[3] != 1.0);
+        
+        let mut stops = value.stops;
 
-        let mut stops = if value.p0.x <= value.p1.x {
-            value.stops
+        stops.insert(0, Stop { offset: -100.0, color: stops[0].color });
+        stops.push(Stop { offset: 100.0, color: stops[stops.len() - 1].color });
+
+        stops = if value.p0.x <= value.p1.x {
+            stops
         } else {
             std::mem::swap(&mut p0, &mut p1);
 
-            value
-                .stops
+            stops
                 .iter()
                 .rev()
                 .map(|s| Stop {
@@ -157,7 +161,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
         };
 
         let end = (dx * dx + dy * dy).sqrt();
-
+        
         let mut stops = stops
             .windows(2)
             .map(|s| {

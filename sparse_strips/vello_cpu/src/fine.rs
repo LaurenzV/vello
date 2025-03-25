@@ -310,11 +310,9 @@ impl<'a> LinearGradientFiller<'a> {
             cur_pos,
             x_advance: gradient.advances.0,
             y_advance: gradient.advances.1,
-            range_idx: gradient.ranges.len(),
+            range_idx: 0,
             gradient,
         };
-
-        filler.advance();
 
         filler
     }
@@ -347,7 +345,7 @@ impl<'a> LinearGradientFiller<'a> {
                     let base_pos = self.cur_pos + i as f32 * self.y_advance;
                     needs_advance |= base_pos > range.x1;
                     // TODO: Repeat is still very slow
-                    col_positions[i] = T::extend(base_pos, 0.0, self.gradient.end);
+                    col_positions[i] = base_pos;
                 }
 
                 if needs_advance {
@@ -472,7 +470,7 @@ trait Extend {
 struct Pad;
 impl Extend for Pad {
     fn extend(val: f32, min: f32, max: f32) -> f32 {
-        val.clamp(min, max)
+        val
     }
 }
 
