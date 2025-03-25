@@ -8,7 +8,7 @@ use rand::{Rng, SeedableRng};
 use vello_common::coarse::WideTile;
 use vello_common::color::palette::css::{BLUE, GREEN, RED, ROYAL_BLUE, YELLOW};
 use vello_common::kurbo::Point;
-use vello_common::paint::{LinearGradient, Paint, Stop};
+use vello_common::paint::{LinearGradient, Paint, Stop, SweepGradient};
 use vello_common::peniko;
 use vello_common::tile::Tile;
 use vello_cpu::fine::Fine;
@@ -61,6 +61,26 @@ pub fn fill(c: &mut Criterion) {
         stops_blue_green_red_yellow()
     );
     // Reflect is just a special case of repeat, so no extra benchmarks.
+
+    macro_rules! fill_single_sweep {
+        ($name:ident, $extend:ident, $stops:expr) => {
+            let linear: EncodedPaint = SweepGradient {
+                center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
+                start_angle: 120.0,
+                end_angle: 240.0,
+                stops: $stops,
+                extend: peniko::Extend::$extend,
+            }
+            .into();
+
+            fill_single!($name, &linear);
+        };
+    }
+    fill_single_sweep!(
+        sweep_gradient_pad,
+        Pad,
+        stops_blue_green_red_yellow()
+    );
 }
 
 pub fn strip(c: &mut Criterion) {
