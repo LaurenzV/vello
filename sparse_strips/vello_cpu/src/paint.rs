@@ -17,7 +17,7 @@ pub struct EncodedSweepGradient {
     pub rotation: f32,
     pub end_angle: f32,
     pub offsets: (f32, f32),
-    pub stops: Vec<EncodedStop>,
+    pub stops: Vec<EncodedSweepStop>,
     pub pad: bool,
     pub has_opacities: bool,
 }
@@ -34,7 +34,7 @@ impl From<SweepGradient> for EncodedSweepGradient {
                 .stops
                 .iter()
                 .map(|s| {
-                    let s: EncodedStop = (*s).into();
+                    let s: EncodedSweepStop = (*s).into();
                     s
                 })
                 .collect()
@@ -45,7 +45,7 @@ impl From<SweepGradient> for EncodedSweepGradient {
                 .stops
                 .iter()
                 .rev()
-                .map(|s| EncodedStop {
+                .map(|s| EncodedSweepStop {
                     offset: 1.0 - s.offset,
                     color: s.color.premultiply().to_rgba8_fast(),
                 })
@@ -79,7 +79,7 @@ pub struct EncodedLinearGradient {
     pub fact1: f32,
     // (x2 - x1)
     pub fact2: f32,
-    pub stops: Vec<EncodedStop>,
+    pub stops: Vec<EncodedLinearStop>,
     pub pad: bool,
     pub has_opacities: bool,
 }
@@ -96,7 +96,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
                 .stops
                 .iter()
                 .map(|s| {
-                    let s: EncodedStop = (*s).into();
+                    let s: EncodedLinearStop = (*s).into();
                     s
                 })
                 .collect()
@@ -107,7 +107,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
                 .stops
                 .iter()
                 .rev()
-                .map(|s| EncodedStop {
+                .map(|s| EncodedLinearStop {
                     offset: 1.0 - s.offset,
                     color: s.color.premultiply().to_rgba8_fast(),
                 })
@@ -120,12 +120,12 @@ impl From<LinearGradient> for EncodedLinearGradient {
             p1.x += p1.x - p0.x;
             p1.y += p1.y - p0.y;
 
-            let first_half = stops.iter().map(|s| EncodedStop {
+            let first_half = stops.iter().map(|s| EncodedLinearStop {
                 offset: s.offset / 2.0,
                 color: s.color,
             });
 
-            let second_half = stops.iter().rev().map(|s| EncodedStop {
+            let second_half = stops.iter().rev().map(|s| EncodedLinearStop {
                 offset: 0.5 + (1.0 - s.offset) / 2.0,
                 color: s.color,
             });
@@ -178,14 +178,32 @@ impl From<LinearGradient> for EncodedLinearGradient {
 
 /// A color stop.
 #[derive(Debug, Clone)]
-pub struct EncodedStop {
+pub struct EncodedLinearStop {
     /// The normalized offset of the stop.
     pub offset: f32,
     /// The color of the stop.
     pub color: [u8; 4],
 }
 
-impl From<Stop> for EncodedStop {
+impl From<Stop> for EncodedLinearStop {
+    fn from(value: Stop) -> Self {
+        Self {
+            offset: value.offset,
+            color: value.color.premultiply().to_rgba8_fast(),
+        }
+    }
+}
+
+/// A color stop.
+#[derive(Debug, Clone)]
+pub struct EncodedSweepStop {
+    /// The normalized offset of the stop.
+    pub offset: f32,
+    /// The color of the stop.
+    pub color: [u8; 4],
+}
+
+impl From<Stop> for EncodedSweepStop {
     fn from(value: Stop) -> Self {
         Self {
             offset: value.offset,
