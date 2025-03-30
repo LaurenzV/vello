@@ -290,9 +290,11 @@ pub(crate) struct LinearGradientFiller<'a> {
     y_advance: f32,
     /// The index of the current right stop we are processing.
     range_idx: usize,
+    temp_range_idx: usize,
     /// The underlying gradient.
     gradient: &'a EncodedLinearGradient,
-    cur_range: &'a GradientRange
+    cur_range: &'a GradientRange,
+    temp_range: &'a GradientRange
 }
 
 impl<'a> LinearGradientFiller<'a> {
@@ -312,7 +314,9 @@ impl<'a> LinearGradientFiller<'a> {
             x_advance: gradient.advances.0,
             y_advance: gradient.advances.1,
             range_idx: 0,
+            temp_range_idx: 0,
             cur_range: &gradient.ranges[0],
+            temp_range: &gradient.ranges[0],
             gradient,
         };
 
@@ -320,13 +324,31 @@ impl<'a> LinearGradientFiller<'a> {
     }
 
     fn advance(&mut self) {
-        self.range_idx += 1;
+        while self.cur_pos > self.cur_range.x1
+            || self.cur_pos < self.cur_range.x0
+        {
+            self.range_idx += 1;
 
-        if self.range_idx >= self.gradient.ranges.len() {
-            self.range_idx = 0;
+            if self.range_idx >= self.gradient.ranges.len() {
+                self.range_idx = 0;
+            }
+
+            self.cur_range = &self.gradient.ranges[self.range_idx]
         }
-        
-        self.cur_range = &self.gradient.ranges[self.range_idx]
+    }
+
+    fn advance_temp(&mut self, target_pos: f32) {
+        while target_pos > self.temp_range.x1
+            || target_pos < self.temp_range.x0
+        {
+            self.temp_range_idx += 1;
+
+            if self.temp_range_idx >= self.gradient.ranges.len() {
+                self.temp_range_idx = 0;
+            }
+
+            self.temp_range = &self.gradient.ranges[self.temp_range_idx]
+        }
     }
 
     fn run(mut self, target: &mut [u8]) {
@@ -359,6 +381,7 @@ impl<'a> LinearGradientFiller<'a> {
                 }
 
                 self.cur_pos += self.x_advance;
+                self.advance()
             })
     }
 
@@ -490,21 +513,18 @@ trait Advance {
 
 struct Advancer;
 impl Advance for Advancer {
+    #[inline]
     fn get_range<'a>(gf: &mut LinearGradientFiller<'a>, target_pos: f32) -> &'a GradientRange {
         // It's possible that we have to skip multiple stops.
-        while target_pos > gf.gradient.ranges[gf.range_idx].x1
-            || target_pos < gf.gradient.ranges[gf.range_idx].x0
-        {
-            gf.advance();
-        }
+        gf.advance_temp(target_pos);
         
-        gf.cur_range
+        gf.temp_range
     }
 }
 
 struct NoAdvancer;
 impl Advance for NoAdvancer {
-    fn get_range<'a>(lg: &mut LinearGradientFiller<'a>, _: f32) -> &'a GradientRange {
-        lg.cur_range
+    fn get_range<'a>(gf: &mut LinearGradientFiller<'a>, _: f32) -> &'a GradientRange {
+        gf.cur_range
     }
 }
