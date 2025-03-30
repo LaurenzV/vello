@@ -365,8 +365,7 @@ impl<'a> LinearGradientFiller<'a> {
     #[inline(always)]
     fn run_col<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
         for (pixel, target_pos) in column.chunks_exact_mut(COLOR_COMPONENTS).zip(positions) {
-            T::advance(self, *target_pos);
-            let range = self.cur_range;
+            let range = T::get_range(self, *target_pos);
 
             for col_idx in 0..COLOR_COMPONENTS {
                 let im3 = target_pos - range.x0;
@@ -486,22 +485,26 @@ impl Extend for Repeat {
 }
 
 trait Advance {
-    fn advance(gf: &mut LinearGradientFiller, target_pos: f32);
+    fn get_range<'a>(gf: &mut LinearGradientFiller<'a>, target_pos: f32) -> &'a GradientRange;
 }
 
 struct Advancer;
 impl Advance for Advancer {
-    fn advance(gf: &mut LinearGradientFiller, target_pos: f32) {
+    fn get_range<'a>(gf: &mut LinearGradientFiller<'a>, target_pos: f32) -> &'a GradientRange {
         // It's possible that we have to skip multiple stops.
         while target_pos > gf.gradient.ranges[gf.range_idx].x1
             || target_pos < gf.gradient.ranges[gf.range_idx].x0
         {
             gf.advance();
         }
+        
+        gf.cur_range
     }
 }
 
 struct NoAdvancer;
 impl Advance for NoAdvancer {
-    fn advance(_: &mut LinearGradientFiller, _: f32) {}
+    fn get_range<'a>(lg: &mut LinearGradientFiller<'a>, _: f32) -> &'a GradientRange {
+        lg.cur_range
+    }
 }
