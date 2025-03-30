@@ -361,22 +361,27 @@ impl<'a> LinearGradientFiller<'a> {
         target
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|col| {
+                self.cur_pos = T::extend(self.cur_pos, 0.0, self.gradient.end);
+
                 let mut needs_advance = false;
                 let range = self.cur_range;
                 for i in 0..COLOR_COMPONENTS {
                     let base_pos = self.cur_pos + i as f32 * self.y_advance;
                     needs_advance |= base_pos > range.x1;
-                    // TODO: Repeat is still very slow
                     col_positions[i] = base_pos;
                 }
 
                 if needs_advance {
+                    for i in 0..COLOR_COMPONENTS {
+                        col_positions[i] = T::extend(col_positions[i], 0.0, self.gradient.end);
+                    }
+
                     self.run_col::<Advancer>(col, &col_positions);
                 } else {
                     self.run_col::<NoAdvancer>(col, &col_positions);
                 }
 
-                self.cur_pos += self.x_advance;
+                self.cur_pos = T::extend(self.cur_pos + self.x_advance, 0.0, self.gradient.end);
                 self.advance()
             })
     }
@@ -491,15 +496,15 @@ trait Extend {
 
 struct Pad;
 impl Extend for Pad {
-    fn extend(val: f32, min: f32, max: f32) -> f32 {
+    fn extend(val: f32, _: f32, _: f32) -> f32 {
         val
     }
 }
 
 struct Repeat;
 impl Extend for Repeat {
-    fn extend(val: f32, _: f32, max: f32) -> f32 {
-        val.rem_euclid(max)
+    fn extend(val: f32, min: f32, max: f32) -> f32 {
+        min + val.rem_euclid(max - min)
     }
 }
 

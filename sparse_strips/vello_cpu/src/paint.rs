@@ -188,14 +188,6 @@ impl From<LinearGradient> for EncodedLinearGradient {
             }
         };
 
-        let left_range = iter::once({
-            let first_stop = &stops[0];
-            let mut encoded_range = create_range(first_stop, first_stop);
-            encoded_range.x0 = f32::MIN;
-
-            encoded_range
-        });
-
         let stop_ranges = stops.windows(2).map(|s| {
             let left_stop = &s[0];
             let right_stop = &s[1];
@@ -203,16 +195,29 @@ impl From<LinearGradient> for EncodedLinearGradient {
             create_range(left_stop, right_stop)
         });
 
-        let right_range = iter::once({
-            let last_stop = stops.last().unwrap();
+        let pad = value.extend == Extend::Pad;
+        let ranges = if pad {
+            let left_range = iter::once({
+                let first_stop = &stops[0];
+                let mut encoded_range = create_range(first_stop, first_stop);
+                encoded_range.x0 = f32::MIN;
 
-            let mut encoded_range = create_range(&last_stop, &last_stop);
-            encoded_range.x1 = f32::MAX;
+                encoded_range
+            });
 
-            encoded_range
-        });
+            let right_range = iter::once({
+                let last_stop = stops.last().unwrap();
 
-        let ranges = left_range.chain(stop_ranges.chain(right_range)).collect();
+                let mut encoded_range = create_range(&last_stop, &last_stop);
+                encoded_range.x1 = f32::MAX;
+
+                encoded_range
+            });
+
+            left_range.chain(stop_ranges.chain(right_range)).collect()
+        } else {
+            stop_ranges.collect()
+        };
 
         EncodedLinearGradient {
             offsets: (x_offset, y_offset),
