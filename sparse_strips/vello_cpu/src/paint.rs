@@ -1,6 +1,7 @@
 use crate::fine::COLOR_COMPONENTS;
 use crate::util::ColorExt;
 use std::f32::consts::PI;
+use std::iter;
 use std::sync::Arc;
 use vello_common::color::{AlphaColor, Srgb};
 use vello_common::paint::{LinearGradient, Paint, Stop, SweepGradient};
@@ -92,18 +93,14 @@ impl From<LinearGradient> for EncodedLinearGradient {
         let mut p1 = value.p1;
 
         let has_opacities = value.stops.iter().any(|s| s.color.components[3] != 1.0);
-        
-        let mut stops = value.stops;
 
-        stops.insert(0, Stop { offset: -100.0, color: stops[0].color });
-        stops.push(Stop { offset: 100.0, color: stops[stops.len() - 1].color });
-
-        stops = if value.p0.x <= value.p1.x {
-            stops
+        let mut stops = if value.p0.x <= value.p1.x {
+            value.stops
         } else {
             std::mem::swap(&mut p0, &mut p1);
 
-            stops
+            value
+                .stops
                 .iter()
                 .rev()
                 .map(|s| Stop {
@@ -112,12 +109,8 @@ impl From<LinearGradient> for EncodedLinearGradient {
                 })
                 .collect::<Vec<_>>()
         };
-        
-        let sign = if p0.y < p1.y {
-            1
-        }   else {
-            -1
-        };
+
+        let sign = if p0.y < p1.y { 1 } else { -1 };
 
         // Double the length of the iterator, and append stops in reverse order.
         // Then we can treat it the same as repeated gradients.
@@ -168,40 +161,59 @@ impl From<LinearGradient> for EncodedLinearGradient {
         };
 
         let end = (dx * dx + dy * dy).sqrt();
-        
-        let mut stops = stops
-            .windows(2)
-            .map(|s| {
-                let left_stop = &s[0];
-                let right_stop = &s[1];
 
-                let x0 = end * left_stop.offset;
-                let x1 = end * right_stop.offset;
-                let c0 = left_stop.color.premultiply().to_rgba8_fast();
-                let c1 = right_stop.color.premultiply().to_rgba8_fast();
+        let create_range = |left_stop: &Stop, right_stop: &Stop| {
+            let x0 = end * left_stop.offset;
+            let x1 = end * right_stop.offset;
+            let c0 = left_stop.color.premultiply().to_rgba8_fast();
+            let c1 = right_stop.color.premultiply().to_rgba8_fast();
 
-                let mut im1 = [0.0; 4];
-                let im2 = x1 - x0;
-                let mut im3 = [0.0; 4];
+            let mut im1 = [0.0; 4];
+            let im2 = x1 - x0;
+            let mut im3 = [0.0; 4];
 
-                for i in 0..COLOR_COMPONENTS {
-                    im1[i] = c1[i] as f32 - c0[i] as f32;
-                    im3[i] = im1[i] / im2;
-                }
+            for i in 0..COLOR_COMPONENTS {
+                im1[i] = c1[i] as f32 - c0[i] as f32;
+                im3[i] = im1[i] / im2;
+            }
 
-                GradientRange {
-                    x0,
-                    x1,
-                    c0,
-                    c1,
-                    im1,
-                    im2,
-                    im3,
-                }
-            })
-            .collect();
+            GradientRange {
+                x0,
+                x1,
+                c0,
+                c1,
+                im1,
+                im2,
+                im3,
+            }
+        };
 
-        
+        let left_range = iter::once({
+            let first_stop = &stops[0];
+            let mut encoded_range = create_range(first_stop, first_stop);
+            encoded_range.x0 = f32::MIN;
+
+            encoded_range
+        });
+
+        let stop_ranges = stops.windows(2).map(|s| {
+            let left_stop = &s[0];
+            let right_stop = &s[1];
+
+            create_range(left_stop, right_stop)
+        });
+
+        let right_range = iter::once({
+            let last_stop = stops.last().unwrap();
+
+            let mut encoded_range = create_range(&last_stop, &last_stop);
+            encoded_range.x1 = f32::MAX;
+
+            encoded_range
+        });
+
+        let ranges = left_range.chain(stop_ranges.chain(right_range)).collect();
+
         EncodedLinearGradient {
             offsets: (x_offset, y_offset),
             advances: (x_advance, y_advance),
@@ -209,10 +221,10 @@ impl From<LinearGradient> for EncodedLinearGradient {
             fact1,
             fact2,
             end: (dx * dx + dy * dy).sqrt(),
-            ranges: stops,
+            ranges,
             pad: value.extend == Extend::Pad,
             has_opacities,
-            sign
+            sign,
         }
     }
 }

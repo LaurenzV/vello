@@ -294,7 +294,7 @@ pub(crate) struct LinearGradientFiller<'a> {
     /// The underlying gradient.
     gradient: &'a EncodedLinearGradient,
     cur_range: &'a GradientRange,
-    temp_range: &'a GradientRange
+    temp_range: &'a GradientRange,
 }
 
 impl<'a> LinearGradientFiller<'a> {
@@ -324,9 +324,7 @@ impl<'a> LinearGradientFiller<'a> {
     }
 
     fn advance(&mut self) {
-        while self.cur_pos > self.cur_range.x1
-            || self.cur_pos < self.cur_range.x0
-        {
+        while self.cur_pos > self.cur_range.x1 || self.cur_pos < self.cur_range.x0 {
             self.range_idx += 1;
 
             if self.range_idx >= self.gradient.ranges.len() {
@@ -338,9 +336,7 @@ impl<'a> LinearGradientFiller<'a> {
     }
 
     fn advance_temp(&mut self, target_pos: f32) {
-        while target_pos > self.temp_range.x1
-            || target_pos < self.temp_range.x0
-        {
+        while target_pos > self.temp_range.x1 || target_pos < self.temp_range.x0 {
             self.temp_range_idx += 1;
 
             if self.temp_range_idx >= self.gradient.ranges.len() {
@@ -517,7 +513,7 @@ impl Advance for Advancer {
     fn get_range<'a>(gf: &mut LinearGradientFiller<'a>, target_pos: f32) -> &'a GradientRange {
         // It's possible that we have to skip multiple stops.
         gf.advance_temp(target_pos);
-        
+
         gf.temp_range
     }
 }
