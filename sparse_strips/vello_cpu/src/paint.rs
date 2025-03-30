@@ -83,6 +83,7 @@ pub struct EncodedLinearGradient {
     pub ranges: Vec<GradientRange>,
     pub pad: bool,
     pub has_opacities: bool,
+    pub sign: i8,
 }
 
 impl From<LinearGradient> for EncodedLinearGradient {
@@ -110,6 +111,12 @@ impl From<LinearGradient> for EncodedLinearGradient {
                     color: s.color,
                 })
                 .collect::<Vec<_>>()
+        };
+        
+        let sign = if p0.y < p1.y {
+            1
+        }   else {
+            -1
         };
 
         // Double the length of the iterator, and append stops in reverse order.
@@ -194,6 +201,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             })
             .collect();
 
+        
         EncodedLinearGradient {
             offsets: (x_offset, y_offset),
             advances: (x_advance, y_advance),
@@ -204,6 +212,7 @@ impl From<LinearGradient> for EncodedLinearGradient {
             ranges: stops,
             pad: value.extend == Extend::Pad,
             has_opacities,
+            sign
         }
     }
 }

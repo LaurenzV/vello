@@ -4,7 +4,7 @@
 //! Fine rasterization runs the commands in each wide tile to determine the final RGBA value
 //! of each pixel and pack it into the pixmap.
 
-use crate::paint::{EncodedLinearGradient, EncodedPaint, EncodedSweepGradient};
+use crate::paint::{EncodedLinearGradient, EncodedPaint, EncodedSweepGradient, GradientRange};
 use crate::util::ColorExt;
 use std::f32::consts::PI;
 use std::iter;
@@ -292,6 +292,7 @@ pub(crate) struct LinearGradientFiller<'a> {
     range_idx: usize,
     /// The underlying gradient.
     gradient: &'a EncodedLinearGradient,
+    cur_range: &'a GradientRange
 }
 
 impl<'a> LinearGradientFiller<'a> {
@@ -311,6 +312,7 @@ impl<'a> LinearGradientFiller<'a> {
             x_advance: gradient.advances.0,
             y_advance: gradient.advances.1,
             range_idx: 0,
+            cur_range: &gradient.ranges[0],
             gradient,
         };
 
@@ -323,6 +325,8 @@ impl<'a> LinearGradientFiller<'a> {
         if self.range_idx >= self.gradient.ranges.len() {
             self.range_idx = 0;
         }
+        
+        self.cur_range = &self.gradient.ranges[self.range_idx]
     }
 
     fn run(mut self, target: &mut [u8]) {
@@ -340,7 +344,7 @@ impl<'a> LinearGradientFiller<'a> {
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|col| {
                 let mut needs_advance = false;
-                let range = &self.gradient.ranges[self.range_idx];
+                let range = self.cur_range;
                 for i in 0..COLOR_COMPONENTS {
                     let base_pos = self.cur_pos + i as f32 * self.y_advance;
                     needs_advance |= base_pos > range.x1;
@@ -362,7 +366,7 @@ impl<'a> LinearGradientFiller<'a> {
     fn run_col<T: Advance>(&mut self, column: &mut [u8], positions: &[f32; Tile::HEIGHT as usize]) {
         for (pixel, target_pos) in column.chunks_exact_mut(COLOR_COMPONENTS).zip(positions) {
             T::advance(self, *target_pos);
-            let range = &self.gradient.ranges[self.range_idx];
+            let range = self.cur_range;
 
             for col_idx in 0..COLOR_COMPONENTS {
                 let im3 = target_pos - range.x0;
