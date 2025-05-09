@@ -223,6 +223,40 @@ impl Add for u16x32 {
     }
 }
 
+impl Mul for u16x32 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(mut self, rhs: Self) -> Self::Output {
+        unsafe {
+            self.0.0 = vmulq_u16(self.0.0, rhs.0.0);
+            self.0.1 = vmulq_u16(self.0.1, rhs.0.1);
+            self.0.2 = vmulq_u16(self.0.2, rhs.0.2);
+            self.0.3 = vmulq_u16(self.0.3, rhs.0.3);
+
+            self
+        }
+    }
+}
+
+impl Sub for u16x32 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        unsafe {
+            self.0.0 = vsubq_u16(self.0.0, rhs.0.0);
+            self.0.1 = vsubq_u16(self.0.1, rhs.0.1);
+            self.0.2 = vsubq_u16(self.0.2, rhs.0.2);
+            self.0.3 = vsubq_u16(self.0.3, rhs.0.3);
+
+            self
+        }
+    }
+}
+
+impl Base for u16x32 {}
+
 #[derive(Copy, Clone, Debug)]
 pub struct u8x16(uint8x16_t);
 
@@ -425,7 +459,12 @@ impl Narrowed<64, u8> for u8x64 {
     fn load_4(src: &[u8; 4]) -> Self {
         unsafe {
             let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
-            Self(uint8x16x4_t(loaded, vdupq_n_u8(0), vdupq_n_u8(0), vdupq_n_u8(0)))
+            Self(uint8x16x4_t(
+                loaded,
+                vdupq_n_u8(0),
+                vdupq_n_u8(0),
+                vdupq_n_u8(0),
+            ))
         }
     }
 

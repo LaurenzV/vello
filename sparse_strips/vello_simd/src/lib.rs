@@ -8,14 +8,12 @@ use std::ops::{Add, Mul, Sub};
 
 trait Simd<const C: usize> {}
 
-trait Base: Sized
-+ Copy
-+ Add<Self, Output = Self>
-+ Mul<Self, Output = Self>
-+ Sub<Self, Output = Self> {}
-
-pub trait Narrowed<const C: usize, F: Scalar>: Base
+trait Base:
+    Sized + Copy + Add<Self, Output = Self> + Mul<Self, Output = Self> + Sub<Self, Output = Self>
 {
+}
+
+pub trait Narrowed<const C: usize, F: Scalar>: Base {
     fn load(src: &[F; C]) -> Self;
     fn load_4(src: &[F; 4]) -> Self;
     fn splat(value: F) -> Self;
