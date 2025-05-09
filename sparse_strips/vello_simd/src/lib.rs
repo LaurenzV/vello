@@ -38,6 +38,8 @@ pub trait Scalar {
     const ONE: Self;
 }
 
+pub trait Widened<const C: usize, F: Scalar, N: Narrowed<C, F>> {}
+
 pub trait Float<const C: usize>: Narrowed<C, f32> {}
 
 pub trait Integer<const C: usize>: Narrowed<C, u8> {}
