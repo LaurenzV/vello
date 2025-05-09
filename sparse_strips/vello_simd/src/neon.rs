@@ -1,4 +1,4 @@
-use crate::{Float, Numerical};
+use crate::{Float, Integer, Numerical};
 use std::arch::aarch64::*;
 use std::ops::{Add, Mul, Sub};
 
@@ -248,6 +248,34 @@ impl Sub for u8x16 {
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         unsafe { Self(vsubq_u8(self.0, rhs.0)) }
+    }
+}
+
+impl Integer<16> for u8x16 {
+    #[inline(always)]
+    fn splat(value: u8) -> Self {
+        unsafe { 
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([value, value, value, value])));
+            Self(loaded)
+        }
+    }
+
+    #[inline(always)]
+    fn load(src: &[u8; 16]) -> Self {
+        unsafe { Self(vld1q_u8(src.as_ptr())) }
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[u8; 4]) -> Self {
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
+            Self(loaded)
+        }
+    }
+
+    #[inline(always)]
+    fn store(self, dest: &mut [u8; 16]) {
+        unsafe { vst1q_u8(dest.as_mut_ptr(), self.0) }
     }
 }
 

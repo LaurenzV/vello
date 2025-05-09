@@ -25,4 +25,9 @@ pub trait Float<const C: usize> {
     fn load_4(src: &[f32; 4]) -> Self;
 }
 
-trait Integer<const C: usize>: Numerical {}
+pub trait Integer<const C: usize>: Numerical {
+    fn splat(value: u8) -> Self;
+    fn store(self, dest: &mut [u8; C]);
+    fn load(src: &[u8; C]) -> Self;
+    fn load_4(src: &[u8; 4]) -> Self;
+}

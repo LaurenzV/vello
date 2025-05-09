@@ -1,9 +1,12 @@
-use crate::{Float, Numerical};
+use crate::{Float, FloatScalar, Integer, IntegerScalar, Numerical};
 use std::ops::{Add, Mul, Sub};
 
 impl Numerical for f32 {}
+impl FloatScalar for f32 {}
 impl Numerical for u8 {}
+impl IntegerScalar for u8 {}
 impl Numerical for u16 {}
+impl IntegerScalar for u16 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4([f32; 4]);
@@ -56,6 +59,11 @@ impl Float<4> for f32x4 {
     }
 
     #[inline(always)]
+    fn store(self, dest: &mut [f32; 4]) {
+        dest.copy_from_slice(&self.0)
+    }
+
+    #[inline(always)]
     fn load(src: &[f32; 4]) -> Self {
         Self(*src)
     }
@@ -63,11 +71,6 @@ impl Float<4> for f32x4 {
     #[inline(always)]
     fn load_4(src: &[f32; 4]) -> Self {
         Self(*src)
-    }
-
-    #[inline(always)]
-    fn store(self, dest: &mut [f32; 4]) {
-        dest.copy_from_slice(&self.0)
     }
 }
 
@@ -115,6 +118,38 @@ impl Sub for u16x8 {
 
 impl Numerical for u16x8 {}
 
+impl Integer<8> for u16x8 {
+    #[inline(always)]
+    fn splat(value: u8) -> Self {
+        Self([value as u16; 8])
+    }
+
+    #[inline(always)]
+    fn load(src: &[u8; 8]) -> Self {
+        let mut result = [0u16; 8];
+        for i in 0..8 {
+            result[i] = src[i] as u16;
+        }
+        Self(result)
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[u8; 4]) -> Self {
+        let mut result = [0u16; 8];
+        for i in 0..4 {
+            result[i] = src[i] as u16;
+        }
+        Self(result)
+    }
+
+    #[inline(always)]
+    fn store(self, dest: &mut [u8; 8]) {
+        for i in 0..8 {
+            dest[i] = self.0[i] as u8;
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct u8x16([u8; 16]);
 
@@ -158,3 +193,27 @@ impl Sub for u8x16 {
 }
 
 impl Numerical for u8x16 {}
+
+impl Integer<16> for u8x16 {
+    #[inline(always)]
+    fn splat(value: u8) -> Self {
+        Self([value; 16])
+    }
+
+    #[inline(always)]
+    fn load(src: &[u8; 16]) -> Self {
+        Self(*src)
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[u8; 4]) -> Self {
+        let mut result = [0u8; 16];
+        result[..4].copy_from_slice(src);
+        Self(result)
+    }
+
+    #[inline(always)]
+    fn store(self, dest: &mut [u8; 16]) {
+        dest.copy_from_slice(&self.0)
+    }
+}

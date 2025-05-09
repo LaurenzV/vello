@@ -14,14 +14,10 @@ const TILE_HEIGHT_COMPONENTS: usize = HEIGHT * COLOR_COMPONENTS;
 pub const SCRATCH_BUF_SIZE: usize = WIDETILE_WIDTH * HEIGHT * COLOR_COMPONENTS;
 
 pub fn opaque_u8(blend_buf: &mut [u8], color: &[u8; 4]) {
-    unsafe {
-        let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes(*color)));
-        let matrix = uint8x16x4_t(loaded, loaded, loaded, loaded);
-        let blend_buf = &mut blend_buf[0..][..SCRATCH_BUF_SIZE];
+    let splat = vello_simd::neon::u8x32::lo(color);
 
-        for t in blend_buf.chunks_exact_mut(64) {
-            vst1q_u8_x4(t.as_mut_ptr(), matrix);
-        }
+    for t in blend_buf.array_chunks_mut::<8>() {
+        splat.store(t);
     }
 }
 
