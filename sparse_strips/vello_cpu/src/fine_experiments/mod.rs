@@ -36,33 +36,3 @@ pub fn opaque_f32(blend_buf: &mut [f32], color: &[f32; 4]) {
         }
     }
 }
-
-//
-// pub struct Fine {
-//     pub(crate) blend_buf: Vec<u8>,
-// }
-//
-// impl Fine {
-//     /// Create a new fine rasterizer.
-//     pub fn new() -> Self {
-//         let blend_buf = vec![0; SCRATCH_BUF_SIZE];
-//
-//         Self {
-//             blend_buf,
-//         }
-//     }
-//
-//     /// Fill at a given x and with a width using the given paint.
-//     pub fn fill(
-//         &mut self,
-//         color_arr: &[u8; 4]
-//     ) {
-//         let blend_buf = &mut self.blend_buf;
-//
-//         for t in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
-//             t.copy_from_slice(color_arr);
-//         }
-//
-//         return;
-//     }
-// }

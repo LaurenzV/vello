@@ -3174,6 +3174,7 @@ dependencies = [
  "vello_common",
  "vello_cpu",
  "vello_dev_macros",
+ "vello_simd",
 ]
 
 [[package]]

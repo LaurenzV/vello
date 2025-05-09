@@ -13,6 +13,7 @@ publish = false
 vello_common = { workspace = true }
 vello_cpu = { workspace = true }
 vello_dev_macros = { workspace = true }
+vello_simd = { path = "../vello_simd" }
 criterion = { workspace = true }
 rand = { workspace = true }
 smallvec = { workspace = true }
