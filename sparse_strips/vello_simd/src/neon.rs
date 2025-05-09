@@ -359,3 +359,86 @@ impl Integer<32> for u8x32 {
 }
 
 impl Numerical for u8x32 {}
+
+#[derive(Copy, Clone, Debug)]
+pub struct u8x64(uint8x16x4_t);
+
+impl Add for u8x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(mut self, rhs: Self) -> Self::Output {
+        unsafe {
+            self.0.0 = vaddq_u8(self.0.0, rhs.0.0);
+            self.0.1 = vaddq_u8(self.0.1, rhs.0.1);
+            self.0.2 = vaddq_u8(self.0.2, rhs.0.2);
+            self.0.3 = vaddq_u8(self.0.3, rhs.0.3);
+
+            self
+        }
+    }
+}
+
+impl Mul for u8x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(mut self, rhs: Self) -> Self::Output {
+        unsafe {
+            self.0.0 = vmulq_u8(self.0.0, rhs.0.0);
+            self.0.1 = vmulq_u8(self.0.1, rhs.0.1);
+            self.0.2 = vmulq_u8(self.0.2, rhs.0.2);
+            self.0.3 = vmulq_u8(self.0.3, rhs.0.3);
+
+            self
+        }
+    }
+}
+
+impl Sub for u8x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        unsafe {
+            self.0.0 = vsubq_u8(self.0.0, rhs.0.0);
+            self.0.1 = vsubq_u8(self.0.1, rhs.0.1);
+            self.0.2 = vsubq_u8(self.0.2, rhs.0.2);
+            self.0.3 = vsubq_u8(self.0.3, rhs.0.3);
+
+            self
+        }
+    }
+}
+
+impl Integer<64> for u8x64 {
+    #[inline(always)]
+    fn splat(value: u8) -> Self {
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
+                value, value, value, value,
+            ])));
+            Self(uint8x16x4_t(loaded, loaded, loaded, loaded))
+        }
+    }
+
+    #[inline(always)]
+    fn load(src: &[u8; 64]) -> Self {
+        unsafe { Self(vld1q_u8_x4(src.as_ptr())) }
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[u8; 4]) -> Self {
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
+            Self(uint8x16x4_t(loaded, vdupq_n_u8(0), vdupq_n_u8(0), vdupq_n_u8(0)))
+        }
+    }
+
+    #[inline(always)]
+    fn store(self, dest: &mut [u8; 64]) {
+        unsafe { vst1q_u8_x4(dest.as_mut_ptr(), self.0) }
+    }
+}
+
+impl Numerical for u8x64 {}

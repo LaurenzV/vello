@@ -1,12 +1,9 @@
-use crate::{Float, FloatScalar, Integer, IntegerScalar, Numerical};
+use crate::{Float, Integer, Numerical};
 use std::ops::{Add, Mul, Sub};
 
 impl Numerical for f32 {}
-impl FloatScalar for f32 {}
 impl Numerical for u8 {}
-impl IntegerScalar for u8 {}
 impl Numerical for u16 {}
-impl IntegerScalar for u16 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4([f32; 4]);
