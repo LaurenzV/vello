@@ -254,8 +254,10 @@ impl Sub for u8x16 {
 impl Integer<16> for u8x16 {
     #[inline(always)]
     fn splat(value: u8) -> Self {
-        unsafe { 
-            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([value, value, value, value])));
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
+                value, value, value, value,
+            ])));
             Self(loaded)
         }
     }
@@ -323,6 +325,36 @@ impl Sub for u8x32 {
 
             self
         }
+    }
+}
+
+impl Integer<32> for u8x32 {
+    #[inline(always)]
+    fn splat(value: u8) -> Self {
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
+                value, value, value, value,
+            ])));
+            Self(uint8x16x2_t(loaded, loaded))
+        }
+    }
+
+    #[inline(always)]
+    fn load(src: &[u8; 32]) -> Self {
+        unsafe { Self(vld1q_u8_x2(src.as_ptr())) }
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[u8; 4]) -> Self {
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
+            Self(uint8x16x2_t(loaded, vdupq_n_u8(0)))
+        }
+    }
+
+    #[inline(always)]
+    fn store(self, dest: &mut [u8; 32]) {
+        unsafe { vst1q_u8_x2(dest.as_mut_ptr(), self.0) }
     }
 }
 
