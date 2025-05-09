@@ -26,9 +26,9 @@ pub fn opaque_u8(blend_buf: &mut [u8], color: &[u8; 4]) {
 }
 
 pub fn opaque_f32(blend_buf: &mut [f32], color: &[f32; 4]) {
-    let splat = vello_simd::neon::f32x8::load(color);
-    
-    for t in blend_buf.array_chunks_mut::<4>() {
+    let splat = vello_simd::neon::f32x8::load_4(color);
+
+    for t in blend_buf.array_chunks_mut::<8>() {
         splat.store(t);
     }
 }

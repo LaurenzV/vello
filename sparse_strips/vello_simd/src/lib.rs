@@ -1,20 +1,22 @@
 #![allow(non_camel_case_types)]
 
-pub mod scalar;
 pub mod neon;
+pub mod scalar;
 
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
-trait Simd<const C: usize> {
-    
-}
+trait Simd<const C: usize> {}
 
-pub trait Numerical: Sized + Copy
-+ Add<Self, Output = Self>
-+ Mul<Self, Output = Self>
-+ Sub<Self, Output = Self>
-+ Debug {}
+pub trait Numerical:
+    Sized
+    + Copy
+    + Add<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Debug
+{
+}
 
 pub trait Float<const C: usize> {
     fn splat(value: f32) -> Self;
@@ -23,6 +25,4 @@ pub trait Float<const C: usize> {
     fn load_4(src: &[f32; 4]) -> Self;
 }
 
-trait Integer<const C: usize>: Numerical {
-
-}
+trait Integer<const C: usize>: Numerical {}

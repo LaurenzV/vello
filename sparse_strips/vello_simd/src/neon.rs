@@ -1,4 +1,4 @@
-use crate::{Numerical, Float};
+use crate::{Float, Numerical};
 use std::arch::aarch64::*;
 use std::ops::{Add, Mul, Sub};
 
@@ -9,9 +9,7 @@ impl Add for f32x4 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vaddq_f32(self.0, rhs.0))
-        }
+        unsafe { Self(vaddq_f32(self.0, rhs.0)) }
     }
 }
 
@@ -19,9 +17,7 @@ impl Mul for f32x4 {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vmulq_f32(self.0, rhs.0))
-        }
+        unsafe { Self(vmulq_f32(self.0, rhs.0)) }
     }
 }
 
@@ -29,32 +25,29 @@ impl Sub for f32x4 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vsubq_f32(self.0, rhs.0))
-        }
+        unsafe { Self(vsubq_f32(self.0, rhs.0)) }
     }
 }
 
 impl Float<4> for f32x4 {
     #[inline(always)]
     fn splat(value: f32) -> Self {
-        unsafe {
-            Self(vdupq_n_f32(value))
-        }
+        unsafe { Self(vdupq_n_f32(value)) }
     }
 
     #[inline(always)]
     fn load(src: &[f32; 4]) -> Self {
-        unsafe {
-            Self(vld1q_f32(src.as_ptr()))
-        }
+        unsafe { Self(vld1q_f32(src.as_ptr())) }
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[f32; 4]) -> Self {
+        unsafe { Self(vld1q_f32(src.as_ptr())) }
     }
 
     #[inline(always)]
     fn store(self, dest: &mut [f32; 4]) {
-        unsafe {
-            vst1q_f32(dest.as_mut_ptr(), self.0)
-        }
+        unsafe { vst1q_f32(dest.as_mut_ptr(), self.0) }
     }
 }
 
@@ -69,7 +62,7 @@ impl Add for f32x8 {
         unsafe {
             self.0.0 = vaddq_f32(self.0.0, rhs.0.0);
             self.0.1 = vaddq_f32(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -83,7 +76,7 @@ impl Mul for f32x8 {
         unsafe {
             self.0.0 = vmulq_f32(self.0.0, rhs.0.0);
             self.0.1 = vmulq_f32(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -97,7 +90,7 @@ impl Sub for f32x8 {
         unsafe {
             self.0.0 = vsubq_f32(self.0.0, rhs.0.0);
             self.0.1 = vsubq_f32(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -116,16 +109,20 @@ impl Float<8> for f32x8 {
 
     #[inline(always)]
     fn load(src: &[f32; 8]) -> Self {
+        unsafe { Self(vld1q_f32_x2(src.as_ptr())) }
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[f32; 4]) -> Self {
         unsafe {
-            Self(vld1q_f32_x2(src.as_ptr()))
+            let v = vld1q_f32(src.as_ptr());
+            Self(float32x4x2_t(v, v))
         }
     }
 
     #[inline(always)]
     fn store(self, dest: &mut [f32; 8]) {
-        unsafe {
-            vst1q_f32_x2(dest.as_mut_ptr(), self.0)
-        }
+        unsafe { vst1q_f32_x2(dest.as_mut_ptr(), self.0) }
     }
 }
 
@@ -136,9 +133,7 @@ impl Add for u16x8 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vaddq_u16(self.0, rhs.0))
-        }
+        unsafe { Self(vaddq_u16(self.0, rhs.0)) }
     }
 }
 
@@ -146,9 +141,7 @@ impl Mul for u16x8 {
     type Output = u16x8;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vmulq_u16(self.0, rhs.0))
-        }
+        unsafe { Self(vmulq_u16(self.0, rhs.0)) }
     }
 }
 
@@ -156,9 +149,7 @@ impl Sub for u16x8 {
     type Output = u16x8;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vsubq_u16(self.0, rhs.0))
-        }
+        unsafe { Self(vsubq_u16(self.0, rhs.0)) }
     }
 }
 
@@ -175,7 +166,7 @@ impl Add for u16x16 {
         unsafe {
             self.0.0 = vaddq_u16(self.0.0, rhs.0.0);
             self.0.1 = vaddq_u16(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -189,7 +180,7 @@ impl Mul for u16x16 {
         unsafe {
             self.0.0 = vmulq_u16(self.0.0, rhs.0.0);
             self.0.1 = vmulq_u16(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -203,7 +194,7 @@ impl Sub for u16x16 {
         unsafe {
             self.0.0 = vsubq_u16(self.0.0, rhs.0.0);
             self.0.1 = vsubq_u16(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -224,7 +215,7 @@ impl Add for u16x32 {
             self.0.1 = vaddq_u16(self.0.1, rhs.0.1);
             self.0.2 = vaddq_u16(self.0.2, rhs.0.2);
             self.0.3 = vaddq_u16(self.0.3, rhs.0.3);
-            
+
             self
         }
     }
@@ -238,9 +229,7 @@ impl Add for u8x16 {
 
     #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vaddq_u8(self.0, rhs.0))
-        }
+        unsafe { Self(vaddq_u8(self.0, rhs.0)) }
     }
 }
 
@@ -249,9 +238,7 @@ impl Mul for u8x16 {
 
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vmulq_u8(self.0, rhs.0))
-        }
+        unsafe { Self(vmulq_u8(self.0, rhs.0)) }
     }
 }
 
@@ -260,9 +247,7 @@ impl Sub for u8x16 {
 
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vsubq_u8(self.0, rhs.0))
-        }
+        unsafe { Self(vsubq_u8(self.0, rhs.0)) }
     }
 }
 
@@ -279,7 +264,7 @@ impl Add for u8x32 {
         unsafe {
             self.0.0 = vaddq_u8(self.0.0, rhs.0.0);
             self.0.1 = vaddq_u8(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -293,7 +278,7 @@ impl Mul for u8x32 {
         unsafe {
             self.0.0 = vmulq_u8(self.0.0, rhs.0.0);
             self.0.1 = vmulq_u8(self.0.1, rhs.0.1);
-            
+
             self
         }
     }
@@ -307,7 +292,7 @@ impl Sub for u8x32 {
         unsafe {
             self.0.0 = vsubq_u8(self.0.0, rhs.0.0);
             self.0.1 = vsubq_u8(self.0.1, rhs.0.1);
-            
+
             self
         }
     }

@@ -1,4 +1,4 @@
-use crate::{Numerical, Float};
+use crate::{Float, Numerical};
 use std::ops::{Add, Mul, Sub};
 
 impl Numerical for f32 {}
@@ -57,6 +57,11 @@ impl Float<4> for f32x4 {
 
     #[inline(always)]
     fn load(src: &[f32; 4]) -> Self {
+        Self(*src)
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[f32; 4]) -> Self {
         Self(*src)
     }
 
