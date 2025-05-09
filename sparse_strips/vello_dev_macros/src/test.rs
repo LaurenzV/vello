@@ -74,7 +74,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
         cpu_u8_tolerance,
         mut hybrid_tolerance,
         transparent,
-        skip_cpu,
+        mut skip_cpu,
         mut skip_hybrid,
         ignore_reason,
         no_ref,
@@ -89,6 +89,17 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     skip_hybrid |= {
         input_fn_name_str.contains("clip")
             || input_fn_name_str.contains("compose")
+            || input_fn_name_str.contains("gradient")
+            || input_fn_name_str.contains("image")
+            || input_fn_name_str.contains("layer")
+            || input_fn_name_str.contains("mask")
+            || input_fn_name_str.contains("mix")
+            || input_fn_name_str.contains("opacity")
+            || input_fn_name_str.contains("blurred_rounded_rect")
+    };
+
+    skip_cpu |= {
+        input_fn_name_str.contains("compose")
             || input_fn_name_str.contains("gradient")
             || input_fn_name_str.contains("image")
             || input_fn_name_str.contains("layer")
@@ -130,7 +141,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
                     check_ref, get_ctx
                 };
                 use vello_cpu::RenderContext;
-                use vello_common::RenderMode;
+                use vello_cpu::RenderMode;
 
                 let mut ctx = get_ctx::<RenderContext>(#width, #height, #transparent);
                 #input_fn_name(&mut ctx);
@@ -170,7 +181,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
                 check_ref, get_ctx
             };
             use vello_hybrid::Scene;
-            use vello_common::RenderMode;
+            use vello_cpu::RenderMode;
 
             let mut ctx = get_ctx::<Scene>(#width, #height, #transparent);
             #input_fn_name(&mut ctx);
