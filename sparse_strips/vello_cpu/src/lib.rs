@@ -17,6 +17,8 @@ mod render;
 #[doc(hidden)]
 /// This is an internal module, do not access directly.
 pub mod fine;
+/// This is an internal module, do not access directly.
+pub mod fine2;
 mod util;
 
 pub use render::RenderContext;
