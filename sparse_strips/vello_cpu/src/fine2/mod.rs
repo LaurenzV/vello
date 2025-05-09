@@ -3,15 +3,6 @@
 
 //! Fine rasterization runs the commands in each wide tile to determine the final RGBA value
 //! of each pixel and pack it into the pixmap.
-
-mod blend;
-mod gradient;
-mod image;
-mod rounded_blurred_rect;
-
-use crate::fine2::gradient::GradientFiller;
-use crate::fine2::image::ImageFiller;
-use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::scalar::div_255;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -136,7 +127,7 @@ impl<F: FineType> Fine<F> {
                 self.clip_strip(cs.x as usize, cs.width as usize, aslice);
             }
             Cmd::Blend(cb) => {
-                self.apply_blend(*cb);
+                // self.apply_blend(*cb);
             }
             Cmd::Opacity(o) => {
                 if *o != 1.0 {
@@ -186,38 +177,12 @@ impl<F: FineType> Fine<F> {
         width: usize,
         fill: &Paint,
         blend_mode: BlendMode,
-        encoded_paints: &[EncodedPaint],
+        _: &[EncodedPaint],
     ) {
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
-        let color_buf =
-            &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-
-        let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
-        let start_y = self.wide_coords.1 * Tile::HEIGHT;
 
         let default_blend = blend_mode == BlendMode::new(Mix::Normal, Compose::SrcOver);
-
-        fn fill_complex_paint<T: FineType>(
-            color_buf: &mut [T],
-            blend_buf: &mut [T],
-            has_opacities: bool,
-            blend_mode: BlendMode,
-            filler: impl Painter,
-        ) {
-            if has_opacities {
-                filler.paint(color_buf);
-                fill::blend(
-                    blend_buf,
-                    color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
-                    blend_mode,
-                );
-            } else {
-                // Similarly to solid colors we can just override the previous values
-                // if all colors in the gradient are fully opaque.
-                filler.paint(blend_buf);
-            }
-        }
 
         match fill {
             Paint::Solid(color) => {
@@ -234,58 +199,7 @@ impl<F: FineType> Fine<F> {
 
                 fill::blend(blend_buf, iter::repeat(color), blend_mode);
             }
-            Paint::Indexed(paint) => {
-                let encoded_paint = &encoded_paints[paint.index()];
-
-                match encoded_paint {
-                    EncodedPaint::Gradient(g) => match &g.kind {
-                        EncodedKind::Linear(l) => {
-                            let filler = GradientFiller::new(g, l, start_x, start_y);
-                            fill_complex_paint(
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                blend_mode,
-                                filler,
-                            );
-                        }
-                        EncodedKind::Radial(r) => {
-                            let filler = GradientFiller::new(g, r, start_x, start_y);
-                            fill_complex_paint(
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                blend_mode,
-                                filler,
-                            );
-                        }
-                        EncodedKind::Sweep(s) => {
-                            let filler = GradientFiller::new(g, s, start_x, start_y);
-                            fill_complex_paint(
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                blend_mode,
-                                filler,
-                            );
-                        }
-                    },
-                    EncodedPaint::Image(i) => {
-                        let filler = ImageFiller::new(i, start_x, start_y);
-                        fill_complex_paint(
-                            color_buf,
-                            blend_buf,
-                            i.has_opacities,
-                            blend_mode,
-                            filler,
-                        );
-                    }
-                    EncodedPaint::BlurredRoundedRect(b) => {
-                        let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
-                        fill_complex_paint(color_buf, blend_buf, true, blend_mode, filler);
-                    }
-                }
-            }
+            Paint::Indexed(_) => unimplemented!(),
         }
     }
 
@@ -297,7 +211,7 @@ impl<F: FineType> Fine<F> {
         alphas: &[u8],
         fill: &Paint,
         blend_mode: BlendMode,
-        paints: &[EncodedPaint],
+        _: &[EncodedPaint],
     ) {
         debug_assert!(
             alphas.len() >= width,
@@ -306,27 +220,6 @@ impl<F: FineType> Fine<F> {
 
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
-        let color_buf =
-            &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-
-        let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
-        let start_y = self.wide_coords.1 * Tile::HEIGHT;
-
-        fn strip_complex_paint<F: FineType>(
-            color_buf: &mut [F],
-            blend_buf: &mut [F],
-            blend_mode: BlendMode,
-            filler: impl Painter,
-            alphas: &[u8],
-        ) {
-            filler.paint(color_buf);
-            strip::blend(
-                blend_buf,
-                color_buf.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
-                blend_mode,
-                alphas.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
-            );
-        }
 
         match fill {
             Paint::Solid(color) => {
@@ -337,48 +230,8 @@ impl<F: FineType> Fine<F> {
                     alphas.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
                 );
             }
-            Paint::Indexed(paint) => {
-                let encoded_paint = &paints[paint.index()];
-
-                match encoded_paint {
-                    EncodedPaint::Gradient(g) => match &g.kind {
-                        EncodedKind::Linear(l) => {
-                            let filler = GradientFiller::new(g, l, start_x, start_y);
-                            strip_complex_paint(color_buf, blend_buf, blend_mode, filler, alphas);
-                        }
-                        EncodedKind::Radial(r) => {
-                            let filler = GradientFiller::new(g, r, start_x, start_y);
-                            strip_complex_paint(color_buf, blend_buf, blend_mode, filler, alphas);
-                        }
-                        EncodedKind::Sweep(s) => {
-                            let filler = GradientFiller::new(g, s, start_x, start_y);
-                            strip_complex_paint(color_buf, blend_buf, blend_mode, filler, alphas);
-                        }
-                    },
-                    EncodedPaint::Image(i) => {
-                        let filler = ImageFiller::new(i, start_x, start_y);
-                        strip_complex_paint(color_buf, blend_buf, blend_mode, filler, alphas);
-                    }
-                    EncodedPaint::BlurredRoundedRect(b) => {
-                        let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
-                        strip_complex_paint(color_buf, blend_buf, blend_mode, filler, alphas);
-                    }
-                }
-            }
+            Paint::Indexed(_) => unimplemented!(),
         }
-    }
-
-    fn apply_blend(&mut self, blend_mode: BlendMode) {
-        let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
-        let target_buffer = rest.last_mut().unwrap();
-
-        fill::blend(
-            target_buffer,
-            source_buffer
-                .chunks_exact(4)
-                .map(|e| [e[0], e[1], e[2], e[3]]),
-            blend_mode,
-        );
     }
 
     fn clip_fill(&mut self, x: usize, width: usize) {
@@ -454,7 +307,7 @@ pub(crate) mod fill {
     // See https://www.w3.org/TR/compositing-1/#porterduffcompositingoperators for the
     // formulas.
 
-    use crate::fine2::{COLOR_COMPONENTS, FineType, TILE_HEIGHT_COMPONENTS, blend};
+    use crate::fine2::{COLOR_COMPONENTS, FineType, TILE_HEIGHT_COMPONENTS};
     use vello_common::peniko::{BlendMode, Compose, Mix};
 
     pub(crate) fn blend<F: FineType, T: Iterator<Item = [F; COLOR_COMPONENTS]>>(
@@ -464,7 +317,7 @@ pub(crate) mod fill {
     ) {
         match (blend_mode.mix, blend_mode.compose) {
             (Mix::Normal, Compose::SrcOver) => alpha_composite(target, source),
-            _ => blend::fill::blend(target, source, blend_mode),
+            _ => unimplemented!(),
         }
     }
 
@@ -484,7 +337,7 @@ pub(crate) mod fill {
 }
 
 pub(crate) mod strip {
-    use crate::fine2::{COLOR_COMPONENTS, FineType, TILE_HEIGHT_COMPONENTS, Widened, blend};
+    use crate::fine2::{COLOR_COMPONENTS, FineType, TILE_HEIGHT_COMPONENTS, Widened};
     use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_common::tile::Tile;
 
@@ -500,7 +353,7 @@ pub(crate) mod strip {
     ) {
         match (blend_mode.mix, blend_mode.compose) {
             (Mix::Normal, Compose::SrcOver) => alpha_composite(target, source, alphas),
-            _ => blend::strip::blend(target, source, blend_mode, alphas),
+            _ => unimplemented!(),
         }
     }
 
@@ -530,10 +383,6 @@ pub(crate) mod strip {
             }
         }
     }
-}
-
-trait Painter {
-    fn paint<F: FineType>(self, target: &mut [F]);
 }
 
 /// A numeric type that can act as a substitute for another underlying type in case
