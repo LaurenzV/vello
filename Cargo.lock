@@ -3193,6 +3193,7 @@ name = "vello_cpu"
 version = "0.5.0"
 dependencies = [
  "vello_common",
+ "vello_simd",
 ]
 
 [[package]]

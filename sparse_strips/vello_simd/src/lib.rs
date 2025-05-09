@@ -10,18 +10,19 @@ trait Simd<const C: usize> {
     
 }
 
-trait Numerical: Sized + Copy
+pub trait Numerical: Sized + Copy
 + Add<Self, Output = Self>
 + Mul<Self, Output = Self>
 + Sub<Self, Output = Self>
 + Debug {}
 
-trait Float<const C: usize> {
+pub trait Float<const C: usize> {
     fn splat(value: f32) -> Self;
     fn store(self, dest: &mut [f32; C]);
     fn load(src: &[f32; C]) -> Self;
+    fn load_4(src: &[f32; 4]) -> Self;
 }
 
-trait Integer<const C: usize> {
+trait Integer<const C: usize>: Numerical {
 
 }
