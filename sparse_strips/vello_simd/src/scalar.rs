@@ -1,5 +1,17 @@
-use crate::{Float, Integer, Numerical};
+use crate::{Float, Integer, Numerical, Scalar};
 use std::ops::{Add, Mul, Sub};
+
+impl Scalar for f32 {
+    const ZERO: Self = 0.0;
+    const MID: Self = 0.5;
+    const ONE: Self = 1.0;
+}
+
+impl Scalar for u8 {
+    const ZERO: Self = 0;
+    const MID: Self = 127;
+    const ONE: Self = 255;
+}
 
 impl Numerical for f32 {}
 impl Numerical for u8 {}
@@ -114,38 +126,6 @@ impl Sub for u16x8 {
 }
 
 impl Numerical for u16x8 {}
-
-impl Integer<8> for u16x8 {
-    #[inline(always)]
-    fn splat(value: u8) -> Self {
-        Self([value as u16; 8])
-    }
-
-    #[inline(always)]
-    fn load(src: &[u8; 8]) -> Self {
-        let mut result = [0u16; 8];
-        for i in 0..8 {
-            result[i] = src[i] as u16;
-        }
-        Self(result)
-    }
-
-    #[inline(always)]
-    fn load_4(src: &[u8; 4]) -> Self {
-        let mut result = [0u16; 8];
-        for i in 0..4 {
-            result[i] = src[i] as u16;
-        }
-        Self(result)
-    }
-
-    #[inline(always)]
-    fn store(self, dest: &mut [u8; 8]) {
-        for i in 0..8 {
-            dest[i] = self.0[i] as u8;
-        }
-    }
-}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x16([u8; 16]);

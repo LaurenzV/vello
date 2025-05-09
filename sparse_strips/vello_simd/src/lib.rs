@@ -18,11 +18,29 @@ pub trait Numerical:
 {
 }
 
-pub trait Float<const C: usize> {
+pub trait Scalar {
+    const ZERO: Self;
+    const MID: Self;
+    const ONE: Self;
+}
+
+pub trait Float<const C: usize>: Numerical {
     fn splat(value: f32) -> Self;
     fn store(self, dest: &mut [f32; C]);
     fn load(src: &[f32; C]) -> Self;
     fn load_4(src: &[f32; 4]) -> Self;
+    
+    fn zero() -> Self {
+        Self::splat(f32::ZERO)
+    }
+    
+    fn mid() -> Self {
+        Self::splat(f32::MID)
+    }
+
+    fn one() -> Self {
+        Self::splat(f32::ONE)
+    }
 }
 
 pub trait Integer<const C: usize>: Numerical {
@@ -30,4 +48,16 @@ pub trait Integer<const C: usize>: Numerical {
     fn store(self, dest: &mut [u8; C]);
     fn load(src: &[u8; C]) -> Self;
     fn load_4(src: &[u8; 4]) -> Self;
+
+    fn zero() -> Self {
+        Self::splat(u8::ZERO)
+    }
+
+    fn mid() -> Self {
+        Self::splat(u8::MID)
+    }
+
+    fn one() -> Self {
+        Self::splat(u8::ONE)
+    }
 }

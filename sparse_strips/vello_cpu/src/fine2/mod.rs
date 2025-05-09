@@ -197,7 +197,7 @@ impl<F: FineType> Fine<F> {
                     return;
                 }
 
-                fill::blend(blend_buf, iter::repeat(color), blend_mode);
+                fill::alpha_composite(blend_buf, iter::repeat(color));
             }
             Paint::Indexed(_) => unimplemented!(),
         }
@@ -210,7 +210,7 @@ impl<F: FineType> Fine<F> {
         width: usize,
         alphas: &[u8],
         fill: &Paint,
-        blend_mode: BlendMode,
+        _: BlendMode,
         _: &[EncodedPaint],
     ) {
         debug_assert!(
@@ -223,10 +223,9 @@ impl<F: FineType> Fine<F> {
 
         match fill {
             Paint::Solid(color) => {
-                strip::blend(
+                strip::alpha_composite(
                     blend_buf,
                     iter::repeat(F::extract_color(color)),
-                    blend_mode,
                     alphas.chunks_exact(4).map(|e| [e[0], e[1], e[2], e[3]]),
                 );
             }
@@ -310,17 +309,6 @@ pub(crate) mod fill {
     use crate::fine2::{COLOR_COMPONENTS, FineType, TILE_HEIGHT_COMPONENTS};
     use vello_common::peniko::{BlendMode, Compose, Mix};
 
-    pub(crate) fn blend<F: FineType, T: Iterator<Item = [F; COLOR_COMPONENTS]>>(
-        target: &mut [F],
-        source: T,
-        blend_mode: BlendMode,
-    ) {
-        match (blend_mode.mix, blend_mode.compose) {
-            (Mix::Normal, Compose::SrcOver) => alpha_composite(target, source),
-            _ => unimplemented!(),
-        }
-    }
-
     pub(crate) fn alpha_composite<F: FineType, T: Iterator<Item = [F; COLOR_COMPONENTS]>>(
         target: &mut [F],
         mut source: T,
@@ -338,24 +326,7 @@ pub(crate) mod fill {
 
 pub(crate) mod strip {
     use crate::fine2::{COLOR_COMPONENTS, FineType, TILE_HEIGHT_COMPONENTS, Widened};
-    use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_common::tile::Tile;
-
-    pub(crate) fn blend<
-        F: FineType,
-        T: Iterator<Item = [F; COLOR_COMPONENTS]>,
-        A: Iterator<Item = [u8; Tile::HEIGHT as usize]>,
-    >(
-        target: &mut [F],
-        source: T,
-        blend_mode: BlendMode,
-        alphas: A,
-    ) {
-        match (blend_mode.mix, blend_mode.compose) {
-            (Mix::Normal, Compose::SrcOver) => alpha_composite(target, source, alphas),
-            _ => unimplemented!(),
-        }
-    }
 
     pub(crate) fn alpha_composite<
         F: FineType,

@@ -29,6 +29,8 @@ impl Sub for f32x4 {
     }
 }
 
+impl Numerical for f32x4 {}
+
 impl Float<4> for f32x4 {
     #[inline(always)]
     fn splat(value: f32) -> Self {
