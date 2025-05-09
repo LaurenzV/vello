@@ -4,7 +4,7 @@
 //! Basic render operations.
 
 use crate::RenderMode;
-use crate::fine::{Fine, FineType};
+use crate::fine2::{Fine, FineType};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
