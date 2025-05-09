@@ -1,4 +1,4 @@
-use crate::{Float, Integer, Numerical, Scalar};
+use crate::{Float, Integer, Narrowed, Scalar};
 use std::ops::{Add, Mul, Sub};
 
 impl Scalar for f32 {
@@ -13,9 +13,9 @@ impl Scalar for u8 {
     const ONE: Self = 255;
 }
 
-impl Numerical for f32 {}
-impl Numerical for u8 {}
-impl Numerical for u16 {}
+impl Narrowed for f32 {}
+impl Narrowed for u8 {}
+impl Narrowed for u16 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4([f32; 4]);
@@ -59,7 +59,7 @@ impl Sub for f32x4 {
     }
 }
 
-impl Numerical for f32x4 {}
+impl Narrowed for f32x4 {}
 
 impl Float<4> for f32x4 {
     #[inline(always)]
@@ -125,7 +125,7 @@ impl Sub for u16x8 {
     }
 }
 
-impl Numerical for u16x8 {}
+impl Narrowed for u16x8 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x16([u8; 16]);
@@ -169,7 +169,7 @@ impl Sub for u8x16 {
     }
 }
 
-impl Numerical for u8x16 {}
+impl Narrowed for u8x16 {}
 
 impl Integer<16> for u8x16 {
     #[inline(always)]

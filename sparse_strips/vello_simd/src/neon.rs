@@ -1,4 +1,4 @@
-use crate::{Float, Integer, Numerical};
+use crate::{Base, Float, Integer, Narrowed};
 use std::arch::aarch64::*;
 use std::ops::{Add, Mul, Sub};
 
@@ -29,14 +29,9 @@ impl Sub for f32x4 {
     }
 }
 
-impl Numerical for f32x4 {}
+impl Base for f32x4 {}
 
-impl Float<4> for f32x4 {
-    #[inline(always)]
-    fn splat(value: f32) -> Self {
-        unsafe { Self(vdupq_n_f32(value)) }
-    }
-
+impl Narrowed<4, f32> for f32x4 {
     #[inline(always)]
     fn load(src: &[f32; 4]) -> Self {
         unsafe { Self(vld1q_f32(src.as_ptr())) }
@@ -45,6 +40,11 @@ impl Float<4> for f32x4 {
     #[inline(always)]
     fn load_4(src: &[f32; 4]) -> Self {
         unsafe { Self(vld1q_f32(src.as_ptr())) }
+    }
+
+    #[inline(always)]
+    fn splat(value: f32) -> Self {
+        unsafe { Self(vdupq_n_f32(value)) }
     }
 
     #[inline(always)]
@@ -98,17 +98,9 @@ impl Sub for f32x8 {
     }
 }
 
-impl Numerical for f32x8 {}
+impl Base for f32x8 {}
 
-impl Float<8> for f32x8 {
-    #[inline(always)]
-    fn splat(value: f32) -> Self {
-        unsafe {
-            let v = vdupq_n_f32(value);
-            Self(float32x4x2_t(v, v))
-        }
-    }
-
+impl Narrowed<8, f32> for f32x8 {
     #[inline(always)]
     fn load(src: &[f32; 8]) -> Self {
         unsafe { Self(vld1q_f32_x2(src.as_ptr())) }
@@ -118,6 +110,14 @@ impl Float<8> for f32x8 {
     fn load_4(src: &[f32; 4]) -> Self {
         unsafe {
             let v = vld1q_f32(src.as_ptr());
+            Self(float32x4x2_t(v, v))
+        }
+    }
+
+    #[inline(always)]
+    fn splat(value: f32) -> Self {
+        unsafe {
+            let v = vdupq_n_f32(value);
             Self(float32x4x2_t(v, v))
         }
     }
@@ -155,7 +155,7 @@ impl Sub for u16x8 {
     }
 }
 
-impl Numerical for u16x8 {}
+impl Base for u16x8 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u16x16(uint16x8x2_t);
@@ -202,7 +202,7 @@ impl Sub for u16x16 {
     }
 }
 
-impl Numerical for u16x16 {}
+impl Base for u16x16 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u16x32(uint16x8x4_t);
@@ -253,7 +253,9 @@ impl Sub for u8x16 {
     }
 }
 
-impl Integer<16> for u8x16 {
+impl Base for u8x16 {}
+
+impl Narrowed<16, u8> for u8x16 {
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe {
@@ -282,8 +284,6 @@ impl Integer<16> for u8x16 {
         unsafe { vst1q_u8(dest.as_mut_ptr(), self.0) }
     }
 }
-
-impl Numerical for u8x16 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x32(uint8x16x2_t);
@@ -330,7 +330,9 @@ impl Sub for u8x32 {
     }
 }
 
-impl Integer<32> for u8x32 {
+impl Base for u8x32 {}
+
+impl Narrowed<32, u8> for u8x32 {
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe {
@@ -359,8 +361,6 @@ impl Integer<32> for u8x32 {
         unsafe { vst1q_u8_x2(dest.as_mut_ptr(), self.0) }
     }
 }
-
-impl Numerical for u8x32 {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x64(uint8x16x4_t);
@@ -413,17 +413,9 @@ impl Sub for u8x64 {
     }
 }
 
-impl Integer<64> for u8x64 {
-    #[inline(always)]
-    fn splat(value: u8) -> Self {
-        unsafe {
-            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
-                value, value, value, value,
-            ])));
-            Self(uint8x16x4_t(loaded, loaded, loaded, loaded))
-        }
-    }
+impl Base for u8x64 {}
 
+impl Narrowed<64, u8> for u8x64 {
     #[inline(always)]
     fn load(src: &[u8; 64]) -> Self {
         unsafe { Self(vld1q_u8_x4(src.as_ptr())) }
@@ -438,9 +430,17 @@ impl Integer<64> for u8x64 {
     }
 
     #[inline(always)]
+    fn splat(value: u8) -> Self {
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
+                value, value, value, value,
+            ])));
+            Self(uint8x16x4_t(loaded, loaded, loaded, loaded))
+        }
+    }
+
+    #[inline(always)]
     fn store(self, dest: &mut [u8; 64]) {
         unsafe { vst1q_u8_x4(dest.as_mut_ptr(), self.0) }
     }
 }
-
-impl Numerical for u8x64 {}
