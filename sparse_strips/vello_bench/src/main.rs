@@ -4,8 +4,8 @@ use vello_common::color::palette::css::ROYAL_BLUE;
 use vello_common::encode::EncodedPaint;
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::peniko::{BlendMode, Compose, Mix};
-use vello_cpu::fine2;
-use vello_cpu::fine2::{SCRATCH_BUF_SIZE};
+use vello_cpu::fine_experiments;
+use vello_cpu::fine_experiments::{SCRATCH_BUF_SIZE};
 // use vello_cpu::fine2::{Fine};
 
 fn main() {
@@ -37,7 +37,7 @@ fn main() {
         for _ in 0..100 {
             // fine.fill(&u8_arr);
             // fine2::opaque_u8(&mut blend_buf_u8, &u8_arr);
-            fine2::opaque_f32(&mut blend_buf_f32, &a_f32_4);
+            fine_experiments::opaque_f32(&mut blend_buf_f32, &a_f32_4);
         }
         
         std::hint::black_box(&blend_buf_u8);
