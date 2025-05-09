@@ -3264,6 +3264,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "vello_simd"
+version = "0.5.0"
+
+[[package]]
 name = "vello_sparse_tests"
 version = "0.0.0"
 dependencies = [

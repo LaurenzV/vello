@@ -19,6 +19,8 @@ mod render;
 /// This is an internal module, do not access directly.
 pub mod fine;
 /// This is an internal module, do not access directly.
+pub mod fine2;
+/// This is an internal module, do not access directly.
 pub mod fine_experiments;
 mod util;
 

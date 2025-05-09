@@ -23,7 +23,7 @@ members = [
     "sparse_strips/vello_toy",
     "sparse_strips/vello_dev_macros",
     "sparse_strips/vello_sparse_tests",
-    "image_filters/vello_filters_cpu",
+    "image_filters/vello_filters_cpu", "sparse_strips/vello_simd",
 ]
 
 [workspace.package]
