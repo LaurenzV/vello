@@ -1,3 +1,4 @@
+use std::arch::aarch64::{float32x4x2_t, float32x4x4_t, uint32x4x4_t, uint8x16x4_t, vdup_n_u32, vdupq_n_u32, vld1q_f32, vreinterpretq_u8_u32, vst1q_f32, vst1q_f32_x2, vst1q_f32_x4, vst1q_u32_x4, vst1q_u8_x4};
 use crate::fine::ScratchBuf;
 use crate::Paint;
 
@@ -9,70 +10,63 @@ const TILE_HEIGHT_COMPONENTS: usize = HEIGHT * COLOR_COMPONENTS;
 pub const SCRATCH_BUF_SIZE: usize =
     WIDETILE_WIDTH * HEIGHT * COLOR_COMPONENTS;
 
-pub fn opaque(
+pub fn opaque_u8(
     blend_buf: &mut [u8],
     color: &[u8; 4]
 ) {
-    let blend_buf = &mut blend_buf[0..][..1024];
+    unsafe {
+        let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes(*color)));
+        let matrix = uint8x16x4_t(loaded, loaded, loaded, loaded);
+        let blend_buf = &mut blend_buf[0..][..SCRATCH_BUF_SIZE];
 
-    
-    for t in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
-        t.copy_from_slice(color);
-    }
-}
-
-pub struct Fine {
-    pub(crate) width: u16,
-    pub(crate) height: u16,
-    pub(crate) wide_coords: (u16, u16),
-    pub(crate) blend_buf: Vec<ScratchBuf<u8>>,
-    pub(crate) color_buf: ScratchBuf<u8>,
-}
-
-impl Fine {
-    /// Create a new fine rasterizer.
-    pub fn new(width: u16, height: u16) -> Self {
-        let blend_buf = [0; SCRATCH_BUF_SIZE];
-        let color_buf = [0; SCRATCH_BUF_SIZE];
-
-        Self {
-            width,
-            height,
-            wide_coords: (0, 0),
-            blend_buf: vec![blend_buf],
-            color_buf,
-        }
-    }
-
-    /// Fill at a given x and with a width using the given paint.
-    pub fn fill(
-        &mut self,
-        x: usize,
-        width: usize,
-        fill: &Paint,
-    ) {
-        let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
-            [..TILE_HEIGHT_COMPONENTS * width];
-        let color_buf =
-            &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-
-        let start_x = self.wide_coords.0 * WIDETILE_WIDTH as u16 + x as u16;
-        let start_y = self.wide_coords.1 * HEIGHT as u16;
-
-        match fill {
-            Paint::Solid(color) => {
-                let color = color.as_premul_rgba8().to_u8_array();
-
-                // If color is completely opaque we can just memcopy the colors.
-                if color[3] == 255  {
-                    for t in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
-                        t.copy_from_slice(&color);
-                    }
-
-                    return;
-                }
-            }
-            _ => unreachable!()
+        for t in blend_buf.chunks_exact_mut(64) {
+            vst1q_u8_x4(t.as_mut_ptr(), matrix);
         }
     }
 }
+
+pub fn opaque_f32(
+    blend_buf: &mut [f32],
+    color: &[f32; 4]
+) {
+    unsafe {
+        let loaded = vld1q_f32(color.as_ptr());
+        let matrix = float32x4x4_t(loaded, loaded, loaded, loaded);
+        
+        let blend_buf = &mut blend_buf[0..][..SCRATCH_BUF_SIZE];
+
+        for t in blend_buf.chunks_exact_mut(16) {
+            vst1q_f32_x4(t.as_mut_ptr(), matrix);
+        }
+    }
+}
+
+// 
+// pub struct Fine {
+//     pub(crate) blend_buf: Vec<u8>,
+// }
+// 
+// impl Fine {
+//     /// Create a new fine rasterizer.
+//     pub fn new() -> Self {
+//         let blend_buf = vec![0; SCRATCH_BUF_SIZE];
+// 
+//         Self {
+//             blend_buf,
+//         }
+//     }
+// 
+//     /// Fill at a given x and with a width using the given paint.
+//     pub fn fill(
+//         &mut self,
+//         color_arr: &[u8; 4]
+//     ) {
+//         let blend_buf = &mut self.blend_buf;
+// 
+//         for t in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
+//             t.copy_from_slice(color_arr);
+//         }
+// 
+//         return;
+//     }
+// }
