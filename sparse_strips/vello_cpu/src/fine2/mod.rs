@@ -84,7 +84,7 @@ impl<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt> Fine<C, A, N> 
     #[doc(hidden)]
     pub fn pack(&mut self, out_buf: &mut [u8]) {
         let blend_buf = self.blend_buf.last_mut().unwrap();
-
+        
         pack::<N::Scalar>(
             out_buf,
             blend_buf,

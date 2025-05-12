@@ -259,7 +259,11 @@ impl Narrowed<16, 4> for u8x16 {
     #[inline(always)]
     fn load_4(src: &[u8; 4]) -> Self {
         let mut result = [0u8; 16];
-        result[..4].copy_from_slice(src);
+        
+        for res in result.chunks_exact_mut(4) {
+            res.copy_from_slice(src);
+        }
+        
         Self(result)
     }
 

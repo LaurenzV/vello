@@ -5,12 +5,13 @@ pub mod neon;
 pub mod scalar;
 mod util;
 
+use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
 pub trait Simd<const C: usize> {}
 
 pub trait Base:
-    Sized + Copy + Add<Self, Output = Self> + Mul<Self, Output = Self> + Sub<Self, Output = Self>
+    Sized + Copy + Add<Self, Output = Self> + Mul<Self, Output = Self> + Sub<Self, Output = Self> + Debug
 {
 }
 
