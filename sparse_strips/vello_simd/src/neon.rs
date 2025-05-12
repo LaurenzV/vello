@@ -76,10 +76,12 @@ impl Narrowed<4, 1> for f32x4 {
 }
 
 impl Widened<4, 1, f32x4> for f32x4 {
+    #[inline(always)]
     fn narrow(self) -> f32x4 {
         self
     }
 
+    #[inline(always)]
     fn normalize(self) -> Self {
         self
     }
@@ -139,6 +141,7 @@ impl Narrowed<8, 2> for f32x8 {
         }
     }
 
+    #[inline(always)]
     fn load_alphas(src: &[u8; 2]) -> Self {
         Self(
             f32x4::from_normalized_u8(src[0]),
@@ -187,10 +190,12 @@ impl Narrowed<8, 2> for f32x8 {
 }
 
 impl Widened<8, 2, f32x8> for f32x8 {
+    #[inline(always)]
     fn narrow(self) -> f32x8 {
         self
     }
 
+    #[inline(always)]
     fn normalize(self) -> Self {
         self
     }
@@ -302,6 +307,7 @@ impl Sub for u16x32 {
 impl Base for u16x32 {}
 
 impl Widened<32, 8, u8x32> for u16x32 {
+    #[inline(always)]
     fn narrow(self) -> u8x32 {
         let first = self.0.narrow();
         let second = self.1.narrow();
@@ -309,6 +315,7 @@ impl Widened<32, 8, u8x32> for u16x32 {
         u8x32(first, second)
     }
 
+    #[inline(always)]
     fn normalize(mut self) -> Self {
         self.0 = self.0.normalize();
         self.1 = self.1.normalize();
@@ -526,6 +533,7 @@ impl Narrowed<32, 8> for u8x32 {
         }
     }
 
+    #[inline(always)]
     fn from_normalized_u8(value: u8) -> Self {
         Self::splat(value)
     }

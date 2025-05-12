@@ -25,7 +25,7 @@ use vello_common::pixmap::Pixmap;
 use vello_common::strip::Strip;
 use vello_common::tile::Tiles;
 use vello_common::{flatten, peniko, strip};
-use vello_simd::{Narrowed, scalar};
+use vello_simd::{Narrowed, scalar, neon};
 
 pub(crate) const DEFAULT_TOLERANCE: f64 = 0.1;
 /// A render context.
@@ -300,11 +300,11 @@ impl RenderContext {
 
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                let mut fine = Fine::<16, 4, scalar::u8x16>::new(width, height);
+                let mut fine = Fine::<16, 4, neon::u8x16>::new(width, height);
                 self.do_fine(buffer, &mut fine);
             }
             RenderMode::OptimizeQuality => {
-                let mut fine = Fine::<4, 1, scalar::f32x4>::new(width, height);
+                let mut fine = Fine::<4, 1, neon::f32x4>::new(width, height);
                 self.do_fine(buffer, &mut fine);
             }
         }
