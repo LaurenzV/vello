@@ -39,8 +39,8 @@ fn main() {
 
         for _ in 0..100 {
             // fine.fill(&u8_arr);
-            fine_experiments::opaque_u8(&mut blend_buf_u8, &u8_arr);
-            // fine_experiments::opaque_f32(&mut blend_buf_f32, &a_f32_4);
+            // fine_experiments::opaque_u8(&mut blend_buf_u8, &u8_arr);
+            fine_experiments::opaque_f32_2(&mut blend_buf_f32, &a_f32_4);
         }
 
         std::hint::black_box(&blend_buf_u8);

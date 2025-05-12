@@ -8,6 +8,7 @@ pub struct f32x4(float32x4_t);
 impl Add for f32x4 {
     type Output = Self;
 
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         unsafe { Self(vaddq_f32(self.0, rhs.0)) }
     }
@@ -16,6 +17,7 @@ impl Add for f32x4 {
 impl Mul for f32x4 {
     type Output = Self;
 
+    #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
         unsafe { Self(vmulq_f32(self.0, rhs.0)) }
     }
@@ -24,6 +26,7 @@ impl Mul for f32x4 {
 impl Sub for f32x4 {
     type Output = Self;
 
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         unsafe { Self(vsubq_f32(self.0, rhs.0)) }
     }

@@ -5,6 +5,7 @@ use std::arch::aarch64::{
     vreinterpretq_u8_u32, vst1q_f32, vst1q_f32_x2, vst1q_f32_x4, vst1q_u8_x4, vst1q_u32_x4,
 };
 use vello_simd::Narrowed;
+use vello_simd::neon::{f32x4, f32x8};
 use vello_simd::scalar::u8x16;
 
 pub const HEIGHT: usize = 4;
@@ -25,9 +26,20 @@ pub fn opaque_u8(blend_buf: &mut [u8], color: &[u8; 4]) {
 }
 
 pub fn opaque_f32(blend_buf: &mut [f32], color: &[f32; 4]) {
-    let splat = vello_simd::neon::f32x8::load_4(color);
+    for t in blend_buf.array_chunks_mut::<4>() {
+        for i in 0..4 {
+            t[i] = t[i] + color[i];
+        }
+        
+    }
+}
+
+pub fn opaque_f32_2(blend_buf: &mut [f32], color: &[f32; 4]) {
+    let splat = f32x8::load_4(color);
 
     for t in blend_buf.array_chunks_mut::<8>() {
-        splat.store(t);
+        let loaded = f32x8::load(t);
+        let added = loaded + splat;
+        added.store(t);
     }
 }

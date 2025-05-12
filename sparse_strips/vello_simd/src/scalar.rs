@@ -115,16 +115,19 @@ impl Narrowed<4, 1> for f32x4 {
 
     type Scalar = f32;
 
+    #[inline(always)]
     fn load_alphas(src: &[u8; 1]) -> Self {
         Self::from_normalized_u8(src[0])
     }
 }
 
 impl Widened<4, 1, f32x4> for f32x4 {
+    #[inline(always)]
     fn narrow(self) -> f32x4 {
         self
     }
 
+    #[inline(always)]
     fn normalize(self) -> Self {
         self
     }
