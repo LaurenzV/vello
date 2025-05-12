@@ -418,13 +418,19 @@ impl Narrowed<16, 4> for u8x16 {
 
     #[inline(always)]
     fn load_alphas(src: &[u8; 4]) -> Self {
-        todo!()
+        unsafe {
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(*src)));
+            let zip1 = vzip1q_u8(loaded, loaded);
+            let zip2 = vzip1q_u8(zip1, zip1);
+
+            Self(zip2)
+        }
     }
 
     #[inline(always)]
     fn load_4(src: &[u8; 4]) -> Self {
         unsafe {
-            let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(*src)));
             Self(loaded)
         }
     }
@@ -432,10 +438,7 @@ impl Narrowed<16, 4> for u8x16 {
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe {
-            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
-                value, value, value, value,
-            ])));
-            Self(loaded)
+            Self(vdupq_n_u8(value))
         }
     }
 
@@ -455,7 +458,7 @@ impl Narrowed<16, 4> for u8x16 {
             let low = vget_low_u8(self.0);
             let high = vget_high_u8(self.0);
 
-            u16x16(uint16x8x2_t(vmovl_u8(high), vmovl_u8(low)))
+            u16x16(uint16x8x2_t(vmovl_u8(low), vmovl_u8(high)))
         }
     }
 }
@@ -516,12 +519,16 @@ impl Narrowed<32, 8> for u8x32 {
 
     #[inline(always)]
     fn load_alphas(src: &[u8; 8]) -> Self {
-        todo!()
+        let first = [src[0], src[1], src[2], src[3]];
+        let second = [src[4], src[5], src[6], src[7]];
+        
+        Self(u8x16::load_alphas(&first), u8x16::load_alphas(&second))
     }
 
     #[inline(always)]
     fn load_4(src: &[u8; 4]) -> Self {
         unsafe {
+            // TOOD: Wrong!
             let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
 
             Self(u8x16(loaded), u8x16(loaded))
