@@ -5,7 +5,7 @@ use std::arch::aarch64::{
     vreinterpretq_u8_u32, vst1q_f32, vst1q_f32_x2, vst1q_f32_x4, vst1q_u8_x4, vst1q_u32_x4,
 };
 use vello_simd::Narrowed;
-use vello_simd::neon::{f32x4, f32x8};
+use vello_simd::neon::{f32x4, f32x8, u8x32};
 use vello_simd::scalar::u8x16;
 
 pub const HEIGHT: usize = 4;
@@ -15,13 +15,27 @@ const TILE_HEIGHT_COMPONENTS: usize = HEIGHT * COLOR_COMPONENTS;
 #[doc(hidden)]
 pub const SCRATCH_BUF_SIZE: usize = WIDETILE_WIDTH * HEIGHT * COLOR_COMPONENTS;
 
+#[inline(never)]
 pub fn opaque_u8(blend_buf: &mut [u8], color: &[u8; 4]) {
-    let splat = u8x16::load_4(color);
+    // let splat = u8x32::load_4(color);
+    // 
+    // for t in blend_buf.array_chunks_mut::<32>() {
+    //     splat.store(t)
+    // }
+    
+    // for t in blend_buf.chunks_exact_mut(4) {
+    //     t.copy_from_slice(color);
+    // }
+    // 
+    
+    unsafe {
+        let chunks = blend_buf.array_chunks_mut::<64>();
+        let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes(*color)));
+        let l2 = uint8x16x4_t(loaded, loaded, loaded, loaded);
 
-    for t in blend_buf.array_chunks_mut::<16>() {
-        let loaded = u8x16::load(t);
-        let added = loaded + splat;
-        added.store(t);
+        for i in blend_buf.array_chunks_mut::<64>() {
+            vst1q_u8_x4(i.as_mut_ptr(), l2);
+        }
     }
 }
 

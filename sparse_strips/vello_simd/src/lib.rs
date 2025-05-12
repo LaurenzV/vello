@@ -79,7 +79,6 @@ pub trait Scalar: Base {
     const MID: Self;
     const ONE: Self;
 
-    #[inline(always)]
     fn to_rgba8(src: &[Self]) -> [u8; 4];
 }
 

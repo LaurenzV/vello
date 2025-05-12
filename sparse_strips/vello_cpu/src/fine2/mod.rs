@@ -331,6 +331,16 @@ impl SimdExt for neon::u8x32 {
     }
 }
 
+impl SimdExt for neon::u8x64 {
+    fn splat_color(color: &PremulColor) -> Self {
+        Self::load_4(&color.as_premul_rgba8().to_u8_array())
+    }
+
+    fn splat_alpha(color: &PremulColor) -> Self {
+        Self::splat(color.as_premul_rgba8().a)
+    }
+}
+
 impl SimdExt for scalar::f32x4 {
     fn splat_color(color: &PremulColor) -> Self {
         Self::load_4(&color.as_premul_f32().components)

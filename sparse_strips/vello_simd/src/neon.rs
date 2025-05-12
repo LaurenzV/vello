@@ -371,52 +371,64 @@ impl Widened<32, 8, u8x32> for u16x32 {
     }
 }
 
-// #[derive(Copy, Clone, Debug)]
-// pub struct u16x64(u16x32, u16x32);
-//
-// impl Add for u16x64 {
-//     type Output = Self;
-//
-//     #[inline(always)]
-//     fn add(mut self, rhs: Self) -> Self::Output {
-//         unsafe {
-//             self.0 = self.0 + rhs.0;
-//             self.1 = self.1 + rhs.1;
-//
-//             self
-//         }
-//     }
-// }
-//
-// impl Mul for u16x64 {
-//     type Output = Self;
-//
-//     #[inline(always)]
-//     fn mul(mut self, rhs: Self) -> Self::Output {
-//         unsafe {
-//             self.0 = self.0 * rhs.0;
-//             self.1 = self.1 * rhs.1;
-//
-//             self
-//         }
-//     }
-// }
-//
-// impl Sub for u16x64 {
-//     type Output = Self;
-//
-//     #[inline(always)]
-//     fn sub(mut self, rhs: Self) -> Self::Output {
-//         unsafe {
-//             self.0 = self.0 - rhs.0;
-//             self.1 = self.1 - rhs.1;
-//
-//             self
-//         }
-//     }
-// }
-//
-// impl Base for u16x64 {}
+#[derive(Copy, Clone, Debug)]
+pub struct u16x64(u16x32, u16x32);
+
+impl Add for u16x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 + rhs.0;
+        self.1 = self.1 + rhs.1;
+
+        self
+    }
+}
+
+impl Mul for u16x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 * rhs.0;
+        self.1 = self.1 * rhs.1;
+
+        self
+    }
+}
+
+impl Sub for u16x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 - rhs.0;
+        self.1 = self.1 - rhs.1;
+
+        self
+    }
+}
+
+impl Base for u16x64 {}
+
+impl Widened<64, 16, u8x64> for u16x64 {
+    #[inline(always)]
+    fn narrow(self) -> u8x64 {
+        let first = self.0.narrow();
+        let second = self.1.narrow();
+
+        u8x64(first, second)
+    }
+
+    #[inline(always)]
+    fn normalize(mut self) -> Self {
+        self.0 = self.0.normalize();
+        self.1 = self.1.normalize();
+
+        self
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x16(uint8x16_t);
@@ -606,93 +618,105 @@ impl Narrowed<32, 8> for u8x32 {
     }
 }
 
-// #[derive(Copy, Clone, Debug)]
-// pub struct u8x64(uint8x16x4_t);
-//
-// impl Add for u8x64 {
-//     type Output = Self;
-//
-//     #[inline(always)]
-//     fn add(mut self, rhs: Self) -> Self::Output {
-//         unsafe {
-//             self.0.0 = vaddq_u8(self.0.0, rhs.0.0);
-//             self.0.1 = vaddq_u8(self.0.1, rhs.0.1);
-//             self.0.2 = vaddq_u8(self.0.2, rhs.0.2);
-//             self.0.3 = vaddq_u8(self.0.3, rhs.0.3);
-//
-//             self
-//         }
-//     }
-// }
-//
-// impl Mul for u8x64 {
-//     type Output = Self;
-//
-//     #[inline(always)]
-//     fn mul(mut self, rhs: Self) -> Self::Output {
-//         unsafe {
-//             self.0.0 = vmulq_u8(self.0.0, rhs.0.0);
-//             self.0.1 = vmulq_u8(self.0.1, rhs.0.1);
-//             self.0.2 = vmulq_u8(self.0.2, rhs.0.2);
-//             self.0.3 = vmulq_u8(self.0.3, rhs.0.3);
-//
-//             self
-//         }
-//     }
-// }
-//
-// impl Sub for u8x64 {
-//     type Output = Self;
-//
-//     #[inline(always)]
-//     fn sub(mut self, rhs: Self) -> Self::Output {
-//         unsafe {
-//             self.0.0 = vsubq_u8(self.0.0, rhs.0.0);
-//             self.0.1 = vsubq_u8(self.0.1, rhs.0.1);
-//             self.0.2 = vsubq_u8(self.0.2, rhs.0.2);
-//             self.0.3 = vsubq_u8(self.0.3, rhs.0.3);
-//
-//             self
-//         }
-//     }
-// }
-//
-// impl Base for u8x64 {}
-//
-// impl Narrowed<64, u8> for u8x64 {
-//     #[inline(always)]
-//     fn load(src: &[u8; 64]) -> Self {
-//         unsafe { Self(vld1q_u8_x4(src.as_ptr())) }
-//     }
-//
-//     #[inline(always)]
-//     fn load_4(src: &[u8; 4]) -> Self {
-//         unsafe {
-//             let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
-//             Self(uint8x16x4_t(
-//                 loaded,
-//                 vdupq_n_u8(0),
-//                 vdupq_n_u8(0),
-//                 vdupq_n_u8(0),
-//             ))
-//         }
-//     }
-//
-//     #[inline(always)]
-//     fn splat(value: u8) -> Self {
-//         unsafe {
-//             let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
-//                 value, value, value, value,
-//             ])));
-//             Self(uint8x16x4_t(loaded, loaded, loaded, loaded))
-//         }
-//     }
-//
-//     #[inline(always)]
-//     fn store(self, dest: &mut [u8; 64]) {
-//         unsafe { vst1q_u8_x4(dest.as_mut_ptr(), self.0) }
-//     }
-// }
+#[derive(Copy, Clone, Debug)]
+pub struct u8x64(u8x32, u8x32);
+
+impl Add for u8x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 + rhs.0;
+        self.1 = self.1 + rhs.1;
+
+        self
+    }
+}
+
+impl Mul for u8x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 + rhs.0;
+        self.1 = self.1 + rhs.1;
+
+        self
+    }
+}
+
+impl Sub for u8x64 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 - rhs.0;
+        self.1 = self.1 - rhs.1;
+
+        self
+    }
+}
+
+impl Base for u8x64 {}
+
+impl Narrowed<64, 16> for u8x64 {
+    type Scalar = u8;
+    type Widened = u16x64;
+
+    #[inline(always)]
+    fn load(src: &[u8; 64]) -> Self {
+        unsafe {
+            let loaded = vld1q_u8_x4(src.as_ptr());
+
+            Self(u8x32(u8x16(loaded.0), u8x16(loaded.1)), u8x32(u8x16(loaded.2), u8x16(loaded.3)))
+        }
+    }
+
+    #[inline(always)]
+    fn load_alphas(src: &[u8; 16]) -> Self {
+        let first: &[u8; 8] = &src[0..8].try_into().unwrap();
+        let second: &[u8; 8] = &src[8..16].try_into().unwrap();
+
+        Self(u8x32::load_alphas(&first), u8x32::load_alphas(&second))
+    }
+
+    #[inline(always)]
+    fn load_4(src: &[u8; 4]) -> Self {
+        unsafe {
+            let loaded = u8x32::load_4(src);
+
+            Self(loaded, loaded)
+        }
+    }
+
+    #[inline(always)]
+    fn splat(value: u8) -> Self {
+        unsafe {
+            let loaded = u8x32::splat(value);
+
+            Self(loaded, loaded)
+        }
+    }
+
+    #[inline(always)]
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value)
+    }
+
+    #[inline(always)]
+    fn store(self, dest: &mut [u8; 64]) {
+        let stored = uint8x16x4_t(self.0.0.0, self.0.1.0, self.1.0.0, self.1.1.0);
+        unsafe { vst1q_u8_x4(dest.as_mut_ptr(), stored) }
+    }
+
+    #[inline(always)]
+    fn widen(self) -> Self::Widened {
+        let first = self.0.widen();
+        let second = self.1.widen();
+
+        u16x64(first, second)
+    }
+}
 
 #[inline(always)]
 fn div_255(input: uint16x8_t) -> uint16x8_t {
