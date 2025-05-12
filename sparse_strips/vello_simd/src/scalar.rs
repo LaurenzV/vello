@@ -1,4 +1,5 @@
-use crate::{Base, Float, Integer, Narrowed, Scalar};
+use crate::util::scalar::div_255;
+use crate::{Base, Narrowed, Scalar, Widened};
 use std::ops::{Add, Mul, Sub};
 
 impl Scalar for f32 {
@@ -24,12 +25,12 @@ impl Add for f32x4 {
     type Output = Self;
 
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut result = [0.0; 4];
+    fn add(mut self, rhs: Self) -> Self::Output {
         for i in 0..4 {
-            result[i] = self.0[i] + rhs.0[i];
+            self.0[i] = self.0[i] + rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
@@ -37,12 +38,12 @@ impl Mul for f32x4 {
     type Output = Self;
 
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mut result = [0.0; 4];
+    fn mul(mut self, rhs: Self) -> Self::Output {
         for i in 0..4 {
-            result[i] = self.0[i] * rhs.0[i];
+            self.0[i] = self.0[i] * rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
@@ -50,18 +51,20 @@ impl Sub for f32x4 {
     type Output = Self;
 
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output {
-        let mut result = [0.0; 4];
+    fn sub(mut self, rhs: Self) -> Self::Output {
         for i in 0..4 {
-            result[i] = self.0[i] - rhs.0[i];
+            self.0[i] = self.0[i] - rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
 impl Base for f32x4 {}
 
 impl Narrowed<4, f32> for f32x4 {
+    type Widened = Self;
+
     #[inline(always)]
     fn load(src: &[f32; 4]) -> Self {
         Self(*src)
@@ -81,51 +84,93 @@ impl Narrowed<4, f32> for f32x4 {
     fn store(self, dest: &mut [f32; 4]) {
         dest.copy_from_slice(&self.0)
     }
+
+    #[inline(always)]
+    fn widen(self) -> Self::Widened {
+        self
+    }
+
+    #[inline(always)]
+    fn normalized_mul(self, other: Self) -> Self {
+        self * other
+    }
+}
+
+impl Widened<4, f32, f32x4> for f32x4 {
+    fn narrow(self) -> f32x4 {
+        self
+    }
+
+    fn normalize(self) -> Self {
+        self
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct u16x8([u16; 8]);
+pub struct u16x16([u16; 16]);
 
-impl Add for u16x8 {
+impl Add for u16x16 {
     type Output = Self;
 
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut result = [0; 8];
-        for i in 0..8 {
-            result[i] = self.0[i] + rhs.0[i];
+    fn add(mut self, rhs: Self) -> Self::Output {
+        for i in 0..16 {
+            self.0[i] = self.0[i] + rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
-impl Mul for u16x8 {
+impl Mul for u16x16 {
     type Output = Self;
 
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mut result = [0; 8];
-        for i in 0..8 {
-            result[i] = self.0[i] * rhs.0[i];
+    fn mul(mut self, rhs: Self) -> Self::Output {
+        for i in 0..16 {
+            self.0[i] = self.0[i] * rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
-impl Sub for u16x8 {
+impl Sub for u16x16 {
     type Output = Self;
 
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output {
-        let mut result = [0; 8];
-        for i in 0..8 {
-            result[i] = self.0[i] - rhs.0[i];
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        for i in 0..16 {
+            self.0[i] = self.0[i] - rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
-impl Base for u16x8 {}
+impl Base for u16x16 {}
+
+impl Widened<16, u8, u8x16> for u16x16 {
+    #[inline(always)]
+    fn narrow(self) -> u8x16 {
+        let mut converted = [0u8; 16];
+
+        for i in 0..16 {
+            converted[i] = self.0[i] as u8;
+        }
+
+        u8x16(converted)
+    }
+
+    #[inline(always)]
+    fn normalize(mut self) -> Self {
+        for i in 0..16 {
+            self.0[i] = div_255(self.0[i]);
+        }
+
+        self
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x16([u8; 16]);
@@ -134,12 +179,12 @@ impl Add for u8x16 {
     type Output = Self;
 
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut result = [0; 16];
+    fn add(mut self, rhs: Self) -> Self::Output {
         for i in 0..16 {
-            result[i] = self.0[i] + rhs.0[i];
+            self.0[i] = self.0[i] + rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
@@ -147,12 +192,12 @@ impl Mul for u8x16 {
     type Output = Self;
 
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mut result = [0; 16];
+    fn mul(mut self, rhs: Self) -> Self::Output {
         for i in 0..16 {
-            result[i] = self.0[i] * rhs.0[i];
+            self.0[i] = self.0[i] * rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
@@ -160,22 +205,19 @@ impl Sub for u8x16 {
     type Output = Self;
 
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output {
-        let mut result = [0; 16];
+    fn sub(mut self, rhs: Self) -> Self::Output {
         for i in 0..16 {
-            result[i] = self.0[i] - rhs.0[i];
+            self.0[i] = self.0[i] - rhs.0[i];
         }
-        Self(result)
+
+        self
     }
 }
 
 impl Base for u8x16 {}
 
 impl Narrowed<16, u8> for u8x16 {
-    #[inline(always)]
-    fn splat(value: u8) -> Self {
-        Self([value; 16])
-    }
+    type Widened = u16x16;
 
     #[inline(always)]
     fn load(src: &[u8; 16]) -> Self {
@@ -190,7 +232,23 @@ impl Narrowed<16, u8> for u8x16 {
     }
 
     #[inline(always)]
+    fn splat(value: u8) -> Self {
+        Self([value; 16])
+    }
+
+    #[inline(always)]
     fn store(self, dest: &mut [u8; 16]) {
         dest.copy_from_slice(&self.0)
+    }
+
+    #[inline(always)]
+    fn widen(self) -> Self::Widened {
+        let mut converted = [0u16; 16];
+
+        for i in 0..16 {
+            converted[i] = self.0[i] as u16;
+        }
+
+        u16x16(converted)
     }
 }

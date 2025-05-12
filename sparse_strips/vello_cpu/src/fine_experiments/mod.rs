@@ -5,6 +5,7 @@ use std::arch::aarch64::{
     vreinterpretq_u8_u32, vst1q_f32, vst1q_f32_x2, vst1q_f32_x4, vst1q_u8_x4, vst1q_u32_x4,
 };
 use vello_simd::Narrowed;
+use vello_simd::scalar::u8x16;
 
 pub const HEIGHT: usize = 4;
 pub const WIDETILE_WIDTH: usize = 256;
@@ -14,10 +15,12 @@ const TILE_HEIGHT_COMPONENTS: usize = HEIGHT * COLOR_COMPONENTS;
 pub const SCRATCH_BUF_SIZE: usize = WIDETILE_WIDTH * HEIGHT * COLOR_COMPONENTS;
 
 pub fn opaque_u8(blend_buf: &mut [u8], color: &[u8; 4]) {
-    let splat = vello_simd::neon::u8x64::load_4(color);
+    let splat = u8x16::load_4(color);
 
-    for t in blend_buf.array_chunks_mut::<64>() {
-        splat.store(t);
+    for t in blend_buf.array_chunks_mut::<16>() {
+        let loaded = u8x16::load(t);
+        let added = loaded + splat;
+        added.store(t);
     }
 }
 
