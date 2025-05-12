@@ -262,7 +262,7 @@ pub(crate) mod fill {
 
         for part in target.array_chunks_mut::<C>() {
             let mut bg_c = N::load(part);
-            bg_c = src_c + (bg_c.normalized_mul(one_minus_alpha));
+            bg_c = bg_c.normalized_mul_add(one_minus_alpha, src_c);
             bg_c.store(part);
         }
     }

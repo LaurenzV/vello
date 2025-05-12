@@ -77,6 +77,13 @@ impl Narrowed<4, 1> for f32x4 {
     fn normalized_mul(self, other: Self) -> Self {
         self * other
     }
+
+    #[inline(always)]
+    fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
+        unsafe {
+            Self(vfmaq_f32(other2.0, self.0, other1.0))
+        }
+    }
 }
 
 impl Widened<4, 1, f32x4> for f32x4 {
@@ -190,6 +197,14 @@ impl Narrowed<8, 2> for f32x8 {
     #[inline(always)]
     fn normalized_mul(self, other: Self) -> Self {
         self * other
+    }
+
+    #[inline(always)]
+    fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
+        Self(
+            self.0.normalized_mul_add(other1.0, other2.0),
+            self.1.normalized_mul_add(other1.1, other2.1),
+        )
     }
 }
 
