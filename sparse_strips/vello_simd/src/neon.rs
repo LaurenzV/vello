@@ -528,21 +528,18 @@ impl Narrowed<32, 8> for u8x32 {
     #[inline(always)]
     fn load_4(src: &[u8; 4]) -> Self {
         unsafe {
-            // TOOD: Wrong!
-            let loaded = vreinterpretq_u8_u32(vld1q_u32(src.as_ptr() as *const u32));
+            let loaded = u8x16::load_4(src);
 
-            Self(u8x16(loaded), u8x16(loaded))
+            Self(loaded, loaded)
         }
     }
 
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe {
-            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes([
-                value, value, value, value,
-            ])));
+            let loaded = u8x16::splat(value);
 
-            Self(u8x16(loaded), u8x16(loaded))
+            Self(loaded, loaded)
         }
     }
 
