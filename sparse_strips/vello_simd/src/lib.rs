@@ -59,6 +59,19 @@ pub trait Narrowed<const C: usize, const A: usize>: Base {
     fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
         self.normalized_mul(other1) + other2
     }
+    
+    #[inline(always)]
+    fn normalized_mul_mul_add(self, other1: Self, other2: Self, other3: Self) -> Self {
+        let p1 = self.widen() * other1.widen();
+        let p2 = other2.widen() * other3.widen();
+        
+        (p1 + p2).normalize().narrow()
+    }
+    
+    #[inline(always)]
+    fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
+        other2 - self.normalized_mul(other1)
+    }
 }
 
 pub trait Scalar: Base {

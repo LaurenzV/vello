@@ -288,11 +288,9 @@ pub(crate) mod strip {
         {
             let bg_c = N::load(bg_part);
             let mask_a = N::load_alphas(masks);
-            let inv_src_a_mask_a = mask_a.normalized_mul(src_alpha).one_minus();
+            let inv_src_a_mask_a = mask_a.normalized_mul_sub(src_alpha, N::one());
 
-            let p1 = bg_c.widen() * inv_src_a_mask_a.widen();
-            let p2 = src_c.widen() * mask_a.widen();
-            let res = (p1 + p2).normalize().narrow();
+            let res = bg_c.normalized_mul_mul_add(inv_src_a_mask_a, src_c, mask_a);
             res.store(bg_part);
         }
     }
