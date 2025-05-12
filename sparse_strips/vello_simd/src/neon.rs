@@ -31,12 +31,17 @@ impl Sub for f32x4 {
 
 impl Base for f32x4 {}
 
-impl Narrowed<4, f32> for f32x4 {
+impl Narrowed<4, 1> for f32x4 {
+    type Scalar = f32;
     type Widened = f32x4;
 
     #[inline(always)]
     fn load(src: &[f32; 4]) -> Self {
         unsafe { Self(vld1q_f32(src.as_ptr())) }
+    }
+
+    fn load_alphas(src: &[u8; 1]) -> Self {
+        Self::from_normalized_u8(src[0])
     }
 
     #[inline(always)]
@@ -47,6 +52,11 @@ impl Narrowed<4, f32> for f32x4 {
     #[inline(always)]
     fn splat(value: f32) -> Self {
         unsafe { Self(vdupq_n_f32(value)) }
+    }
+
+    #[inline(always)]
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value as f32 / 255.0)
     }
 
     #[inline(always)]
@@ -65,7 +75,7 @@ impl Narrowed<4, f32> for f32x4 {
     }
 }
 
-impl Widened<4, f32, f32x4> for f32x4 {
+impl Widened<4, 1, f32x4> for f32x4 {
     fn narrow(self) -> f32x4 {
         self
     }
@@ -116,7 +126,8 @@ impl Sub for f32x8 {
 
 impl Base for f32x8 {}
 
-impl Narrowed<8, f32> for f32x8 {
+impl Narrowed<8, 2> for f32x8 {
+    type Scalar = f32;
     type Widened = Self;
 
     #[inline(always)]
@@ -126,6 +137,13 @@ impl Narrowed<8, f32> for f32x8 {
 
             Self(f32x4(loaded.0), f32x4(loaded.1))
         }
+    }
+
+    fn load_alphas(src: &[u8; 2]) -> Self {
+        Self(
+            f32x4::from_normalized_u8(src[0]),
+            f32x4::from_normalized_u8(src[1]),
+        )
     }
 
     #[inline(always)]
@@ -147,6 +165,11 @@ impl Narrowed<8, f32> for f32x8 {
     }
 
     #[inline(always)]
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value as f32 / 255.0)
+    }
+
+    #[inline(always)]
     fn store(self, dest: &mut [f32; 8]) {
         let stored = float32x4x2_t(self.0.0, self.1.0);
         unsafe { vst1q_f32_x2(dest.as_mut_ptr(), stored) }
@@ -163,7 +186,7 @@ impl Narrowed<8, f32> for f32x8 {
     }
 }
 
-impl Widened<8, f32, f32x8> for f32x8 {
+impl Widened<8, 2, f32x8> for f32x8 {
     fn narrow(self) -> f32x8 {
         self
     }
@@ -220,7 +243,7 @@ impl Sub for u16x16 {
 
 impl Base for u16x16 {}
 
-impl Widened<16, u8, u8x16> for u16x16 {
+impl Widened<16, 4, u8x16> for u16x16 {
     #[inline(always)]
     fn narrow(self) -> u8x16 {
         unsafe {
@@ -278,7 +301,7 @@ impl Sub for u16x32 {
 
 impl Base for u16x32 {}
 
-impl Widened<32, u8, u8x32> for u16x32 {
+impl Widened<32, 8, u8x32> for u16x32 {
     fn narrow(self) -> u8x32 {
         let first = self.0.narrow();
         let second = self.1.narrow();
@@ -373,12 +396,17 @@ impl Sub for u8x16 {
 
 impl Base for u8x16 {}
 
-impl Narrowed<16, u8> for u8x16 {
+impl Narrowed<16, 4> for u8x16 {
+    type Scalar = u8;
     type Widened = u16x16;
 
     #[inline(always)]
     fn load(src: &[u8; 16]) -> Self {
         unsafe { Self(vld1q_u8(src.as_ptr())) }
+    }
+
+    fn load_alphas(src: &[u8; 4]) -> Self {
+        todo!()
     }
 
     #[inline(always)]
@@ -397,6 +425,11 @@ impl Narrowed<16, u8> for u8x16 {
             ])));
             Self(loaded)
         }
+    }
+
+    #[inline(always)]
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value)
     }
 
     #[inline(always)]
@@ -456,7 +489,8 @@ impl Sub for u8x32 {
 
 impl Base for u8x32 {}
 
-impl Narrowed<32, u8> for u8x32 {
+impl Narrowed<32, 8> for u8x32 {
+    type Scalar = u8;
     type Widened = u16x32;
 
     #[inline(always)]
@@ -466,6 +500,10 @@ impl Narrowed<32, u8> for u8x32 {
 
             Self(u8x16(loaded.0), u8x16(loaded.1))
         }
+    }
+
+    fn load_alphas(src: &[u8; 8]) -> Self {
+        todo!()
     }
 
     #[inline(always)]
@@ -486,6 +524,10 @@ impl Narrowed<32, u8> for u8x32 {
 
             Self(u8x16(loaded), u8x16(loaded))
         }
+    }
+
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value)
     }
 
     #[inline(always)]

@@ -14,28 +14,34 @@ pub trait Base:
 {
 }
 
-pub trait Narrowed<const C: usize, F: Scalar>: Base {
-    type Widened: Widened<C, F, Self>;
+// Unfortunately we cannot make C an associated constant instead, because generic const expressions
+// are unstable and therefore we can't use them in `load` and `store`.
+// We also need to explicitly define `A` for the same reason.
+pub trait Narrowed<const C: usize, const A: usize>: Base {
+    type Scalar: Scalar;
+    type Widened: Widened<C, A, Self>;
 
-    fn load(src: &[F; C]) -> Self;
-    fn load_4(src: &[F; 4]) -> Self;
-    fn splat(value: F) -> Self;
-    fn store(self, dest: &mut [F; C]);
+    fn load(src: &[Self::Scalar; C]) -> Self;
+    fn load_alphas(src: &[u8; A]) -> Self;
+    fn load_4(src: &[Self::Scalar; 4]) -> Self;
+    fn splat(value: Self::Scalar) -> Self;
+    fn from_normalized_u8(value: u8) -> Self;
+    fn store(self, dest: &mut [Self::Scalar; C]);
     fn widen(self) -> Self::Widened;
 
     #[inline(always)]
     fn zero() -> Self {
-        Self::splat(F::ZERO)
+        Self::splat(Scalar::ZERO)
     }
 
     #[inline(always)]
     fn mid() -> Self {
-        Self::splat(F::MID)
+        Self::splat(Scalar::MID)
     }
 
     #[inline(always)]
     fn one() -> Self {
-        Self::splat(F::ONE)
+        Self::splat(Scalar::ONE)
     }
 
     #[inline(always)]
@@ -53,13 +59,11 @@ pub trait Scalar: Base {
     const ZERO: Self;
     const MID: Self;
     const ONE: Self;
+
+    fn to_rgba8(src: &[Self]) -> [u8; 4];
 }
 
-pub trait Widened<const C: usize, F: Scalar, N: Narrowed<C, F>>: Base {
+pub trait Widened<const C: usize, const A: usize, N: Narrowed<C, A>>: Base {
     fn narrow(self) -> N;
     fn normalize(self) -> Self;
 }
-
-pub trait Float<const C: usize>: Narrowed<C, f32> {}
-
-pub trait Integer<const C: usize>: Narrowed<C, u8> {}

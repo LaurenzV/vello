@@ -6,12 +6,25 @@ impl Scalar for f32 {
     const ZERO: Self = 0.0;
     const MID: Self = 0.5;
     const ONE: Self = 1.0;
+
+    fn to_rgba8(src: &[Self]) -> [u8; 4] {
+        [
+            (src[0] * 255.0 + 0.5) as u8,
+            (src[1] * 255.0 + 0.5) as u8,
+            (src[2] * 255.0 + 0.5) as u8,
+            (src[3] * 255.0 + 0.5) as u8,
+        ]
+    }
 }
 
 impl Scalar for u8 {
     const ZERO: Self = 0;
     const MID: Self = 127;
     const ONE: Self = 255;
+
+    fn to_rgba8(src: &[Self]) -> [u8; 4] {
+        [src[0], src[1], src[2], src[3]]
+    }
 }
 
 impl Base for f32 {}
@@ -62,7 +75,7 @@ impl Sub for f32x4 {
 
 impl Base for f32x4 {}
 
-impl Narrowed<4, f32> for f32x4 {
+impl Narrowed<4, 1> for f32x4 {
     type Widened = Self;
 
     #[inline(always)]
@@ -94,9 +107,20 @@ impl Narrowed<4, f32> for f32x4 {
     fn normalized_mul(self, other: Self) -> Self {
         self * other
     }
+
+    #[inline(always)]
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value as f32 / 255.0)
+    }
+
+    type Scalar = f32;
+
+    fn load_alphas(src: &[u8; 1]) -> Self {
+        Self::from_normalized_u8(src[0])
+    }
 }
 
-impl Widened<4, f32, f32x4> for f32x4 {
+impl Widened<4, 1, f32x4> for f32x4 {
     fn narrow(self) -> f32x4 {
         self
     }
@@ -150,7 +174,7 @@ impl Sub for u16x16 {
 
 impl Base for u16x16 {}
 
-impl Widened<16, u8, u8x16> for u16x16 {
+impl Widened<16, 4, u8x16> for u16x16 {
     #[inline(always)]
     fn narrow(self) -> u8x16 {
         let mut converted = [0u8; 16];
@@ -216,12 +240,20 @@ impl Sub for u8x16 {
 
 impl Base for u8x16 {}
 
-impl Narrowed<16, u8> for u8x16 {
+impl Narrowed<16, 4> for u8x16 {
+    type Scalar = u8;
     type Widened = u16x16;
 
     #[inline(always)]
     fn load(src: &[u8; 16]) -> Self {
         Self(*src)
+    }
+
+    fn load_alphas(src: &[u8; 4]) -> Self {
+        Self([
+            src[0], src[0], src[0], src[0], src[1], src[1], src[1], src[1], src[2], src[2], src[2],
+            src[2], src[3], src[3], src[3], src[3],
+        ])
     }
 
     #[inline(always)]
@@ -234,6 +266,11 @@ impl Narrowed<16, u8> for u8x16 {
     #[inline(always)]
     fn splat(value: u8) -> Self {
         Self([value; 16])
+    }
+
+    #[inline(always)]
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value)
     }
 
     #[inline(always)]

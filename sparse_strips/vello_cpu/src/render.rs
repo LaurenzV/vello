@@ -4,7 +4,7 @@
 //! Basic render operations.
 
 use crate::RenderMode;
-use crate::fine2::{Fine, FineType};
+use crate::fine2::{Fine, SimdExt};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -25,6 +25,7 @@ use vello_common::pixmap::Pixmap;
 use vello_common::strip::Strip;
 use vello_common::tile::Tiles;
 use vello_common::{flatten, peniko, strip};
+use vello_simd::{Narrowed, scalar};
 
 pub(crate) const DEFAULT_TOLERANCE: f64 = 0.1;
 /// A render context.
@@ -299,17 +300,21 @@ impl RenderContext {
 
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                let mut fine = Fine::<u8>::new(width, height);
+                let mut fine = Fine::<16, 4, scalar::u8x16>::new(width, height);
                 self.do_fine(buffer, &mut fine);
             }
             RenderMode::OptimizeQuality => {
-                let mut fine = Fine::<f32>::new(width, height);
+                let mut fine = Fine::<4, 1, scalar::f32x4>::new(width, height);
                 self.do_fine(buffer, &mut fine);
             }
         }
     }
 
-    fn do_fine<F: FineType>(&self, buffer: &mut [u8], fine: &mut Fine<F>) {
+    fn do_fine<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
+        &self,
+        buffer: &mut [u8],
+        fine: &mut Fine<C, A, N>,
+    ) {
         let width_tiles = self.wide.width_tiles();
         let height_tiles = self.wide.height_tiles();
         for y in 0..height_tiles {
@@ -317,7 +322,7 @@ impl RenderContext {
                 let wtile = self.wide.get(x, y);
                 fine.set_coords(x, y);
 
-                fine.clear(F::extract_color(&wtile.bg));
+                fine.clear(&wtile.bg);
                 for cmd in &wtile.cmds {
                     fine.run_cmd(cmd, &self.alphas, &self.encoded_paints);
                 }
