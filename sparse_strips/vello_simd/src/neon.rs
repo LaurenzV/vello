@@ -43,6 +43,7 @@ impl Narrowed<4, 1> for f32x4 {
         unsafe { Self(vld1q_f32(src.as_ptr())) }
     }
 
+    #[inline(always)]
     fn load_alphas(src: &[u8; 1]) -> Self {
         Self::from_normalized_u8(src[0])
     }
@@ -415,6 +416,7 @@ impl Narrowed<16, 4> for u8x16 {
         unsafe { Self(vld1q_u8(src.as_ptr())) }
     }
 
+    #[inline(always)]
     fn load_alphas(src: &[u8; 4]) -> Self {
         todo!()
     }
@@ -512,6 +514,7 @@ impl Narrowed<32, 8> for u8x32 {
         }
     }
 
+    #[inline(always)]
     fn load_alphas(src: &[u8; 8]) -> Self {
         todo!()
     }

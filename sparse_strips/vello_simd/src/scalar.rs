@@ -7,6 +7,7 @@ impl Scalar for f32 {
     const MID: Self = 0.5;
     const ONE: Self = 1.0;
 
+    #[inline(always)]
     fn to_rgba8(src: &[Self]) -> [u8; 4] {
         [
             (src[0] * 255.0 + 0.5) as u8,
@@ -22,6 +23,7 @@ impl Scalar for u8 {
     const MID: Self = 127;
     const ONE: Self = 255;
 
+    #[inline(always)]
     fn to_rgba8(src: &[Self]) -> [u8; 4] {
         [src[0], src[1], src[2], src[3]]
     }
@@ -252,6 +254,7 @@ impl Narrowed<16, 4> for u8x16 {
         Self(*src)
     }
 
+    #[inline(always)]
     fn load_alphas(src: &[u8; 4]) -> Self {
         Self([
             src[0], src[0], src[0], src[0], src[1], src[1], src[1], src[1], src[2], src[2], src[2],
