@@ -252,6 +252,7 @@ pub(crate) mod fill {
     use vello_common::paint::PremulColor;
     use vello_simd::{Narrowed, Scalar};
 
+    #[inline(never)]
     pub(crate) fn alpha_composite<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
@@ -272,6 +273,7 @@ pub(crate) mod strip {
     use vello_common::paint::PremulColor;
     use vello_simd::{Narrowed, Scalar, Widened};
 
+    #[inline(never)]
     pub(crate) fn alpha_composite<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
