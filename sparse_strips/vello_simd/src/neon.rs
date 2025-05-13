@@ -4,6 +4,9 @@ use std::ops::{Add, Mul, Sub};
 
 pub struct Neon;
 
+pub type Integer = u8x64;
+pub type Float = f32x4;
+
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4(float32x4_t);
 

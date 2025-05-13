@@ -34,12 +34,22 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
             }
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "u8"), |b| {
-                let mut fine = Fine::<neon::u8x64>::new(WideTile::WIDTH, Tile::HEIGHT);
+                let mut fine = Fine::<scalar::u8x16>::new(WideTile::WIDTH, Tile::HEIGHT);
                 #inner_fn_name(b, &mut fine);
             });
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "f32"), |b| {
-                let mut fine = Fine::<neon::f32x8>::new(WideTile::WIDTH, Tile::HEIGHT);
+                let mut fine = Fine::<scalar::f32x4>::new(WideTile::WIDTH, Tile::HEIGHT);
+                #inner_fn_name(b, &mut fine);
+            });
+
+            c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_neon"), |b| {
+                let mut fine = Fine::<neon::Integer>::new(WideTile::WIDTH, Tile::HEIGHT);
+                #inner_fn_name(b, &mut fine);
+            });
+
+            c.bench_function(&get_bench_name(&#input_fn_name_str, "f32_neon"), |b| {
+                let mut fine = Fine::<scalar::f32x4>::new(WideTile::WIDTH, Tile::HEIGHT);
                 #inner_fn_name(b, &mut fine);
             });
         }

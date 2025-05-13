@@ -311,14 +311,14 @@ impl RenderContext {
         match render_mode {
             RenderMode::OptimizeSpeed => {
                 match self.simd {
-                    Simd::Scalar => self.do_fine::<scalar::u8x16>(width, height, buffer),
-                    Simd::Neon => self.do_fine::<neon::u8x64>(width, height, buffer),
+                    Simd::Scalar => self.do_fine::<scalar::Integer>(width, height, buffer),
+                    Simd::Neon => self.do_fine::<neon::Integer>(width, height, buffer),
                 }
             }
             RenderMode::OptimizeQuality => {
                 match self.simd {
-                    Simd::Scalar => self.do_fine::<scalar::f32x4>(width, height, buffer),
-                    Simd::Neon => self.do_fine::<neon::f32x4>(width, height, buffer),
+                    Simd::Scalar => self.do_fine::<scalar::Float>(width, height, buffer),
+                    Simd::Neon => self.do_fine::<neon::Float>(width, height, buffer),
                 }
             }
         }

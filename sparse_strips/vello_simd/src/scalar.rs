@@ -2,6 +2,9 @@ use crate::util::scalar::div_255;
 use crate::{Base, Type, Scalar, Widened};
 use std::ops::{Add, Mul, Sub};
 
+pub type Integer = u8x16;
+pub type Float = f32x4;
+
 impl Scalar for f32 {
     const ZERO: Self = 0.0;
     const MID: Self = 0.5;
