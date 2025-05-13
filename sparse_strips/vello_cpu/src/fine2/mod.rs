@@ -17,7 +17,7 @@ use vello_common::{
     coarse::{Cmd, WideTile},
     tile::Tile,
 };
-use vello_simd::{Type, Scalar, Widened, neon, scalar};
+use vello_simd::{Scalar, Type, Widened, neon, scalar};
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -84,7 +84,7 @@ impl<N: Type + SimdExt> Fine<N> {
     #[doc(hidden)]
     pub fn pack(&mut self, out_buf: &mut [u8]) {
         let blend_buf = self.blend_buf.last_mut().unwrap();
-        
+
         pack::<N::Scalar>(
             out_buf,
             blend_buf,
@@ -250,7 +250,7 @@ fn pack<F: Scalar>(
 pub(crate) mod fill {
     use crate::fine2::SimdExt;
     use vello_common::paint::PremulColor;
-    use vello_simd::{Type, Scalar};
+    use vello_simd::{Scalar, Type};
 
     #[inline(never)]
     pub(crate) fn alpha_composite<N: Type + SimdExt>(
@@ -271,7 +271,7 @@ pub(crate) mod fill {
 pub(crate) mod strip {
     use crate::fine2::{COLOR_COMPONENTS, SimdExt, TILE_HEIGHT_COMPONENTS};
     use vello_common::paint::PremulColor;
-    use vello_simd::{Type, Scalar, Widened};
+    use vello_simd::{Scalar, Type, Widened};
 
     #[inline(never)]
     pub(crate) fn alpha_composite<N: Type + SimdExt>(

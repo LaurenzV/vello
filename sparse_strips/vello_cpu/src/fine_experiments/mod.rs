@@ -15,16 +15,16 @@ pub const SCRATCH_BUF_SIZE: usize = WIDETILE_WIDTH * HEIGHT * COLOR_COMPONENTS;
 #[inline(never)]
 pub fn opaque_u8(blend_buf: &mut [u8], color: &[u8; 4]) {
     // let splat = u8x32::load_4(color);
-    // 
+    //
     // for t in blend_buf.array_chunks_mut::<32>() {
     //     splat.store(t)
     // }
-    
+
     // for t in blend_buf.chunks_exact_mut(4) {
     //     t.copy_from_slice(color);
     // }
-    // 
-    
+    //
+
     unsafe {
         let chunks = blend_buf.array_chunks_mut::<64>();
         let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes(*color)));
@@ -41,13 +41,12 @@ pub fn opaque_f32(blend_buf: &mut [f32], color: &[f32; 4]) {
         for i in 0..4 {
             t[i] = t[i] + color[i];
         }
-        
     }
 }
 
 pub fn opaque_f32_2(blend_buf: &mut [f32], color: &[f32; 4]) {
     // let splat = f32x8::load_4(color);
-    // 
+    //
     // for t in blend_buf.array_chunks_mut::<8>() {
     //     let loaded = f32x8::load(t);
     //     let added = loaded + splat;

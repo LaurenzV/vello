@@ -1,16 +1,21 @@
 #![allow(non_camel_case_types)]
 #![allow(missing_docs)]
 
+mod macros;
 pub mod neon;
 pub mod scalar;
 mod util;
-mod macros;
 
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
 pub trait Base:
-    Sized + Copy + Add<Self, Output = Self> + Mul<Self, Output = Self> + Sub<Self, Output = Self> + Debug
+    Sized
+    + Copy
+    + Add<Self, Output = Self>
+    + Mul<Self, Output = Self>
+    + Sub<Self, Output = Self>
+    + Debug
 {
 }
 
@@ -20,7 +25,7 @@ pub trait Base:
 pub trait Type: Base {
     type Scalar: Scalar;
     type Widened: Widened<Self>;
-    
+
     const LENGTH: usize;
 
     fn load(src: &[Self::Scalar]) -> Self;
@@ -55,20 +60,20 @@ pub trait Type: Base {
     fn normalized_mul(self, other: Self) -> Self {
         (self.widen() * other.widen()).normalize().narrow()
     }
-    
+
     #[inline(always)]
     fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
         self.normalized_mul(other1) + other2
     }
-    
+
     #[inline(always)]
     fn normalized_mul_mul_add(self, other1: Self, other2: Self, other3: Self) -> Self {
         let p1 = self.widen() * other1.widen();
         let p2 = other2.widen() * other3.widen();
-        
+
         (p1 + p2).normalize().narrow()
     }
-    
+
     #[inline(always)]
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         other2 - self.normalized_mul(other1)

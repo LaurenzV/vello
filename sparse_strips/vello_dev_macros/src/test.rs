@@ -55,8 +55,14 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let input_fn_name = input_fn.sig.ident.clone();
-    let u8_scalar_fn_name = Ident::new(&format!("{}_scalar_u8", input_fn_name), input_fn_name.span());
-    let f32_scalar_fn_name = Ident::new(&format!("{}_scalar_f32", input_fn_name), input_fn_name.span());
+    let u8_scalar_fn_name = Ident::new(
+        &format!("{}_scalar_u8", input_fn_name),
+        input_fn_name.span(),
+    );
+    let f32_scalar_fn_name = Ident::new(
+        &format!("{}_scalar_f32", input_fn_name),
+        input_fn_name.span(),
+    );
     let u8_neon_fn_name = Ident::new(&format!("{}_neon_u8", input_fn_name), input_fn_name.span());
     let f32_neon_fn_name = Ident::new(&format!("{}_neon_f32", input_fn_name), input_fn_name.span());
     let hybrid_fn_name = Ident::new(&format!("{}_hybrid", input_fn_name), input_fn_name.span());
@@ -177,7 +183,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
         quote! { RenderMode::OptimizeSpeed },
         quote! { Simd::Neon },
     );
-    
+
     let f32_scalar_snippet = cpu_snippet(
         f32_scalar_fn_name,
         f32_scalar_name_str,
@@ -186,7 +192,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
         quote! { RenderMode::OptimizeQuality },
         quote! { Simd::Scalar },
     );
-    
+
     let f32_neon_snippet = cpu_snippet(
         f32_neon_fn_name,
         f32_neon_name_str,

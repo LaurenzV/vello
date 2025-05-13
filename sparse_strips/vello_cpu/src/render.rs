@@ -3,8 +3,8 @@
 
 //! Basic render operations.
 
-use crate::{RenderMode, Simd};
 use crate::fine2::{Fine, SimdExt};
+use crate::{RenderMode, Simd};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -25,7 +25,7 @@ use vello_common::pixmap::Pixmap;
 use vello_common::strip::Strip;
 use vello_common::tile::Tiles;
 use vello_common::{flatten, peniko, strip};
-use vello_simd::{Type, scalar, neon};
+use vello_simd::{Type, neon, scalar};
 
 pub(crate) const DEFAULT_TOLERANCE: f64 = 0.1;
 /// A render context.
@@ -88,7 +88,7 @@ impl RenderContext {
             fill_rule,
             stroke,
             encoded_paints,
-            simd
+            simd,
         }
     }
 
@@ -309,29 +309,20 @@ impl RenderContext {
         // SIMD types) without having to resort to a fallback for smaller sizes for the remaining
         // parts.
         match render_mode {
-            RenderMode::OptimizeSpeed => {
-                match self.simd {
-                    Simd::Scalar => self.do_fine::<scalar::Integer>(width, height, buffer),
-                    Simd::Neon => self.do_fine::<neon::Integer>(width, height, buffer),
-                }
-            }
-            RenderMode::OptimizeQuality => {
-                match self.simd {
-                    Simd::Scalar => self.do_fine::<scalar::Float>(width, height, buffer),
-                    Simd::Neon => self.do_fine::<neon::Float>(width, height, buffer),
-                }
-            }
+            RenderMode::OptimizeSpeed => match self.simd {
+                Simd::Scalar => self.do_fine::<scalar::Integer>(width, height, buffer),
+                Simd::Neon => self.do_fine::<neon::Integer>(width, height, buffer),
+            },
+            RenderMode::OptimizeQuality => match self.simd {
+                Simd::Scalar => self.do_fine::<scalar::Float>(width, height, buffer),
+                Simd::Neon => self.do_fine::<neon::Float>(width, height, buffer),
+            },
         }
     }
 
-    fn do_fine<N: Type + SimdExt>(
-        &self,
-        width: u16, 
-        height: u16,
-        buffer: &mut [u8],
-    ) {
+    fn do_fine<N: Type + SimdExt>(&self, width: u16, height: u16, buffer: &mut [u8]) {
         let mut fine = Fine::<N>::new(width, height);
-        
+
         let width_tiles = self.wide.width_tiles();
         let height_tiles = self.wide.height_tiles();
         for y in 0..height_tiles {

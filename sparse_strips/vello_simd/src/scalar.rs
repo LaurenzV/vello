@@ -1,5 +1,5 @@
 use crate::util::scalar::div_255;
-use crate::{Base, Type, Scalar, Widened};
+use crate::{Base, Scalar, Type, Widened};
 use std::ops::{Add, Mul, Sub};
 
 pub type Integer = u8x16;
@@ -272,11 +272,11 @@ impl Type for u8x16 {
     #[inline(always)]
     fn load_4(src: &[u8; 4]) -> Self {
         let mut result = [0u8; 16];
-        
+
         for res in result.chunks_exact_mut(4) {
             res.copy_from_slice(src);
         }
-        
+
         Self(result)
     }
 

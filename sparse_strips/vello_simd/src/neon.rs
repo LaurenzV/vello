@@ -1,4 +1,4 @@
-use crate::{arith_ops, Base, Type, Widened};
+use crate::{Base, Type, Widened, arith_ops};
 use std::arch::aarch64::*;
 use std::ops::{Add, Mul, Sub};
 
@@ -56,7 +56,7 @@ impl Type for f32x4 {
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
         let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
-        
+
         unsafe { Self(vld1q_f32(src.as_ptr())) }
     }
 
@@ -99,9 +99,7 @@ impl Type for f32x4 {
 
     #[inline(always)]
     fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
-        unsafe {
-            Self(vfmaq_f32(other2.0, self.0, other1.0))
-        }
+        unsafe { Self(vfmaq_f32(other2.0, self.0, other1.0)) }
     }
 
     #[inline(always)]
@@ -110,9 +108,7 @@ impl Type for f32x4 {
     }
     #[inline(always)]
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
-        unsafe {
-            Self(vfmsq_f32(other2.0, self.0, other1.0))
-        }
+        unsafe { Self(vfmsq_f32(other2.0, self.0, other1.0)) }
     }
 }
 
@@ -144,7 +140,7 @@ impl Type for f32x8 {
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
         let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
-        
+
         unsafe {
             let loaded = vld1q_f32_x2(src.as_ptr());
 
@@ -258,7 +254,10 @@ impl Type for f32x16 {
         unsafe {
             let loaded = vld1q_f32_x4(src.as_ptr());
 
-            Self(f32x8(f32x4(loaded.0), f32x4(loaded.1)), f32x8(f32x4(loaded.2), f32x4(loaded.3)))
+            Self(
+                f32x8(f32x4(loaded.0), f32x4(loaded.1)),
+                f32x8(f32x4(loaded.2), f32x4(loaded.3)),
+            )
         }
     }
 
@@ -275,7 +274,7 @@ impl Type for f32x16 {
     #[inline(always)]
     fn load_4(src: &[f32; 4]) -> Self {
         unsafe {
-            let v =f32x8::load_4(src);
+            let v = f32x8::load_4(src);
 
             Self(v, v)
         }
@@ -532,9 +531,7 @@ impl Type for u8x16 {
 
     #[inline(always)]
     fn splat(value: u8) -> Self {
-        unsafe {
-            Self(vdupq_n_u8(value))
-        }
+        unsafe { Self(vdupq_n_u8(value)) }
     }
 
     #[inline(always)]
@@ -590,7 +587,7 @@ impl Type for u8x32 {
 
         let first = [src[0], src[1], src[2], src[3]];
         let second = [src[4], src[5], src[6], src[7]];
-        
+
         Self(u8x16::load_alphas(&first), u8x16::load_alphas(&second))
     }
 
@@ -654,7 +651,10 @@ impl Type for u8x64 {
         unsafe {
             let loaded = vld1q_u8_x4(src.as_ptr());
 
-            Self(u8x32(u8x16(loaded.0), u8x16(loaded.1)), u8x32(u8x16(loaded.2), u8x16(loaded.3)))
+            Self(
+                u8x32(u8x16(loaded.0), u8x16(loaded.1)),
+                u8x32(u8x16(loaded.2), u8x16(loaded.3)),
+            )
         }
     }
 
@@ -662,7 +662,10 @@ impl Type for u8x64 {
     fn load_alphas(src: &[u8]) -> Self {
         let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
 
-        Self(u8x32::load_alphas(&src[0..8]), u8x32::load_alphas(&src[8..16]))
+        Self(
+            u8x32::load_alphas(&src[0..8]),
+            u8x32::load_alphas(&src[8..16]),
+        )
     }
 
     #[inline(always)]

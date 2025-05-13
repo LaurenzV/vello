@@ -4,7 +4,7 @@ use vello_common::color::palette::css::ROYAL_BLUE;
 use vello_common::encode::EncodedPaint;
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::peniko::BlendMode;
-use vello_cpu::fine2::{Fine};
+use vello_cpu::fine2::Fine;
 use vello_cpu::fine2::SimdExt;
 use vello_dev_macros::vello_bench;
 use vello_simd::Type;

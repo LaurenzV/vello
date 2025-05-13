@@ -43,5 +43,5 @@ pub enum RenderMode {
 #[derive(Debug, Copy, Clone)]
 pub enum Simd {
     Scalar,
-    Neon
+    Neon,
 }
