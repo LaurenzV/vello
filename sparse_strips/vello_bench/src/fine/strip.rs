@@ -18,7 +18,7 @@ pub fn strip(c: &mut Criterion) {
 }
 
 #[vello_bench]
-pub fn solid_short<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<C, A, N>) {
+pub fn solid_short<N: Narrowed + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 8;
 
@@ -26,19 +26,19 @@ pub fn solid_short<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
 }
 
 #[vello_bench]
-pub fn solid_long<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<C, A, N>) {
+pub fn solid_long<N: Narrowed + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 64;
 
     strip_single(&paint, &[], width, b, fine);
 }
 
-fn strip_single<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
+fn strip_single<N: Narrowed + SimdExt>(
     paint: &Paint,
     encoded_paints: &[EncodedPaint],
     width: usize,
     b: &mut Bencher<'_>,
-    fine: &mut Fine<C, A, N>,
+    fine: &mut Fine<N>,
 ) {
     let mut rng = StdRng::from_seed(SEED);
     let mut alphas = vec![];

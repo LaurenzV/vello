@@ -9,16 +9,6 @@ mod macros;
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
-pub trait Simd {
-    type u8x16: Narrowed<16, 4>;
-    type u8x32: Narrowed<32, 8>;
-    type u8x64: Narrowed<64, 16>;
-    
-    type f32x4: Narrowed<4, 1>;
-    type f32x8: Narrowed<8, 2>;
-    type f32x16: Narrowed<16, 4>;
-}
-
 pub trait Base:
     Sized + Copy + Add<Self, Output = Self> + Mul<Self, Output = Self> + Sub<Self, Output = Self> + Debug
 {
@@ -27,16 +17,19 @@ pub trait Base:
 // Unfortunately we cannot make C an associated constant instead, because generic const expressions
 // are unstable and therefore we can't use them in `load` and `store`.
 // We also need to explicitly define `A` for the same reason.
-pub trait Narrowed<const C: usize, const A: usize>: Base {
+pub trait Narrowed: Base {
     type Scalar: Scalar;
-    type Widened: Widened<C, A, Self>;
+    type Widened: Widened<Self>;
+    
+    const NUM: usize;
+    const ALPHAS: usize;
 
-    fn load(src: &[Self::Scalar; C]) -> Self;
-    fn load_alphas(src: &[u8; A]) -> Self;
+    fn load(src: &[Self::Scalar]) -> Self;
+    fn load_alphas(src: &[u8]) -> Self;
     fn load_4(src: &[Self::Scalar; 4]) -> Self;
     fn splat(value: Self::Scalar) -> Self;
     fn from_normalized_u8(value: u8) -> Self;
-    fn store(self, dest: &mut [Self::Scalar; C]);
+    fn store(self, dest: &mut [Self::Scalar]);
     fn widen(self) -> Self::Widened;
 
     #[inline(always)]
@@ -91,7 +84,7 @@ pub trait Scalar: Base {
     fn to_rgba8(src: &[Self]) -> [u8; 4];
 }
 
-pub trait Widened<const C: usize, const A: usize, N: Narrowed<C, A>>: Base {
+pub trait Widened<N: Narrowed>: Base {
     fn narrow(self) -> N;
     fn normalize(self) -> Self;
 }

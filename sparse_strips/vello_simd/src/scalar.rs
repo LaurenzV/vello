@@ -77,12 +77,15 @@ impl Sub for f32x4 {
 
 impl Base for f32x4 {}
 
-impl Narrowed<4, 1> for f32x4 {
+impl Narrowed for f32x4 {
     type Widened = Self;
 
+    const NUM: usize = 4;
+    const ALPHAS: usize = 1;
+
     #[inline(always)]
-    fn load(src: &[f32; 4]) -> Self {
-        Self(*src)
+    fn load(src: &[f32]) -> Self {
+        Self((*src).try_into().unwrap())
     }
 
     #[inline(always)]
@@ -96,7 +99,7 @@ impl Narrowed<4, 1> for f32x4 {
     }
 
     #[inline(always)]
-    fn store(self, dest: &mut [f32; 4]) {
+    fn store(self, dest: &mut [f32]) {
         dest.copy_from_slice(&self.0)
     }
 
@@ -118,12 +121,12 @@ impl Narrowed<4, 1> for f32x4 {
     type Scalar = f32;
 
     #[inline(always)]
-    fn load_alphas(src: &[u8; 1]) -> Self {
+    fn load_alphas(src: &[u8]) -> Self {
         Self::from_normalized_u8(src[0])
     }
 }
 
-impl Widened<4, 1, f32x4> for f32x4 {
+impl Widened<f32x4> for f32x4 {
     #[inline(always)]
     fn narrow(self) -> f32x4 {
         self
@@ -179,7 +182,7 @@ impl Sub for u16x16 {
 
 impl Base for u16x16 {}
 
-impl Widened<16, 4, u8x16> for u16x16 {
+impl Widened<u8x16> for u16x16 {
     #[inline(always)]
     fn narrow(self) -> u8x16 {
         let mut converted = [0u8; 16];
@@ -245,17 +248,20 @@ impl Sub for u8x16 {
 
 impl Base for u8x16 {}
 
-impl Narrowed<16, 4> for u8x16 {
+impl Narrowed for u8x16 {
     type Scalar = u8;
     type Widened = u16x16;
 
+    const NUM: usize = 16;
+    const ALPHAS: usize = 4;
+
     #[inline(always)]
-    fn load(src: &[u8; 16]) -> Self {
-        Self(*src)
+    fn load(src: &[u8]) -> Self {
+        Self(src.try_into().unwrap())
     }
 
     #[inline(always)]
-    fn load_alphas(src: &[u8; 4]) -> Self {
+    fn load_alphas(src: &[u8]) -> Self {
         Self([
             src[0], src[0], src[0], src[0], src[1], src[1], src[1], src[1], src[2], src[2], src[2],
             src[2], src[3], src[3], src[3], src[3],
@@ -284,7 +290,7 @@ impl Narrowed<16, 4> for u8x16 {
     }
 
     #[inline(always)]
-    fn store(self, dest: &mut [u8; 16]) {
+    fn store(self, dest: &mut [u8]) {
         dest.copy_from_slice(&self.0)
     }
 

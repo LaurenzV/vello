@@ -30,7 +30,7 @@ pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 #[derive(Debug)]
 #[doc(hidden)]
 /// This is an internal struct, do not access directly.
-pub struct Fine<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt> {
+pub struct Fine<N: Narrowed + SimdExt> {
     pub(crate) width: u16,
     pub(crate) height: u16,
     pub(crate) wide_coords: (u16, u16),
@@ -39,7 +39,7 @@ pub struct Fine<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt> {
     phantom_data: PhantomData<N>,
 }
 
-impl<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt> Fine<C, A, N> {
+impl<N: Narrowed + SimdExt> Fine<N> {
     pub fn new(width: u16, height: u16) -> Self {
         let blend_buf = [N::Scalar::ZERO; SCRATCH_BUF_SIZE];
         let color_buf = [N::Scalar::ZERO; SCRATCH_BUF_SIZE];
@@ -76,7 +76,7 @@ impl<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt> Fine<C, A, N> 
         // }
 
         let loaded = N::splat_color(premul_color);
-        for z in blend_buf.array_chunks_mut::<C>() {
+        for z in blend_buf.chunks_exact_mut(N::NUM) {
             loaded.store(z)
         }
     }
@@ -166,14 +166,14 @@ impl<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt> Fine<C, A, N> 
                 if has_alpha && default_blend {
                     let color = N::splat_color(color);
 
-                    for t in blend_buf.array_chunks_mut::<C>() {
+                    for t in blend_buf.chunks_exact_mut(N::NUM) {
                         color.store(t);
                     }
 
                     return;
                 }
 
-                fill::alpha_composite::<C, A, N>(blend_buf, color);
+                fill::alpha_composite::<N>(blend_buf, color);
             }
             Paint::Indexed(_) => unimplemented!(),
         }
@@ -199,7 +199,7 @@ impl<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt> Fine<C, A, N> 
 
         match fill {
             Paint::Solid(color) => {
-                strip::alpha_composite::<C, A, N>(blend_buf, color, alphas);
+                strip::alpha_composite::<N>(blend_buf, color, alphas);
             }
             Paint::Indexed(_) => unimplemented!(),
         }
@@ -253,14 +253,14 @@ pub(crate) mod fill {
     use vello_simd::{Narrowed, Scalar};
 
     #[inline(never)]
-    pub(crate) fn alpha_composite<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
+    pub(crate) fn alpha_composite<N: Narrowed + SimdExt>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
     ) {
         let one_minus_alpha = N::splat_alpha(src_c).one_minus();
         let src_c = N::splat_color(src_c);
 
-        for part in target.array_chunks_mut::<C>() {
+        for part in target.chunks_exact_mut(N::NUM) {
             let mut bg_c = N::load(part);
             bg_c = bg_c.normalized_mul_add(one_minus_alpha, src_c);
             bg_c.store(part);
@@ -274,7 +274,7 @@ pub(crate) mod strip {
     use vello_simd::{Narrowed, Scalar, Widened};
 
     #[inline(never)]
-    pub(crate) fn alpha_composite<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
+    pub(crate) fn alpha_composite<N: Narrowed + SimdExt>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
         alphas: &[u8],
@@ -283,8 +283,8 @@ pub(crate) mod strip {
         let src_c = N::splat_color(src_c);
 
         for (bg_part, masks) in target
-            .array_chunks_mut::<C>()
-            .zip(alphas.array_chunks::<A>())
+            .chunks_exact_mut(N::NUM)
+            .zip(alphas.chunks_exact(N::ALPHAS))
         {
             let bg_c = N::load(bg_part);
             let mask_a = N::load_alphas(masks);

@@ -300,20 +300,20 @@ impl RenderContext {
 
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                let mut fine = Fine::<16, 4, neon::u8x16>::new(width, height);
+                let mut fine = Fine::<neon::u8x16>::new(width, height);
                 self.do_fine(buffer, &mut fine);
             }
             RenderMode::OptimizeQuality => {
-                let mut fine = Fine::<4, 1, neon::f32x4>::new(width, height);
+                let mut fine = Fine::<neon::f32x4>::new(width, height);
                 self.do_fine(buffer, &mut fine);
             }
         }
     }
 
-    fn do_fine<const C: usize, const A: usize, N: Narrowed<C, A> + SimdExt>(
+    fn do_fine<N: Narrowed + SimdExt>(
         &self,
         buffer: &mut [u8],
-        fine: &mut Fine<C, A, N>,
+        fine: &mut Fine<N>,
     ) {
         let width_tiles = self.wide.width_tiles();
         let height_tiles = self.wide.height_tiles();
