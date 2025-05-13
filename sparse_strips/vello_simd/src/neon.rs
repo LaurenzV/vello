@@ -45,21 +45,7 @@ impl Sub for f32x4 {
     }
 }
 
-impl Base for f32x4 {}
-
-impl Type for f32x4 {
-    type Scalar = f32;
-    type Widened = f32x4;
-
-    const LENGTH: usize = 4;
-
-    #[inline(always)]
-    fn load(src: &[f32]) -> Self {
-        let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
-
-        unsafe { Self(vld1q_f32(src.as_ptr())) }
-    }
-
+impl f32x4 {
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
         Self::from_normalized_u8(src[0])
@@ -81,18 +67,6 @@ impl Type for f32x4 {
     }
 
     #[inline(always)]
-    fn store(self, dest: &mut [f32]) {
-        let dest: &mut [f32; Self::LENGTH] = dest.try_into().unwrap();
-
-        unsafe { vst1q_f32(dest.as_mut_ptr(), self.0) }
-    }
-
-    #[inline(always)]
-    fn widen(self) -> Self::Widened {
-        self
-    }
-
-    #[inline(always)]
     fn normalized_mul(self, other: Self) -> Self {
         self * other
     }
@@ -106,21 +80,10 @@ impl Type for f32x4 {
     fn normalized_mul_mul_add(self, other1: Self, other2: Self, other3: Self) -> Self {
         self.normalized_mul_add(other1, other2 * other3)
     }
+    
     #[inline(always)]
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         unsafe { Self(vfmsq_f32(other2.0, self.0, other1.0)) }
-    }
-}
-
-impl Widened<f32x4> for f32x4 {
-    #[inline(always)]
-    fn narrow(self) -> f32x4 {
-        self
-    }
-
-    #[inline(always)]
-    fn normalize(self) -> Self {
-        self
     }
 }
 
@@ -225,121 +188,6 @@ impl Type for f32x8 {
 impl Widened<f32x8> for f32x8 {
     #[inline(always)]
     fn narrow(self) -> f32x8 {
-        self
-    }
-
-    #[inline(always)]
-    fn normalize(self) -> Self {
-        self
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct f32x16(f32x8, f32x8);
-
-arith_ops!(f32x16);
-
-impl Base for f32x16 {}
-
-impl Type for f32x16 {
-    type Scalar = f32;
-    type Widened = Self;
-
-    const LENGTH: usize = 16;
-
-    #[inline(always)]
-    fn load(src: &[f32]) -> Self {
-        let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
-
-        unsafe {
-            let loaded = vld1q_f32_x4(src.as_ptr());
-
-            Self(
-                f32x8(f32x4(loaded.0), f32x4(loaded.1)),
-                f32x8(f32x4(loaded.2), f32x4(loaded.3)),
-            )
-        }
-    }
-
-    #[inline(always)]
-    fn load_alphas(src: &[u8]) -> Self {
-        let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
-
-        Self(
-            f32x8::load_alphas(&[src[0], src[1]]),
-            f32x8::load_alphas(&[src[2], src[3]]),
-        )
-    }
-
-    #[inline(always)]
-    fn load_4(src: &[f32; 4]) -> Self {
-        unsafe {
-            let v = f32x8::load_4(src);
-
-            Self(v, v)
-        }
-    }
-
-    #[inline(always)]
-    fn splat(value: f32) -> Self {
-        unsafe {
-            let v = f32x8::splat(value);
-
-            Self(v, v)
-        }
-    }
-
-    #[inline(always)]
-    fn from_normalized_u8(value: u8) -> Self {
-        Self::splat(value as f32 / 255.0)
-    }
-
-    #[inline(always)]
-    fn store(self, dest: &mut [f32]) {
-        let dest: &mut [f32; Self::LENGTH] = dest.try_into().unwrap();
-
-        let stored = float32x4x4_t(self.0.0.0, self.0.1.0, self.1.0.0, self.1.1.0);
-        unsafe { vst1q_f32_x4(dest.as_mut_ptr(), stored) }
-    }
-
-    #[inline(always)]
-    fn widen(self) -> Self::Widened {
-        self
-    }
-
-    #[inline(always)]
-    fn normalized_mul(self, other: Self) -> Self {
-        self * other
-    }
-
-    #[inline(always)]
-    fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
-        Self(
-            self.0.normalized_mul_add(other1.0, other2.0),
-            self.1.normalized_mul_add(other1.1, other2.1),
-        )
-    }
-
-    #[inline(always)]
-    fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
-        Self(
-            self.0.normalized_mul_sub(other1.0, other2.0),
-            self.1.normalized_mul_sub(other1.1, other2.1),
-        )
-    }
-
-    #[inline(always)]
-    fn normalized_mul_mul_add(self, other1: Self, other2: Self, other3: Self) -> Self {
-        Self(
-            self.0.normalized_mul_mul_add(other1.0, other2.0, other3.0),
-            self.1.normalized_mul_mul_add(other1.1, other2.1, other3.1),
-        )
-    }
-}
-
-impl Widened<f32x16> for f32x16 {
-    #[inline(always)]
-    fn narrow(self) -> f32x16 {
         self
     }
 
