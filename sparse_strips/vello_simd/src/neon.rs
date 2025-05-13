@@ -563,6 +563,11 @@ impl Type for u8x64 {
     fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
         self.normalized_mul(other1) + other2
     }
+    
+    #[inline(always)]
+    fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
+        other2 - self.normalized_mul(other1)
+    }
 }
 
 #[inline(always)]
