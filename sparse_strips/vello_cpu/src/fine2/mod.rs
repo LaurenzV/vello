@@ -76,7 +76,7 @@ impl<N: Narrowed + SimdExt> Fine<N> {
         // }
 
         let loaded = N::splat_color(premul_color);
-        for z in blend_buf.chunks_exact_mut(N::NUM) {
+        for z in blend_buf.chunks_exact_mut(N::LENGTH) {
             loaded.store(z)
         }
     }
@@ -166,7 +166,7 @@ impl<N: Narrowed + SimdExt> Fine<N> {
                 if has_alpha && default_blend {
                     let color = N::splat_color(color);
 
-                    for t in blend_buf.chunks_exact_mut(N::NUM) {
+                    for t in blend_buf.chunks_exact_mut(N::LENGTH) {
                         color.store(t);
                     }
 
@@ -260,7 +260,7 @@ pub(crate) mod fill {
         let one_minus_alpha = N::splat_alpha(src_c).one_minus();
         let src_c = N::splat_color(src_c);
 
-        for part in target.chunks_exact_mut(N::NUM) {
+        for part in target.chunks_exact_mut(N::LENGTH) {
             let mut bg_c = N::load(part);
             bg_c = bg_c.normalized_mul_add(one_minus_alpha, src_c);
             bg_c.store(part);
@@ -283,8 +283,8 @@ pub(crate) mod strip {
         let src_c = N::splat_color(src_c);
 
         for (bg_part, masks) in target
-            .chunks_exact_mut(N::NUM)
-            .zip(alphas.chunks_exact(N::ALPHAS))
+            .chunks_exact_mut(N::LENGTH)
+            .zip(alphas.chunks_exact(N::LENGTH / 4))
         {
             let bg_c = N::load(bg_part);
             let mask_a = N::load_alphas(masks);

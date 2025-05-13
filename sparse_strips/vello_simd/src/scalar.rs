@@ -80,8 +80,7 @@ impl Base for f32x4 {}
 impl Narrowed for f32x4 {
     type Widened = Self;
 
-    const NUM: usize = 4;
-    const ALPHAS: usize = 1;
+    const LENGTH: usize = 4;
 
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
@@ -252,8 +251,7 @@ impl Narrowed for u8x16 {
     type Scalar = u8;
     type Widened = u16x16;
 
-    const NUM: usize = 16;
-    const ALPHAS: usize = 4;
+    const LENGTH: usize = 16;
 
     #[inline(always)]
     fn load(src: &[u8]) -> Self {

@@ -21,8 +21,7 @@ pub trait Narrowed: Base {
     type Scalar: Scalar;
     type Widened: Widened<Self>;
     
-    const NUM: usize;
-    const ALPHAS: usize;
+    const LENGTH: usize;
 
     fn load(src: &[Self::Scalar]) -> Self;
     fn load_alphas(src: &[u8]) -> Self;

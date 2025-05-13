@@ -40,11 +40,12 @@ impl Narrowed for f32x4 {
     type Scalar = f32;
     type Widened = f32x4;
 
-    const NUM: usize = 4;
-    const ALPHAS: usize = 1;
+    const LENGTH: usize = 4;
 
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
+        let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
+        
         unsafe { Self(vld1q_f32(src.as_ptr())) }
     }
 
@@ -125,11 +126,12 @@ impl Narrowed for f32x8 {
     type Scalar = f32;
     type Widened = Self;
 
-    const NUM: usize = 8;
-    const ALPHAS: usize = 2;
+    const LENGTH: usize = 8;
 
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
+        let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
+        
         unsafe {
             let loaded = vld1q_f32_x2(src.as_ptr());
 
@@ -232,11 +234,12 @@ impl Narrowed for f32x16 {
     type Scalar = f32;
     type Widened = Self;
 
-    const NUM: usize = 16;
-    const ALPHAS: usize = 4;
+    const LENGTH: usize = 16;
 
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
+        let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
+
         unsafe {
             let loaded = vld1q_f32_x4(src.as_ptr());
 
@@ -478,11 +481,12 @@ impl Narrowed for u8x16 {
     type Scalar = u8;
     type Widened = u16x16;
 
-    const NUM: usize = 16;
-    const ALPHAS: usize = 4;
+    const LENGTH: usize = 16;
 
     #[inline(always)]
     fn load(src: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH] = src.try_into().unwrap();
+
         unsafe { Self(vld1q_u8(src.as_ptr())) }
     }
 
@@ -544,11 +548,12 @@ impl Narrowed for u8x32 {
     type Scalar = u8;
     type Widened = u16x32;
 
-    const NUM: usize = 32;
-    const ALPHAS: usize = 8;
+    const LENGTH: usize = 32;
 
     #[inline(always)]
     fn load(src: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH] = src.try_into().unwrap();
+
         unsafe {
             let loaded = vld1q_u8_x2(src.as_ptr());
 
@@ -613,11 +618,12 @@ impl Narrowed for u8x64 {
     type Scalar = u8;
     type Widened = u16x64;
 
-    const NUM: usize = 64;
-    const ALPHAS: usize = 16;
+    const LENGTH: usize = 64;
 
     #[inline(always)]
     fn load(src: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH] = src.try_into().unwrap();
+
         unsafe {
             let loaded = vld1q_u8_x4(src.as_ptr());
 
