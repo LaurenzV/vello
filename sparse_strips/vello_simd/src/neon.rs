@@ -4,8 +4,16 @@ use std::ops::{Add, Mul, Sub};
 
 pub struct Neon;
 
+// (Note that the below comments apply to tests performed on Apple Silicon, things might be different
+// for other hardware architectures.)
+// Turns out that for u8, using uint8_16_4t is much faster when loading/storing than
+// just using uint8_16t, so we use 512-bit SIMD as our baseline for NEON.
 pub type Integer = u8x64;
-pub type Float = f32x16;
+// For f32, the story seems to be slightly different: There is a 2x slowdown when using float32x4_t instead
+// of float32x4x2_t, but using float32x4x4_t doesn't seem to give any performance benefits. For some
+// reason 256-bit also gives quite a bit better results for rendering of alpha fills in `Fine`.
+// Because of this, we use that type as the basis.
+pub type Float = f32x8;
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4(float32x4_t);
