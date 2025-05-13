@@ -61,7 +61,7 @@ impl f32x4 {
     }
 
     #[inline(always)]
-    fn load_4(src: &[f32; 4]) -> Self {
+    fn splat_4(src: &[f32; 4]) -> Self {
         unsafe { Self(vld1q_f32(src.as_ptr())) }
     }
 
@@ -129,7 +129,7 @@ impl Type for f32x8 {
     }
 
     #[inline(always)]
-    fn load_4(src: &[f32; 4]) -> Self {
+    fn splat_4(src: &[f32; 4]) -> Self {
         unsafe {
             let v = vld1q_f32(src.as_ptr());
 
@@ -368,7 +368,7 @@ impl u8x16 {
     }
 
     #[inline(always)]
-    fn load_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: &[u8; 4]) -> Self {
         unsafe {
             let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(*src)));
             Self(loaded)
@@ -424,9 +424,9 @@ impl u8x32 {
     }
 
     #[inline(always)]
-    fn load_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: &[u8; 4]) -> Self {
         unsafe {
-            let loaded = u8x16::load_4(src);
+            let loaded = u8x16::splat_4(src);
 
             Self(loaded, loaded)
         }
@@ -493,9 +493,9 @@ impl Type for u8x64 {
     }
 
     #[inline(always)]
-    fn load_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: &[u8; 4]) -> Self {
         unsafe {
-            let loaded = u8x32::load_4(src);
+            let loaded = u8x32::splat_4(src);
 
             Self(loaded, loaded)
         }

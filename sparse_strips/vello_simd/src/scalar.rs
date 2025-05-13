@@ -91,7 +91,7 @@ impl Type for f32x4 {
     }
 
     #[inline(always)]
-    fn load_4(src: &[f32; 4]) -> Self {
+    fn splat_4(src: &[f32; 4]) -> Self {
         Self(*src)
     }
 
@@ -270,7 +270,7 @@ impl Type for u8x16 {
     }
 
     #[inline(always)]
-    fn load_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: &[u8; 4]) -> Self {
         let mut result = [0u8; 16];
 
         for res in result.chunks_exact_mut(4) {

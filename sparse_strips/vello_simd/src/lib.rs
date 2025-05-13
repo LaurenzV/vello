@@ -30,7 +30,7 @@ pub trait Type: Base {
 
     fn load(src: &[Self::Scalar]) -> Self;
     fn load_alphas(src: &[u8]) -> Self;
-    fn load_4(src: &[Self::Scalar; 4]) -> Self;
+    fn splat_4(src: &[Self::Scalar; 4]) -> Self;
     fn splat(value: Self::Scalar) -> Self;
     fn from_normalized_u8(value: u8) -> Self;
     fn store(self, dest: &mut [Self::Scalar]);

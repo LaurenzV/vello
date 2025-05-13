@@ -303,7 +303,7 @@ pub trait SimdExt {
 
 impl SimdExt for scalar::Integer {
     fn splat_color(color: &PremulColor) -> Self {
-        Self::load_4(&color.as_premul_rgba8().to_u8_array())
+        Self::splat_4(&color.as_premul_rgba8().to_u8_array())
     }
 
     fn splat_alpha(color: &PremulColor) -> Self {
@@ -313,7 +313,7 @@ impl SimdExt for scalar::Integer {
 
 impl SimdExt for neon::Integer {
     fn splat_color(color: &PremulColor) -> Self {
-        Self::load_4(&color.as_premul_rgba8().to_u8_array())
+        Self::splat_4(&color.as_premul_rgba8().to_u8_array())
     }
 
     fn splat_alpha(color: &PremulColor) -> Self {
@@ -323,7 +323,7 @@ impl SimdExt for neon::Integer {
 
 impl SimdExt for scalar::Float {
     fn splat_color(color: &PremulColor) -> Self {
-        Self::load_4(&color.as_premul_f32().components)
+        Self::splat_4(&color.as_premul_f32().components)
     }
 
     fn splat_alpha(color: &PremulColor) -> Self {
@@ -333,7 +333,7 @@ impl SimdExt for scalar::Float {
 
 impl SimdExt for neon::Float {
     fn splat_color(color: &PremulColor) -> Self {
-        Self::load_4(&color.as_premul_f32().components)
+        Self::splat_4(&color.as_premul_f32().components)
     }
 
     fn splat_alpha(color: &PremulColor) -> Self {
