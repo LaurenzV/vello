@@ -71,6 +71,8 @@ impl Narrowed for f32x4 {
 
     #[inline(always)]
     fn store(self, dest: &mut [f32]) {
+        let dest: &mut [f32; Self::LENGTH] = dest.try_into().unwrap();
+
         unsafe { vst1q_f32(dest.as_mut_ptr(), self.0) }
     }
 
@@ -172,6 +174,8 @@ impl Narrowed for f32x8 {
 
     #[inline(always)]
     fn store(self, dest: &mut [f32]) {
+        let dest: &mut [f32; Self::LENGTH] = dest.try_into().unwrap();
+
         let stored = float32x4x2_t(self.0.0, self.1.0);
         unsafe { vst1q_f32_x2(dest.as_mut_ptr(), stored) }
     }
@@ -282,6 +286,8 @@ impl Narrowed for f32x16 {
 
     #[inline(always)]
     fn store(self, dest: &mut [f32]) {
+        let dest: &mut [f32; Self::LENGTH] = dest.try_into().unwrap();
+
         let stored = float32x4x4_t(self.0.0.0, self.0.1.0, self.1.0.0, self.1.1.0);
         unsafe { vst1q_f32_x4(dest.as_mut_ptr(), stored) }
     }
@@ -527,6 +533,8 @@ impl Narrowed for u8x16 {
 
     #[inline(always)]
     fn store(self, dest: &mut [u8]) {
+        let dest: &mut [u8; Self::LENGTH] = dest.try_into().unwrap();
+
         unsafe { vst1q_u8(dest.as_mut_ptr(), self.0) }
     }
 
@@ -600,6 +608,8 @@ impl Narrowed for u8x32 {
 
     #[inline(always)]
     fn store(self, dest: &mut [u8]) {
+        let dest: &mut [u8; Self::LENGTH] = dest.try_into().unwrap();
+
         let stored = uint8x16x2_t(self.0.0, self.1.0);
         unsafe { vst1q_u8_x2(dest.as_mut_ptr(), stored) }
     }
@@ -669,6 +679,8 @@ impl Narrowed for u8x64 {
 
     #[inline(always)]
     fn store(self, dest: &mut [u8]) {
+        let dest: &mut [u8; Self::LENGTH] = dest.try_into().unwrap();
+
         let stored = uint8x16x4_t(self.0.0.0, self.0.1.0, self.1.0.0, self.1.1.0);
         unsafe { vst1q_u8_x4(dest.as_mut_ptr(), stored) }
     }
