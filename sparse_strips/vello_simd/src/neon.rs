@@ -1,6 +1,17 @@
-use crate::{Base, Narrowed, Widened};
+use crate::{arith_ops, Base, Narrowed, Simd, Widened};
 use std::arch::aarch64::*;
 use std::ops::{Add, Mul, Sub};
+
+pub struct Neon;
+
+// impl Simd for Neon {
+//     type u8x16 = u8x16;
+//     type u8x32 = u8x32;
+//     type u8x64 = u8x64;
+//     type f32x4 = f32x4;
+//     type f32x8 = f32x8;
+//     type f32x16 = f32x16;
+// }
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4(float32x4_t);
@@ -113,41 +124,7 @@ impl Widened<4, 1, f32x4> for f32x4 {
 #[derive(Copy, Clone, Debug)]
 pub struct f32x8(f32x4, f32x4);
 
-impl Add for f32x8 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 + rhs.0;
-        self.1 = self.1 + rhs.1;
-
-        self
-    }
-}
-
-impl Mul for f32x8 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn mul(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 * rhs.0;
-        self.1 = self.1 * rhs.1;
-
-        self
-    }
-}
-
-impl Sub for f32x8 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 - rhs.0;
-        self.1 = self.1 - rhs.1;
-
-        self
-    }
-}
+arith_ops!(f32x8);
 
 impl Base for f32x8 {}
 
@@ -315,41 +292,7 @@ impl Widened<16, 4, u8x16> for u16x16 {
 #[derive(Copy, Clone, Debug)]
 pub struct u16x32(u16x16, u16x16);
 
-impl Add for u16x32 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 + rhs.0;
-        self.1 = self.1 + rhs.1;
-
-        self
-    }
-}
-
-impl Mul for u16x32 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn mul(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 * rhs.0;
-        self.1 = self.1 * rhs.1;
-
-        self
-    }
-}
-
-impl Sub for u16x32 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 - rhs.0;
-        self.1 = self.1 - rhs.1;
-
-        self
-    }
-}
+arith_ops!(u16x32);
 
 impl Base for u16x32 {}
 
@@ -374,41 +317,7 @@ impl Widened<32, 8, u8x32> for u16x32 {
 #[derive(Copy, Clone, Debug)]
 pub struct u16x64(u16x32, u16x32);
 
-impl Add for u16x64 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 + rhs.0;
-        self.1 = self.1 + rhs.1;
-
-        self
-    }
-}
-
-impl Mul for u16x64 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn mul(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 * rhs.0;
-        self.1 = self.1 * rhs.1;
-
-        self
-    }
-}
-
-impl Sub for u16x64 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 - rhs.0;
-        self.1 = self.1 - rhs.1;
-
-        self
-    }
-}
+arith_ops!(u16x64);
 
 impl Base for u16x64 {}
 
@@ -521,41 +430,7 @@ impl Narrowed<16, 4> for u8x16 {
 #[derive(Copy, Clone, Debug)]
 pub struct u8x32(u8x16, u8x16);
 
-impl Add for u8x32 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 + rhs.0;
-        self.1 = self.1 + rhs.1;
-
-        self
-    }
-}
-
-impl Mul for u8x32 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn mul(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 + rhs.0;
-        self.1 = self.1 + rhs.1;
-
-        self
-    }
-}
-
-impl Sub for u8x32 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 - rhs.0;
-        self.1 = self.1 - rhs.1;
-
-        self
-    }
-}
+arith_ops!(u8x32);
 
 impl Base for u8x32 {}
 
@@ -621,41 +496,7 @@ impl Narrowed<32, 8> for u8x32 {
 #[derive(Copy, Clone, Debug)]
 pub struct u8x64(u8x32, u8x32);
 
-impl Add for u8x64 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn add(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 + rhs.0;
-        self.1 = self.1 + rhs.1;
-
-        self
-    }
-}
-
-impl Mul for u8x64 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn mul(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 + rhs.0;
-        self.1 = self.1 + rhs.1;
-
-        self
-    }
-}
-
-impl Sub for u8x64 {
-    type Output = Self;
-
-    #[inline(always)]
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        self.0 = self.0 - rhs.0;
-        self.1 = self.1 - rhs.1;
-
-        self
-    }
-}
+arith_ops!(u8x64);
 
 impl Base for u8x64 {}
 

@@ -4,11 +4,20 @@
 pub mod neon;
 pub mod scalar;
 mod util;
+mod macros;
 
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
-pub trait Simd<const C: usize> {}
+pub trait Simd {
+    type u8x16: Narrowed<16, 4>;
+    type u8x32: Narrowed<32, 8>;
+    type u8x64: Narrowed<64, 16>;
+    
+    type f32x4: Narrowed<4, 1>;
+    type f32x8: Narrowed<8, 2>;
+    type f32x16: Narrowed<16, 4>;
+}
 
 pub trait Base:
     Sized + Copy + Add<Self, Output = Self> + Mul<Self, Output = Self> + Sub<Self, Output = Self> + Debug
