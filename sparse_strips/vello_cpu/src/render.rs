@@ -3,7 +3,7 @@
 
 //! Basic render operations.
 
-use crate::RenderMode;
+use crate::{RenderMode, Simd};
 use crate::fine2::{Fine, SimdExt};
 use alloc::sync::Arc;
 use alloc::vec;
@@ -44,11 +44,16 @@ pub struct RenderContext {
     pub(crate) transform: Affine,
     pub(crate) fill_rule: Fill,
     pub(crate) encoded_paints: Vec<EncodedPaint>,
+    pub(crate) simd: Simd,
 }
 
 impl RenderContext {
     /// Create a new render context with the given width and height in pixels.
     pub fn new(width: u16, height: u16) -> Self {
+        Self::new_with(width, height, Simd::Scalar)
+    }
+
+    pub fn new_with(width: u16, height: u16, simd: Simd) -> Self {
         let wide = Wide::new(width, height);
 
         let alphas = vec![];
@@ -83,6 +88,7 @@ impl RenderContext {
             fill_rule,
             stroke,
             encoded_paints,
+            simd
         }
     }
 
@@ -298,23 +304,34 @@ impl RenderContext {
             buffer.len(),
         );
 
+        // Note that this currently relies on the assumption that tiles are always 4x4 wide, so
+        // that for u8 it is guaranteed that we are processing 512 bits (the maximum used by our
+        // SIMD types) without having to resort to a fallback for smaller sizes for the remaining
+        // parts.
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                let mut fine = Fine::<neon::u8x16>::new(width, height);
-                self.do_fine(buffer, &mut fine);
+                match self.simd {
+                    Simd::Scalar => self.do_fine::<scalar::u8x16>(width, height, buffer),
+                    Simd::Neon => self.do_fine::<neon::u8x64>(width, height, buffer),
+                }
             }
             RenderMode::OptimizeQuality => {
-                let mut fine = Fine::<neon::f32x4>::new(width, height);
-                self.do_fine(buffer, &mut fine);
+                match self.simd {
+                    Simd::Scalar => self.do_fine::<scalar::f32x4>(width, height, buffer),
+                    Simd::Neon => self.do_fine::<neon::f32x4>(width, height, buffer),
+                }
             }
         }
     }
 
     fn do_fine<N: Narrowed + SimdExt>(
         &self,
+        width: u16, 
+        height: u16,
         buffer: &mut [u8],
-        fine: &mut Fine<N>,
     ) {
+        let mut fine = Fine::<N>::new(width, height);
+        
         let width_tiles = self.wide.width_tiles();
         let height_tiles = self.wide.height_tiles();
         for y in 0..height_tiles {

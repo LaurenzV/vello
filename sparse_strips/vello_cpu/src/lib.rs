@@ -39,3 +39,9 @@ pub enum RenderMode {
     /// Optimize quality (by performing calculations with f32).
     OptimizeQuality,
 }
+
+#[derive(Debug, Copy, Clone)]
+pub enum Simd {
+    Scalar,
+    Neon
+}

@@ -7,11 +7,12 @@ use vello_api::paint::PaintType;
 use vello_api::peniko::{BlendMode, Fill, Font};
 use vello_api::pixmap::Pixmap;
 use vello_common::glyph::{GlyphRenderer, GlyphRunBuilder};
-use vello_cpu::{RenderContext, RenderMode};
+use vello_cpu::{RenderContext, RenderMode, Simd};
 use vello_hybrid::Scene;
 
 pub(crate) trait Renderer: Sized + GlyphRenderer {
     fn new(width: u16, height: u16) -> Self;
+    fn new_with(width: u16, height: u16, simd: Simd) -> Self;
     fn fill_path(&mut self, path: &BezPath);
     fn stroke_path(&mut self, path: &BezPath);
     fn fill_rect(&mut self, rect: &Rect);
@@ -43,6 +44,10 @@ pub(crate) trait Renderer: Sized + GlyphRenderer {
 impl Renderer for RenderContext {
     fn new(width: u16, height: u16) -> Self {
         Self::new(width, height)
+    }
+
+    fn new_with(width: u16, height: u16, simd: Simd) -> Self {
+        Self::new_with(width, height, simd)
     }
 
     fn fill_path(&mut self, path: &BezPath) {
@@ -134,6 +139,10 @@ impl Renderer for RenderContext {
 
 impl Renderer for Scene {
     fn new(width: u16, height: u16) -> Self {
+        Self::new(width, height)
+    }
+
+    fn new_with(width: u16, height: u16, _: Simd) -> Self {
         Self::new(width, height)
     }
 

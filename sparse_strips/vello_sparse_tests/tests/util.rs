@@ -19,7 +19,7 @@ use vello_common::glyph::Glyph;
 use vello_common::kurbo::{BezPath, Join, Point, Rect, Shape, Stroke, Vec2};
 use vello_common::peniko::{Blob, ColorStop, ColorStops, Font};
 use vello_common::pixmap::Pixmap;
-use vello_cpu::RenderMode;
+use vello_cpu::{RenderMode, Simd};
 
 static REFS_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vello_sparse_tests/snapshots")
@@ -27,8 +27,8 @@ static REFS_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
 static DIFFS_PATH: LazyLock<PathBuf> =
     LazyLock::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vello_sparse_tests/diffs"));
 
-pub(crate) fn get_ctx<T: Renderer>(width: u16, height: u16, transparent: bool) -> T {
-    let mut ctx = T::new(width, height);
+pub(crate) fn get_ctx<T: Renderer>(width: u16, height: u16, transparent: bool, simd: Simd) -> T {
+    let mut ctx = T::new_with(width, height, simd);
 
     if !transparent {
         let path = Rect::new(0.0, 0.0, width as f64, height as f64).to_path(0.1);

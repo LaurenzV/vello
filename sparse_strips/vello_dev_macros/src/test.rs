@@ -55,8 +55,10 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     let input_fn = parse_macro_input!(item as ItemFn);
 
     let input_fn_name = input_fn.sig.ident.clone();
-    let u8_fn_name = Ident::new(&format!("{}_cpu_u8", input_fn_name), input_fn_name.span());
-    let f32_fn_name = Ident::new(&format!("{}_cpu_f32", input_fn_name), input_fn_name.span());
+    let u8_scalar_fn_name = Ident::new(&format!("{}_scalar_u8", input_fn_name), input_fn_name.span());
+    let f32_scalar_fn_name = Ident::new(&format!("{}_scalar_f32", input_fn_name), input_fn_name.span());
+    let u8_neon_fn_name = Ident::new(&format!("{}_neon_u8", input_fn_name), input_fn_name.span());
+    let f32_neon_fn_name = Ident::new(&format!("{}_neon_f32", input_fn_name), input_fn_name.span());
     let hybrid_fn_name = Ident::new(&format!("{}_hybrid", input_fn_name), input_fn_name.span());
 
     // TODO: Tests with the same names in different modules can clash, see
@@ -64,8 +66,10 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     // We should take the module path into consideration for naming the tests.
 
     let input_fn_name_str = input_fn_name.to_string();
-    let u8_fn_name_str = u8_fn_name.to_string();
-    let f32_fn_name_str = f32_fn_name.to_string();
+    let u8_scalar_name_str = u8_scalar_fn_name.to_string();
+    let f32_scalar_name_str = f32_scalar_fn_name.to_string();
+    let u8_neon_name_str = u8_neon_fn_name.to_string();
+    let f32_neon_name_str = f32_neon_fn_name.to_string();
     let hybrid_fn_name_str = hybrid_fn_name.to_string();
 
     let Arguments {
@@ -135,7 +139,8 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
                        fn_name_str: String,
                        tolerance: u8,
                        is_reference: bool,
-                       render_mode: proc_macro2::TokenStream| {
+                       render_mode: proc_macro2::TokenStream,
+                       simd: proc_macro2::TokenStream| {
         quote! {
             #ignore_cpu
             #[test]
@@ -144,9 +149,9 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
                     check_ref, get_ctx
                 };
                 use vello_cpu::RenderContext;
-                use vello_cpu::RenderMode;
+                use vello_cpu::{RenderMode, Simd};
 
-                let mut ctx = get_ctx::<RenderContext>(#width, #height, #transparent);
+                let mut ctx = get_ctx::<RenderContext>(#width, #height, #transparent, #simd);
                 #input_fn_name(&mut ctx);
                 if !#no_ref {
                     check_ref(&ctx, #input_fn_name_str, #fn_name_str, #tolerance, #is_reference, #render_mode);
@@ -155,27 +160,49 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
         }
     };
 
-    let u8_snippet = cpu_snippet(
-        u8_fn_name,
-        u8_fn_name_str,
+    let u8_scalar_snippet = cpu_snippet(
+        u8_scalar_fn_name,
+        u8_scalar_name_str,
         cpu_u8_tolerance,
         false,
         quote! { RenderMode::OptimizeSpeed },
+        quote! { Simd::Scalar },
     );
-    let f32_snippet = cpu_snippet(
-        f32_fn_name,
-        f32_fn_name_str,
+
+    let u8_neon_snippet = cpu_snippet(
+        u8_neon_fn_name,
+        u8_neon_name_str,
+        cpu_u8_tolerance,
+        false,
+        quote! { RenderMode::OptimizeSpeed },
+        quote! { Simd::Neon },
+    );
+    
+    let f32_scalar_snippet = cpu_snippet(
+        f32_scalar_fn_name,
+        f32_scalar_name_str,
         cpu_f32_tolerance,
         true,
         quote! { RenderMode::OptimizeQuality },
+        quote! { Simd::Scalar },
+    );
+    
+    let f32_neon_snippet = cpu_snippet(
+        f32_neon_fn_name,
+        f32_neon_name_str,
+        cpu_f32_tolerance,
+        true,
+        quote! { RenderMode::OptimizeQuality },
+        quote! { Simd::Neon },
     );
 
     let expanded = quote! {
         #input_fn
 
-        #u8_snippet
-
-        #f32_snippet
+        #u8_scalar_snippet
+        #u8_neon_snippet
+        #f32_scalar_snippet
+        #f32_neon_snippet
 
         #ignore_hybrid
         #[test]
@@ -184,9 +211,9 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
                 check_ref, get_ctx
             };
             use vello_hybrid::Scene;
-            use vello_cpu::RenderMode;
+            use vello_cpu::{RenderMode, Simd};
 
-            let mut ctx = get_ctx::<Scene>(#width, #height, #transparent);
+            let mut ctx = get_ctx::<Scene>(#width, #height, #transparent, Simd::Scalar);
             #input_fn_name(&mut ctx);
             if !#no_ref {
                 check_ref(&ctx, #input_fn_name_str, #hybrid_fn_name_str, #hybrid_tolerance, false, RenderMode::OptimizeSpeed);
