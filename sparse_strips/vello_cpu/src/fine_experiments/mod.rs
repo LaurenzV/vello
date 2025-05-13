@@ -4,8 +4,6 @@ use std::arch::aarch64::{
     float32x4x2_t, float32x4x4_t, uint8x16x4_t, uint32x4x4_t, vdup_n_u32, vdupq_n_u32, vld1q_f32,
     vreinterpretq_u8_u32, vst1q_f32, vst1q_f32_x2, vst1q_f32_x4, vst1q_u8_x4, vst1q_u32_x4,
 };
-use vello_simd::Type;
-use vello_simd::scalar::u8x16;
 
 pub const HEIGHT: usize = 4;
 pub const WIDETILE_WIDTH: usize = 256;
