@@ -249,6 +249,8 @@ impl Narrowed for f32x16 {
 
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
+
         Self(
             f32x8::load_alphas(&[src[0], src[1]]),
             f32x8::load_alphas(&[src[2], src[3]]),
@@ -492,8 +494,10 @@ impl Narrowed for u8x16 {
 
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
+
         unsafe {
-            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(src.try_into().unwrap())));
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(*src)));
             let zip1 = vzip1q_u8(loaded, loaded);
             let zip2 = vzip1q_u8(zip1, zip1);
 
@@ -563,6 +567,8 @@ impl Narrowed for u8x32 {
 
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
+
         let first = [src[0], src[1], src[2], src[3]];
         let second = [src[4], src[5], src[6], src[7]];
         
@@ -633,6 +639,8 @@ impl Narrowed for u8x64 {
 
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
+
         Self(u8x32::load_alphas(&src[0..8]), u8x32::load_alphas(&src[8..16]))
     }
 
