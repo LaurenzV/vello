@@ -15,8 +15,17 @@ pub type Integer = u8x64;
 // Because of this, we use that type as the basis.
 pub type Float = f32x8;
 
+// Note that below, we are not implementing the `Type` trait for all possible types.
+// We are only implementing it for the types that we export, the reasoning being that
+// it's much easier to mess up a potential override of a trait method. For example, for f32x8
+// we are implementing a different version for the `normalize` method (since floats don't need
+// to be normalized). We do this by delegating two calls to f32x4. If f32x4 also implemented the
+// `Type` trait, it would be easy to miss that we also need to override the implementation inside
+// its implementation. Not implementing the trait for it and instead using normal `impl` blocks
+// makes this more explicit.
+
 #[derive(Copy, Clone, Debug)]
-pub struct f32x4(float32x4_t);
+pub(crate) struct f32x4(float32x4_t);
 
 impl Add for f32x4 {
     type Output = Self;
@@ -198,7 +207,7 @@ impl Widened<f32x8> for f32x8 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct u16x16(uint16x8x2_t);
+pub(crate) struct u16x16(uint16x8x2_t);
 
 impl Add for u16x16 {
     type Output = Self;
@@ -242,9 +251,7 @@ impl Sub for u16x16 {
     }
 }
 
-impl Base for u16x16 {}
-
-impl Widened<u8x16> for u16x16 {
+impl u16x16 {
     #[inline(always)]
     fn narrow(self) -> u8x16 {
         unsafe {
@@ -262,13 +269,11 @@ impl Widened<u8x16> for u16x16 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct u16x32(u16x16, u16x16);
+pub(crate) struct u16x32(u16x16, u16x16);
 
 arith_ops!(u16x32);
 
-impl Base for u16x32 {}
-
-impl Widened<u8x32> for u16x32 {
+impl u16x32 {
     #[inline(always)]
     fn narrow(self) -> u8x32 {
         let first = self.0.narrow();
@@ -312,7 +317,7 @@ impl Widened<u8x64> for u16x64 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct u8x16(uint8x16_t);
+pub(crate) struct u8x16(uint8x16_t);
 
 impl Add for u8x16 {
     type Output = Self;
@@ -341,24 +346,17 @@ impl Sub for u8x16 {
     }
 }
 
-impl Base for u8x16 {}
-
-impl Type for u8x16 {
-    type Scalar = u8;
-    type Widened = u16x16;
-
-    const LENGTH: usize = 16;
-
+impl u8x16 {
     #[inline(always)]
     fn load(src: &[u8]) -> Self {
-        let src: &[u8; Self::LENGTH] = src.try_into().unwrap();
+        let src: &[u8; 16] = src.try_into().unwrap();
 
         unsafe { Self(vld1q_u8(src.as_ptr())) }
     }
 
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
-        let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
+        let src: &[u8; 4] = src.try_into().unwrap();
 
         unsafe {
             let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(*src)));
@@ -376,7 +374,7 @@ impl Type for u8x16 {
             Self(loaded)
         }
     }
-
+    
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe { Self(vdupq_n_u8(value)) }
@@ -388,14 +386,7 @@ impl Type for u8x16 {
     }
 
     #[inline(always)]
-    fn store(self, dest: &mut [u8]) {
-        let dest: &mut [u8; Self::LENGTH] = dest.try_into().unwrap();
-
-        unsafe { vst1q_u8(dest.as_mut_ptr(), self.0) }
-    }
-
-    #[inline(always)]
-    fn widen(self) -> Self::Widened {
+    fn widen(self) -> u16x16 {
         unsafe {
             let low = vget_low_u8(self.0);
             let high = vget_high_u8(self.0);
@@ -406,21 +397,14 @@ impl Type for u8x16 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct u8x32(u8x16, u8x16);
+pub(crate) struct u8x32(u8x16, u8x16);
 
 arith_ops!(u8x32);
 
-impl Base for u8x32 {}
-
-impl Type for u8x32 {
-    type Scalar = u8;
-    type Widened = u16x32;
-
-    const LENGTH: usize = 32;
-
+impl u8x32 {
     #[inline(always)]
     fn load(src: &[u8]) -> Self {
-        let src: &[u8; Self::LENGTH] = src.try_into().unwrap();
+        let src: &[u8; 32] = src.try_into().unwrap();
 
         unsafe {
             let loaded = vld1q_u8_x2(src.as_ptr());
@@ -431,7 +415,7 @@ impl Type for u8x32 {
 
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
-        let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
+        let src: &[u8; 8] = src.try_into().unwrap();
 
         let first = [src[0], src[1], src[2], src[3]];
         let second = [src[4], src[5], src[6], src[7]];
@@ -447,7 +431,7 @@ impl Type for u8x32 {
             Self(loaded, loaded)
         }
     }
-
+    
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe {
@@ -463,15 +447,7 @@ impl Type for u8x32 {
     }
 
     #[inline(always)]
-    fn store(self, dest: &mut [u8]) {
-        let dest: &mut [u8; Self::LENGTH] = dest.try_into().unwrap();
-
-        let stored = uint8x16x2_t(self.0.0, self.1.0);
-        unsafe { vst1q_u8_x2(dest.as_mut_ptr(), stored) }
-    }
-
-    #[inline(always)]
-    fn widen(self) -> Self::Widened {
+    fn widen(self) -> u16x32 {
         let first = self.0.widen();
         let second = self.1.widen();
 
