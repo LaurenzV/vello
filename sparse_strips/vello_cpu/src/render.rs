@@ -25,7 +25,7 @@ use vello_common::pixmap::Pixmap;
 use vello_common::strip::Strip;
 use vello_common::tile::Tiles;
 use vello_common::{flatten, peniko, strip};
-use vello_simd::{Narrowed, scalar, neon};
+use vello_simd::{Type, scalar, neon};
 
 pub(crate) const DEFAULT_TOLERANCE: f64 = 0.1;
 /// A render context.
@@ -324,7 +324,7 @@ impl RenderContext {
         }
     }
 
-    fn do_fine<N: Narrowed + SimdExt>(
+    fn do_fine<N: Type + SimdExt>(
         &self,
         width: u16, 
         height: u16,

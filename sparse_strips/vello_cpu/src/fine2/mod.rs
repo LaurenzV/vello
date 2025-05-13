@@ -17,7 +17,7 @@ use vello_common::{
     coarse::{Cmd, WideTile},
     tile::Tile,
 };
-use vello_simd::{Narrowed, Scalar, Widened, neon, scalar};
+use vello_simd::{Type, Scalar, Widened, neon, scalar};
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -30,7 +30,7 @@ pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 #[derive(Debug)]
 #[doc(hidden)]
 /// This is an internal struct, do not access directly.
-pub struct Fine<N: Narrowed + SimdExt> {
+pub struct Fine<N: Type + SimdExt> {
     pub(crate) width: u16,
     pub(crate) height: u16,
     pub(crate) wide_coords: (u16, u16),
@@ -39,7 +39,7 @@ pub struct Fine<N: Narrowed + SimdExt> {
     phantom_data: PhantomData<N>,
 }
 
-impl<N: Narrowed + SimdExt> Fine<N> {
+impl<N: Type + SimdExt> Fine<N> {
     pub fn new(width: u16, height: u16) -> Self {
         let blend_buf = [N::Scalar::ZERO; SCRATCH_BUF_SIZE];
         let color_buf = [N::Scalar::ZERO; SCRATCH_BUF_SIZE];
@@ -250,10 +250,10 @@ fn pack<F: Scalar>(
 pub(crate) mod fill {
     use crate::fine2::SimdExt;
     use vello_common::paint::PremulColor;
-    use vello_simd::{Narrowed, Scalar};
+    use vello_simd::{Type, Scalar};
 
     #[inline(never)]
-    pub(crate) fn alpha_composite<N: Narrowed + SimdExt>(
+    pub(crate) fn alpha_composite<N: Type + SimdExt>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
     ) {
@@ -271,10 +271,10 @@ pub(crate) mod fill {
 pub(crate) mod strip {
     use crate::fine2::{COLOR_COMPONENTS, SimdExt, TILE_HEIGHT_COMPONENTS};
     use vello_common::paint::PremulColor;
-    use vello_simd::{Narrowed, Scalar, Widened};
+    use vello_simd::{Type, Scalar, Widened};
 
     #[inline(never)]
-    pub(crate) fn alpha_composite<N: Narrowed + SimdExt>(
+    pub(crate) fn alpha_composite<N: Type + SimdExt>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
         alphas: &[u8],

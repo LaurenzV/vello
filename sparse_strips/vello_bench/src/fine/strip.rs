@@ -10,7 +10,7 @@ use vello_common::paint::{Paint, PremulColor};
 use vello_common::tile::Tile;
 use vello_cpu::fine2::{Fine, SimdExt};
 use vello_dev_macros::vello_bench;
-use vello_simd::Narrowed;
+use vello_simd::Type;
 
 pub fn strip(c: &mut Criterion) {
     solid_short(c);
@@ -18,7 +18,7 @@ pub fn strip(c: &mut Criterion) {
 }
 
 #[vello_bench]
-pub fn solid_short<N: Narrowed + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn solid_short<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 8;
 
@@ -26,14 +26,14 @@ pub fn solid_short<N: Narrowed + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N
 }
 
 #[vello_bench]
-pub fn solid_long<N: Narrowed + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn solid_long<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 64;
 
     strip_single(&paint, &[], width, b, fine);
 }
 
-fn strip_single<N: Narrowed + SimdExt>(
+fn strip_single<N: Type + SimdExt>(
     paint: &Paint,
     encoded_paints: &[EncodedPaint],
     width: usize,

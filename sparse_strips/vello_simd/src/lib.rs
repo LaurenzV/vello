@@ -17,7 +17,7 @@ pub trait Base:
 // Unfortunately we cannot make C an associated constant instead, because generic const expressions
 // are unstable and therefore we can't use them in `load` and `store`.
 // We also need to explicitly define `A` for the same reason.
-pub trait Narrowed: Base {
+pub trait Type: Base {
     type Scalar: Scalar;
     type Widened: Widened<Self>;
     
@@ -83,7 +83,7 @@ pub trait Scalar: Base {
     fn to_rgba8(src: &[Self]) -> [u8; 4];
 }
 
-pub trait Widened<N: Narrowed>: Base {
+pub trait Widened<N: Type>: Base {
     fn narrow(self) -> N;
     fn normalize(self) -> Self;
 }

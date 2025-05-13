@@ -1,4 +1,4 @@
-use crate::{arith_ops, Base, Narrowed, Widened};
+use crate::{arith_ops, Base, Type, Widened};
 use std::arch::aarch64::*;
 use std::ops::{Add, Mul, Sub};
 
@@ -36,7 +36,7 @@ impl Sub for f32x4 {
 
 impl Base for f32x4 {}
 
-impl Narrowed for f32x4 {
+impl Type for f32x4 {
     type Scalar = f32;
     type Widened = f32x4;
 
@@ -124,7 +124,7 @@ arith_ops!(f32x8);
 
 impl Base for f32x8 {}
 
-impl Narrowed for f32x8 {
+impl Type for f32x8 {
     type Scalar = f32;
     type Widened = Self;
 
@@ -234,7 +234,7 @@ arith_ops!(f32x16);
 
 impl Base for f32x16 {}
 
-impl Narrowed for f32x16 {
+impl Type for f32x16 {
     type Scalar = f32;
     type Widened = Self;
 
@@ -485,7 +485,7 @@ impl Sub for u8x16 {
 
 impl Base for u8x16 {}
 
-impl Narrowed for u8x16 {
+impl Type for u8x16 {
     type Scalar = u8;
     type Widened = u16x16;
 
@@ -556,7 +556,7 @@ arith_ops!(u8x32);
 
 impl Base for u8x32 {}
 
-impl Narrowed for u8x32 {
+impl Type for u8x32 {
     type Scalar = u8;
     type Widened = u16x32;
 
@@ -630,7 +630,7 @@ arith_ops!(u8x64);
 
 impl Base for u8x64 {}
 
-impl Narrowed for u8x64 {
+impl Type for u8x64 {
     type Scalar = u8;
     type Widened = u16x64;
 

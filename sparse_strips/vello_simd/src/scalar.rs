@@ -1,5 +1,5 @@
 use crate::util::scalar::div_255;
-use crate::{Base, Narrowed, Scalar, Widened};
+use crate::{Base, Type, Scalar, Widened};
 use std::ops::{Add, Mul, Sub};
 
 impl Scalar for f32 {
@@ -77,7 +77,7 @@ impl Sub for f32x4 {
 
 impl Base for f32x4 {}
 
-impl Narrowed for f32x4 {
+impl Type for f32x4 {
     type Widened = Self;
 
     const LENGTH: usize = 4;
@@ -247,7 +247,7 @@ impl Sub for u8x16 {
 
 impl Base for u8x16 {}
 
-impl Narrowed for u8x16 {
+impl Type for u8x16 {
     type Scalar = u8;
     type Widened = u16x16;
 
