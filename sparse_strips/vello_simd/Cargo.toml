@@ -1,6 +1,9 @@
 [package]
 name = "vello_simd"
 version.workspace = true
+description = "SIMD abstractions for the Vello sparse strips renderer."
+categories = ["rendering", "graphics"]
+keywords = ["2d", "vector-graphics", "simd"]
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

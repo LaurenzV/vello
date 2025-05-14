@@ -1,14 +1,19 @@
+// Copyright 2025 the Vello Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #![allow(non_camel_case_types)]
 #![allow(missing_docs)]
+#![expect(non_camel_case_types, reason = "We want our SIMD types to not necessarily be camel case.")]
 
 mod macros;
+#[cfg(target_arch = "aarch64")]
 pub mod neon;
 pub mod fallback;
-mod util;
 
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
+/// A SIMD level for a specific target architecture.
 pub trait Simd: Copy + Debug + Sized {
     type Integer: Type;
     type Float: Type;
@@ -21,8 +26,7 @@ pub trait Base:
     + Mul<Self, Output = Self>
     + Sub<Self, Output = Self>
     + Debug
-{
-}
+{}
 
 // Unfortunately we cannot make C an associated constant instead, because generic const expressions
 // are unstable and therefore we can't use them in `load` and `store`.

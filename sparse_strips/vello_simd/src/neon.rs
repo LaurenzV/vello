@@ -1,3 +1,6 @@
+// Copyright 2025 the Vello Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::{Base, Type, Widened, arith_ops, Simd, ColorLike};
 use std::arch::aarch64::*;
 use std::arch::is_aarch64_feature_detected;

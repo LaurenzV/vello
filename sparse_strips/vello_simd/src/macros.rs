@@ -1,3 +1,6 @@
+// Copyright 2025 the Vello Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 /// Implement the basic arithmetic operations for structs that are based on two other
 /// numerical types already implementing them.
 #[macro_export]

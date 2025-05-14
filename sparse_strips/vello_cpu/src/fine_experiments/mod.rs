@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::Paint;
 use crate::fine::ScratchBuf;
 use std::arch::aarch64::{
