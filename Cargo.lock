@@ -3161,6 +3161,7 @@ dependencies = [
  "bytemuck",
  "peniko",
  "png",
+ "vello_simd",
 ]
 
 [[package]]

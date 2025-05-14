@@ -2,6 +2,7 @@ use crate::util::scalar::div_255;
 use crate::{Base, ColorLike, NumberKind, Simd, Type, Widened};
 use std::ops::{Add, Mul, Sub};
 
+#[derive(Copy, Clone, Debug)]
 pub struct Fallback;
 
 impl Simd for Fallback {

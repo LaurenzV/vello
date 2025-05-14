@@ -9,6 +9,7 @@ use peniko::{
     Gradient, ImageQuality,
     color::{AlphaColor, PremulRgba8, Srgb},
 };
+use vello_simd::ColorLike;
 
 /// A paint that needs to be resolved via its index.
 // In the future, we might add additional flags, that's why we have
@@ -107,6 +108,16 @@ impl PremulColor {
     /// Return whether the color is transparent.
     pub fn is_transparent(&self) -> bool {
         self.premul_f32.components[3] == 0.0
+    }
+}
+
+impl ColorLike for PremulColor {
+    fn to_rgba8(self) -> [u8; 4] {
+        self.premul_u8.to_u8_array()
+    }
+
+    fn to_rgbf32(self) -> [f32; 4] {
+        self.premul_f32.components
     }
 }
 

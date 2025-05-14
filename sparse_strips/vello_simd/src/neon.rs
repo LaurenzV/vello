@@ -15,7 +15,7 @@ impl Neon {
         }
     }
     
-    pub fn get(&self) -> impl Simd {
+    pub fn get(&self) -> impl Simd + Sized + use<> {
         self.0
     }
 }

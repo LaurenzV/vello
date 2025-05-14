@@ -15,6 +15,7 @@ publish = false
 bytemuck = { workspace = true, features = [] }
 peniko = { workspace = true, features = ["bytemuck"] }
 png = { workspace = true, optional = true }
+vello_simd = { workspace = true }
 
 [features]
 default = ["std", "png"]

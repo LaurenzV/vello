@@ -9,9 +9,9 @@ mod util;
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
-pub trait Simd {
-    type Integer: Base;
-    type Float: Base;
+pub trait Simd: Copy + Debug + Sized {
+    type Integer: Type;
+    type Float: Type;
 }
 
 pub trait Base:

@@ -3,7 +3,7 @@
 
 //! Basic render operations.
 
-use crate::fine2::{Fine, SimdExt};
+use crate::fine2::{Fine};
 use crate::{RenderMode, Simd};
 use alloc::sync::Arc;
 use alloc::vec;
@@ -26,6 +26,8 @@ use vello_common::strip::Strip;
 use vello_common::tile::Tiles;
 use vello_common::{flatten, peniko, strip};
 use vello_simd::{Type, neon, fallback};
+use vello_simd::fallback::Fallback;
+use vello_simd::neon::Neon;
 
 pub(crate) const DEFAULT_TOLERANCE: f64 = 0.1;
 /// A render context.
@@ -308,19 +310,21 @@ impl RenderContext {
         // that for u8 it is guaranteed that we are processing 512 bits (the maximum used by our
         // SIMD types) without having to resort to a fallback for smaller sizes for the remaining
         // parts.
+        if let Some(simd) = Neon::new().map(|n| n.get()) {
+            self.do_fine_with_simd(width, height, buffer, render_mode, simd);
+        }   else {
+            self.do_fine_with_simd(width, height, buffer, render_mode, Fallback);
+        }
+    }
+    
+    fn do_fine_with_simd<T: vello_simd::Simd>(&self, width: u16, height: u16, buffer: &mut [u8], render_mode: RenderMode, simd: T) {
         match render_mode {
-            RenderMode::OptimizeSpeed => match self.simd {
-                Simd::Scalar => self.do_fine::<fallback::Integer>(width, height, buffer),
-                Simd::Neon => self.do_fine::<neon::Integer>(width, height, buffer),
-            },
-            RenderMode::OptimizeQuality => match self.simd {
-                Simd::Scalar => self.do_fine::<fallback::Float>(width, height, buffer),
-                Simd::Neon => self.do_fine::<neon::Float>(width, height, buffer),
-            },
+            RenderMode::OptimizeSpeed => self.do_fine_with_type::<T::Integer>(width, height, buffer),
+            RenderMode::OptimizeQuality => self.do_fine_with_type::<T::Float>(width, height, buffer),
         }
     }
 
-    fn do_fine<N: Type + SimdExt>(&self, width: u16, height: u16, buffer: &mut [u8]) {
+    fn do_fine_with_type<N: Type>(&self, width: u16, height: u16, buffer: &mut [u8]) {
         let mut fine = Fine::<N>::new(width, height);
 
         let width_tiles = self.wide.width_tiles();
