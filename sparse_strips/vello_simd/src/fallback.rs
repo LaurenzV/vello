@@ -94,7 +94,8 @@ impl Type for f32x4 {
 
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
-        Self((*src).try_into().unwrap())
+        let src = [src[0], src[1], src[2], src[3]];
+        Self(src)
     }
 
     #[inline(always)]
@@ -120,6 +121,21 @@ impl Type for f32x4 {
     #[inline(always)]
     fn normalized_mul(self, other: Self) -> Self {
         self * other
+    }
+
+    #[inline(always)]
+    fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
+        self * other1 + other2
+    }
+
+    #[inline(always)]
+    fn normalized_mul_mul_add(self, other1: Self, other2: Self, other3: Self) -> Self {
+        self * other1 + other2 * other3
+    }
+
+    #[inline(always)]
+    fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
+        other2 - self * other1
     }
 
     #[inline(always)]
