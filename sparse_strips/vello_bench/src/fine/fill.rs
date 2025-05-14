@@ -5,7 +5,6 @@ use vello_common::encode::EncodedPaint;
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::peniko::BlendMode;
 use vello_cpu::fine2::Fine;
-use vello_cpu::fine2::SimdExt;
 use vello_dev_macros::vello_bench;
 use vello_simd::Type;
 
@@ -17,7 +16,7 @@ pub fn fill(c: &mut Criterion) {
 }
 
 #[vello_bench]
-pub fn opaque_short<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn opaque_short<N: Type>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 32;
 
@@ -25,7 +24,7 @@ pub fn opaque_short<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) 
 }
 
 #[vello_bench]
-pub fn opaque_long<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn opaque_long<N: Type>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 256;
 
@@ -33,7 +32,7 @@ pub fn opaque_long<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
 }
 
 #[vello_bench]
-pub fn transparent_short<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn transparent_short<N: Type>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE.with_alpha(0.3)));
     let width = 32;
 
@@ -41,14 +40,14 @@ pub fn transparent_short<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine
 }
 
 #[vello_bench]
-pub fn transparent_long<N: Type + SimdExt>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn transparent_long<N: Type>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE.with_alpha(0.3)));
     let width = 256;
 
     fill_single(&paint, &[], width, b, default_blend(), fine);
 }
 
-pub(crate) fn fill_single<N: Type + SimdExt>(
+pub(crate) fn fill_single<N: Type>(
     paint: &Paint,
     encoded_paints: &[EncodedPaint],
     width: usize,

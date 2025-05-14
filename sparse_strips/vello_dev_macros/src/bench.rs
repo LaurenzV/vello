@@ -17,7 +17,7 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
 
         pub fn #input_fn_name(c: &mut criterion::Criterion) {
             use vello_cpu::fine2::Fine;
-            use vello_simd::{neon, scalar};
+            use vello_simd::{neon, fallback, Simd};
             use vello_common::coarse::WideTile;
             use vello_common::tile::Tile;
 
@@ -32,25 +32,33 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
 
                 format!("{}/{}_{}", module, suffix1, suffix2)
             }
+            
+            fn run_integer<S: Simd>(b: &mut Bencher, s: S) {
+                let mut fine = Fine::<S::Integer>::new(WideTile::WIDTH, Tile::HEIGHT);
+                #inner_fn_name(b, &mut fine);
+            }
+            
+            fn run_float<S: Simd>(b: &mut Bencher, s: S) {
+                let mut fine = Fine::<S::Float>::new(WideTile::WIDTH, Tile::HEIGHT);
+                #inner_fn_name(b, &mut fine);
+            }
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "u8"), |b| {
-                let mut fine = Fine::<scalar::Integer>::new(WideTile::WIDTH, Tile::HEIGHT);
-                #inner_fn_name(b, &mut fine);
+                run_integer(b, fallback::Fallback);
             });
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "f32"), |b| {
-                let mut fine = Fine::<scalar::Float>::new(WideTile::WIDTH, Tile::HEIGHT);
-                #inner_fn_name(b, &mut fine);
+                run_float(b, fallback::Fallback);
             });
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_neon"), |b| {
-                let mut fine = Fine::<neon::Integer>::new(WideTile::WIDTH, Tile::HEIGHT);
-                #inner_fn_name(b, &mut fine);
+                let neon = neon::Neon::new().unwrap().get();
+                run_integer(b, neon);
             });
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "f32_neon"), |b| {
-                let mut fine = Fine::<neon::Float>::new(WideTile::WIDTH, Tile::HEIGHT);
-                #inner_fn_name(b, &mut fine);
+                let neon = neon::Neon::new().unwrap().get();
+                run_float(b, neon);
             });
         }
     };
