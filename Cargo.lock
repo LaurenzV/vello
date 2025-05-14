@@ -3186,6 +3186,7 @@ dependencies = [
  "skrifa",
  "smallvec",
  "vello_api",
+ "vello_simd",
 ]
 
 [[package]]

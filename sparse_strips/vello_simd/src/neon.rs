@@ -1,31 +1,43 @@
-use crate::{Base, Type, Widened, arith_ops};
+use crate::{Base, Type, Widened, arith_ops, Simd, ColorLike};
 use std::arch::aarch64::*;
+use std::arch::is_aarch64_feature_detected;
 use std::ops::{Add, Mul, Sub};
 
-pub struct Neon;
+#[derive(Copy, Clone, Debug)]
+pub struct Neon(NeonImpl);
 
-// (Note that the below comments apply to tests performed on Apple Silicon, things might be different
-// for other hardware architectures.)
-// Turns out that for u8, using uint8_16_4t is much faster when loading/storing than
-// just using uint8_16t, so we use 512-bit SIMD as our baseline for NEON.
-pub type Integer = u8x64;
-// For f32, the story seems to be slightly different: There is a 2x slowdown when using float32x4_t instead
-// of float32x4x2_t, but using float32x4x4_t doesn't seem to give any performance benefits. For some
-// reason 256-bit also gives quite a bit better results for rendering of alpha fills in `Fine`.
-// Because of this, we use that type as the basis.
-pub type Float = f32x8;
-
-// Note that below, we are not implementing the `Type` trait for all possible types.
-// We are only implementing it for the types that we export, the reasoning being that
-// it's much easier to mess up a potential override of a trait method. For example, for f32x8
-// we are implementing a different version for the `normalize` method (since floats don't need
-// to be normalized). We do this by delegating two calls to f32x4. If f32x4 also implemented the
-// `Type` trait, it would be easy to miss that we also need to override the implementation inside
-// its implementation. Not implementing the trait for it and instead using normal `impl` blocks
-// makes this more explicit.
+impl Neon {
+    pub fn new() -> Option<Self> {
+        if is_aarch64_feature_detected!("neon") {
+            Some(Self(NeonImpl))
+        }   else {
+            None
+        }
+    }
+    
+    pub fn get(&self) -> impl Simd {
+        self.0
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct f32x4(float32x4_t);
+struct NeonImpl;
+
+impl Simd for NeonImpl {
+    // (Note that the below comments apply to tests performed on Apple Silicon, things might be different
+    // for other hardware architectures.)
+    // Turns out that for u8, using uint8_16_4t is much faster when loading/storing than
+    // just using uint8_16t, so we use 512-bit SIMD as our baseline for NEON.
+    type Integer = u8x64;
+    // For f32, the story seems to be slightly different: There is a 2x slowdown when using float32x4_t instead
+    // of float32x4x2_t, but using float32x4x4_t doesn't seem to give any performance benefits. For some
+    // reason 256-bit also gives quite a bit better results for rendering of alpha fills in `Fine`.
+    // Because of this, we use that type as the basis.
+    type Float = f32x8;
+}
+
+#[derive(Copy, Clone, Debug)]
+struct f32x4(float32x4_t);
 
 impl Add for f32x4 {
     type Output = Self;
@@ -192,6 +204,16 @@ impl Type for f32x8 {
             self.1.normalized_mul_mul_add(other1.1, other2.1, other3.1),
         )
     }
+
+    #[inline(always)]
+    fn splat_color<T: ColorLike>(color: &T) -> Self {
+        Self::splat_4(&color.to_rgbf32())
+    }
+
+    #[inline(always)]
+    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+        Self::splat(color.to_rgbf32()[3])
+    }
 }
 
 impl Widened<f32x8> for f32x8 {
@@ -207,7 +229,7 @@ impl Widened<f32x8> for f32x8 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct u16x16(uint16x8x2_t);
+struct u16x16(uint16x8x2_t);
 
 impl Add for u16x16 {
     type Output = Self;
@@ -269,7 +291,7 @@ impl u16x16 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct u16x32(u16x16, u16x16);
+struct u16x32(u16x16, u16x16);
 
 arith_ops!(u16x32);
 
@@ -317,7 +339,7 @@ impl Widened<u8x64> for u16x64 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct u8x16(uint8x16_t);
+struct u8x16(uint8x16_t);
 
 impl Add for u8x16 {
     type Output = Self;
@@ -409,7 +431,7 @@ impl u8x16 {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct u8x32(u8x16, u8x16);
+struct u8x32(u8x16, u8x16);
 
 arith_ops!(u8x32);
 
@@ -519,6 +541,16 @@ impl Type for u8x64 {
 
             Self(loaded, loaded)
         }
+    }
+
+    #[inline(always)]
+    fn splat_color<T: ColorLike>(color: &T) -> Self {
+        Self::splat_4(&color.to_rgba8())
+    }
+
+    #[inline(always)]
+    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+        Self::splat(color.to_rgba8()[3])
     }
 
     #[inline(always)]

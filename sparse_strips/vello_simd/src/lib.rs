@@ -3,11 +3,16 @@
 
 mod macros;
 pub mod neon;
-pub mod scalar;
+pub mod fallback;
 mod util;
 
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
+
+pub trait Simd {
+    type Integer: Base;
+    type Float: Base;
+}
 
 pub trait Base:
     Sized
@@ -23,7 +28,7 @@ pub trait Base:
 // are unstable and therefore we can't use them in `load` and `store`.
 // We also need to explicitly define `A` for the same reason.
 pub trait Type: Base {
-    type Scalar: Scalar;
+    type Scalar: NumberKind;
     type Widened: Widened<Self>;
 
     const LENGTH: usize;
@@ -31,6 +36,8 @@ pub trait Type: Base {
     fn load(src: &[Self::Scalar]) -> Self;
     fn load_alphas(src: &[u8]) -> Self;
     fn splat_4(src: &[Self::Scalar; 4]) -> Self;
+    fn splat_color<T: ColorLike>(color: &T) -> Self;
+    fn splat_alpha<T: ColorLike>(color: &T) -> Self;
     fn splat(value: Self::Scalar) -> Self;
     fn from_normalized_u8(value: u8) -> Self;
     fn store(self, dest: &mut [Self::Scalar]);
@@ -38,17 +45,17 @@ pub trait Type: Base {
 
     #[inline(always)]
     fn zero() -> Self {
-        Self::splat(Scalar::ZERO)
+        Self::splat(NumberKind::ZERO)
     }
 
     #[inline(always)]
     fn mid() -> Self {
-        Self::splat(Scalar::MID)
+        Self::splat(NumberKind::MID)
     }
 
     #[inline(always)]
     fn one() -> Self {
-        Self::splat(Scalar::ONE)
+        Self::splat(NumberKind::ONE)
     }
 
     #[inline(always)]
@@ -80,7 +87,7 @@ pub trait Type: Base {
     }
 }
 
-pub trait Scalar: Base {
+pub trait NumberKind: Base {
     const ZERO: Self;
     const MID: Self;
     const ONE: Self;
@@ -91,4 +98,9 @@ pub trait Scalar: Base {
 pub trait Widened<N: Type>: Base {
     fn narrow(self) -> N;
     fn normalize(self) -> Self;
+}
+
+pub trait ColorLike: Copy + Debug {
+    fn to_rgba8(self) -> [u8; 4];
+    fn to_rgbf32(self) -> [f32; 4];
 }

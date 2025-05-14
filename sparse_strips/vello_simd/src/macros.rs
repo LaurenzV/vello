@@ -1,3 +1,5 @@
+/// Implement the basic arithmetic operations for structs that are based on two other
+/// numerical types already implementing them.
 #[macro_export]
 macro_rules! arith_ops {
     ($name:ident) => {

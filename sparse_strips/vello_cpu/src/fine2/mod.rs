@@ -17,7 +17,7 @@ use vello_common::{
     coarse::{Cmd, WideTile},
     tile::Tile,
 };
-use vello_simd::{Scalar, Type, Widened, neon, scalar};
+use vello_simd::{NumberKind, Type, Widened, neon, fallback};
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -214,7 +214,7 @@ impl<N: Type + SimdExt> Fine<N> {
     }
 }
 
-fn pack<F: Scalar>(
+fn pack<F: NumberKind>(
     out_buf: &mut [u8],
     scratch: &ScratchBuf<F>,
     width: usize,
@@ -250,7 +250,7 @@ fn pack<F: Scalar>(
 pub(crate) mod fill {
     use crate::fine2::SimdExt;
     use vello_common::paint::PremulColor;
-    use vello_simd::{Scalar, Type};
+    use vello_simd::{NumberKind, Type};
 
     #[inline(never)]
     pub(crate) fn alpha_composite<N: Type + SimdExt>(
@@ -271,10 +271,10 @@ pub(crate) mod fill {
 pub(crate) mod strip {
     use crate::fine2::{COLOR_COMPONENTS, SimdExt, TILE_HEIGHT_COMPONENTS};
     use vello_common::paint::PremulColor;
-    use vello_simd::{Scalar, Type, Widened};
+    use vello_simd::{NumberKind, Type, Widened};
 
     #[inline(never)]
-    pub(crate) fn alpha_composite<N: Type + SimdExt>(
+    pub(crate) fn alpha_composite<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
         alphas: &[u8],
@@ -293,50 +293,5 @@ pub(crate) mod strip {
             let res = bg_c.normalized_mul_mul_add(inv_src_a_mask_a, src_c, mask_a);
             res.store(bg_part);
         }
-    }
-}
-
-pub trait SimdExt {
-    fn splat_color(color: &PremulColor) -> Self;
-    fn splat_alpha(color: &PremulColor) -> Self;
-}
-
-impl SimdExt for scalar::Integer {
-    fn splat_color(color: &PremulColor) -> Self {
-        Self::splat_4(&color.as_premul_rgba8().to_u8_array())
-    }
-
-    fn splat_alpha(color: &PremulColor) -> Self {
-        Self::splat(color.as_premul_rgba8().a)
-    }
-}
-
-impl SimdExt for neon::Integer {
-    fn splat_color(color: &PremulColor) -> Self {
-        Self::splat_4(&color.as_premul_rgba8().to_u8_array())
-    }
-
-    fn splat_alpha(color: &PremulColor) -> Self {
-        Self::splat(color.as_premul_rgba8().a)
-    }
-}
-
-impl SimdExt for scalar::Float {
-    fn splat_color(color: &PremulColor) -> Self {
-        Self::splat_4(&color.as_premul_f32().components)
-    }
-
-    fn splat_alpha(color: &PremulColor) -> Self {
-        Self::splat(color.as_premul_f32().components[3])
-    }
-}
-
-impl SimdExt for neon::Float {
-    fn splat_color(color: &PremulColor) -> Self {
-        Self::splat_4(&color.as_premul_f32().components)
-    }
-
-    fn splat_alpha(color: &PremulColor) -> Self {
-        Self::splat(color.as_premul_f32().components[3])
     }
 }

@@ -1,11 +1,15 @@
 use crate::util::scalar::div_255;
-use crate::{Base, Scalar, Type, Widened};
+use crate::{Base, ColorLike, NumberKind, Simd, Type, Widened};
 use std::ops::{Add, Mul, Sub};
 
-pub type Integer = u8x16;
-pub type Float = f32x4;
+pub struct Fallback;
 
-impl Scalar for f32 {
+impl Simd for Fallback {
+    type Integer = u8x16;
+    type Float = f32x4;
+}
+
+impl NumberKind for f32 {
     const ZERO: Self = 0.0;
     const MID: Self = 0.5;
     const ONE: Self = 1.0;
@@ -21,7 +25,7 @@ impl Scalar for f32 {
     }
 }
 
-impl Scalar for u8 {
+impl NumberKind for u8 {
     const ZERO: Self = 0;
     const MID: Self = 127;
     const ONE: Self = 255;
@@ -125,6 +129,16 @@ impl Type for f32x4 {
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
         Self::from_normalized_u8(src[0])
+    }
+    
+    #[inline(always)]
+    fn splat_color<T: ColorLike>(color: &T) -> Self {
+        Self::splat_4(&color.to_rgbf32())
+    }
+
+    #[inline(always)]
+    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+        Self::splat(color.to_rgbf32()[3])
     }
 }
 
@@ -278,6 +292,16 @@ impl Type for u8x16 {
         }
 
         Self(result)
+    }
+
+    #[inline(always)]
+    fn splat_color<T: ColorLike>(color: &T) -> Self {
+        Self::splat_4(&color.to_rgba8())
+    }
+
+    #[inline(always)]
+    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+        Self::splat(color.to_rgba8()[3])
     }
 
     #[inline(always)]
