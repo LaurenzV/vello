@@ -98,8 +98,8 @@ impl Type for f32x4 {
     }
 
     #[inline(always)]
-    fn splat_4(src: &[f32; 4]) -> Self {
-        Self(*src)
+    fn splat_4(src: [f32; 4]) -> Self {
+        Self(src)
     }
 
     #[inline(always)]
@@ -135,12 +135,12 @@ impl Type for f32x4 {
     }
     
     #[inline(always)]
-    fn splat_color<T: ColorLike>(color: &T) -> Self {
-        Self::splat_4(&color.to_rgbf32())
+    fn splat_color<T: ColorLike>(color: T) -> Self {
+        Self::splat_4(color.to_rgbf32())
     }
 
     #[inline(always)]
-    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+    fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgbf32()[3])
     }
 }
@@ -287,23 +287,23 @@ impl Type for u8x16 {
     }
 
     #[inline(always)]
-    fn splat_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: [u8; 4]) -> Self {
         let mut result = [0u8; 16];
 
         for res in result.chunks_exact_mut(4) {
-            res.copy_from_slice(src);
+            res.copy_from_slice(&src);
         }
 
         Self(result)
     }
 
     #[inline(always)]
-    fn splat_color<T: ColorLike>(color: &T) -> Self {
-        Self::splat_4(&color.to_rgba8())
+    fn splat_color<T: ColorLike>(color: T) -> Self {
+        Self::splat_4(color.to_rgba8())
     }
 
     #[inline(always)]
-    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+    fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgba8()[3])
     }
 

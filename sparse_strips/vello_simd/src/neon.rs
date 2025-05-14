@@ -144,7 +144,7 @@ impl Type for f32x8 {
     }
 
     #[inline(always)]
-    fn splat_4(src: &[f32; 4]) -> Self {
+    fn splat_4(src: [f32; 4]) -> Self {
         unsafe {
             let v = vld1q_f32(src.as_ptr());
 
@@ -209,12 +209,12 @@ impl Type for f32x8 {
     }
 
     #[inline(always)]
-    fn splat_color<T: ColorLike>(color: &T) -> Self {
-        Self::splat_4(&color.to_rgbf32())
+    fn splat_color<T: ColorLike>(color: T) -> Self {
+        Self::splat_4(color.to_rgbf32())
     }
 
     #[inline(always)]
-    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+    fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgbf32()[3])
     }
 }
@@ -393,9 +393,9 @@ impl u8x16 {
     }
 
     #[inline(always)]
-    fn splat_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: [u8; 4]) -> Self {
         unsafe {
-            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(*src)));
+            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(src)));
             Self(loaded)
         }
     }
@@ -461,7 +461,7 @@ impl u8x32 {
     }
 
     #[inline(always)]
-    fn splat_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: [u8; 4]) -> Self {
         unsafe {
             let loaded = u8x16::splat_4(src);
 
@@ -538,7 +538,7 @@ impl Type for u8x64 {
     }
 
     #[inline(always)]
-    fn splat_4(src: &[u8; 4]) -> Self {
+    fn splat_4(src: [u8; 4]) -> Self {
         unsafe {
             let loaded = u8x32::splat_4(src);
 
@@ -547,12 +547,12 @@ impl Type for u8x64 {
     }
 
     #[inline(always)]
-    fn splat_color<T: ColorLike>(color: &T) -> Self {
-        Self::splat_4(&color.to_rgba8())
+    fn splat_color<T: ColorLike>(color: T) -> Self {
+        Self::splat_4(color.to_rgba8())
     }
 
     #[inline(always)]
-    fn splat_alpha<T: ColorLike>(color: &T) -> Self {
+    fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgba8()[3])
     }
 

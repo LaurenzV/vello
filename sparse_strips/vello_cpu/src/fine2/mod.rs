@@ -75,7 +75,7 @@ impl<N: Type> Fine<N> {
         //     }
         // }
 
-        let loaded = N::splat_color(premul_color);
+        let loaded = N::splat_color(*premul_color);
         for z in blend_buf.chunks_exact_mut(N::LENGTH) {
             loaded.store(z)
         }
@@ -164,7 +164,7 @@ impl<N: Type> Fine<N> {
 
                 // If color is completely opaque we can just memcopy the colors.
                 if has_alpha && default_blend {
-                    let color = N::splat_color(color);
+                    let color = N::splat_color(*color);
 
                     for t in blend_buf.chunks_exact_mut(N::LENGTH) {
                         color.store(t);
@@ -256,8 +256,8 @@ pub(crate) mod fill {
         target: &mut [N::Scalar],
         src_c: &PremulColor,
     ) {
-        let one_minus_alpha = N::splat_alpha(src_c).one_minus();
-        let src_c = N::splat_color(src_c);
+        let one_minus_alpha = N::splat_alpha(*src_c).one_minus();
+        let src_c = N::splat_color(*src_c);
 
         for part in target.chunks_exact_mut(N::LENGTH) {
             let mut bg_c = N::load(part);
@@ -277,8 +277,8 @@ pub(crate) mod strip {
         src_c: &PremulColor,
         alphas: &[u8],
     ) {
-        let src_alpha = N::splat_alpha(src_c);
-        let src_c = N::splat_color(src_c);
+        let src_alpha = N::splat_alpha(*src_c);
+        let src_c = N::splat_color(*src_c);
 
         for (bg_part, masks) in target
             .chunks_exact_mut(N::LENGTH)

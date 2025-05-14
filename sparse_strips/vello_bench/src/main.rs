@@ -17,12 +17,8 @@ fn main() {
     let a_f32_4 = PremulColor::from_alpha_color(ROYAL_BLUE)
         .as_premul_f32()
         .components;
-    let a_f32_16 = [
-        a_f32_4[0], a_f32_4[1], a_f32_4[2], a_f32_4[3], a_f32_4[0], a_f32_4[1], a_f32_4[2],
-        a_f32_4[3], a_f32_4[0], a_f32_4[1], a_f32_4[2], a_f32_4[3], a_f32_4[0], a_f32_4[1],
-        a_f32_4[2], a_f32_4[3],
-    ];
     let u8_arr = [a[0], a[1], a[2], a[3]];
+    let u8_32 = u32::from_ne_bytes(u8_arr);
     let blend_mode = BlendMode::new(Mix::Normal, Compose::SrcOver);
     let mut blend_buf_u8 = vec![0u8; SCRATCH_BUF_SIZE];
     let mut blend_buf_f32 = vec![0.0f32; SCRATCH_BUF_SIZE];
@@ -39,8 +35,8 @@ fn main() {
 
         for _ in 0..100 {
             // fine.fill(&u8_arr);
-            // fine_experiments::opaque_u8(&mut blend_buf_u8, &u8_arr);
-            fine_experiments::opaque_f32_2(&mut blend_buf_f32, &a_f32_4);
+            fine_experiments::opaque_u8(&mut blend_buf_u8, u8_32, u8_arr, 256);
+            // fine_experiments::opaque_f32_2(&mut blend_buf_f32, &a_f32_4);
         }
 
         std::hint::black_box(&blend_buf_u8);
