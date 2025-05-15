@@ -183,29 +183,7 @@ impl<N: Type> Fine<N> {
         let (x, y) = (self.wide_coords.0 as usize, self.wide_coords.1 as usize);
         let (width, height) = (self.width as usize, self.height as usize);
 
-        let base_ix = (y * usize::from(Tile::HEIGHT) * width + x * usize::from(WideTile::WIDTH))
-            * COLOR_COMPONENTS;
-
-        // Make sure we don't process rows outside the range of the pixmap.
-        let max_height = (height - y * usize::from(Tile::HEIGHT)).min(usize::from(Tile::HEIGHT));
-
-        for j in 0..max_height {
-            let line_ix = base_ix + j * width * COLOR_COMPONENTS;
-
-            // Make sure we don't process columns outside the range of the pixmap.
-            let max_width =
-                (width - x * usize::from(WideTile::WIDTH)).min(usize::from(WideTile::WIDTH));
-            let target_len = max_width * COLOR_COMPONENTS;
-            // This helps the compiler to understand that any access to `dest` cannot
-            // be out of bounds, and thus saves corresponding checks in the for loop.
-            let dest = &mut out_buf[line_ix..][..target_len];
-
-            for i in 0..max_width {
-                let src = &blend_buf[(i * usize::from(Tile::HEIGHT) + j) * COLOR_COMPONENTS..]
-                    [..COLOR_COMPONENTS];
-                dest[i * COLOR_COMPONENTS..][..COLOR_COMPONENTS].copy_from_slice(&N::Scalar::to_rgba8(src));
-            }
-        }
+        N::pack(out_buf, blend_buf, x, y, width, height);
     }
 
     fn clip_fill(&mut self, x: usize, width: usize) {

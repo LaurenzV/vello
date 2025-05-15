@@ -94,12 +94,12 @@ pub trait Type: Base {
     fn pack(
         out_buf: &mut [u8],
         in_buf: &mut [Self::Scalar],
-        width: usize,
-        height: usize,
         x: usize,
         y: usize,
+        width: usize,
+        height: usize,
     ) {
-        pack::<Self>(out_buf, in_buf, width, height, x, y);
+        pack::<Self>(out_buf, in_buf, x, y, width, height);
     }
 }
 
@@ -121,31 +121,31 @@ pub trait ColorLike: Copy + Debug {
     fn to_rgbf32(self) -> [f32; 4];
 }
 
+pub(crate) const TILE_HEIGHT: usize = 4;
+pub(crate) const WIDE_TILE_WIDTH: usize = 256;
+pub(crate) const COLOR_COMPONENTS: usize = 4;
 
-fn pack<F: Type>(
+pub(crate) fn pack<F: Type>(
     out_buf: &mut [u8],
     in_buf: &mut [F::Scalar],
-    width: usize,
-    height: usize,
     x: usize,
     y: usize,
+    width: usize,
+    height: usize,
 ) {
-    const TILE_HEIGHT: usize = 4;
-    const WIDE_TILE_WIDTH: usize = 256;
-    const COLOR_COMPONENTS: usize = 4;
+    // Make sure we don't process rows outside the range of the pixmap.
+    let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
+
+    // Make sure we don't process columns outside the range of the pixmap.
+    let max_width =
+        (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
 
     let base_ix = (y * TILE_HEIGHT * width + x * WIDE_TILE_WIDTH)
         * COLOR_COMPONENTS;
 
-    // Make sure we don't process rows outside the range of the pixmap.
-    let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
-
     for j in 0..max_height {
         let line_ix = base_ix + j * width * COLOR_COMPONENTS;
-
-        // Make sure we don't process columns outside the range of the pixmap.
-        let max_width =
-            (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
+        
         let target_len = max_width * COLOR_COMPONENTS;
         // This helps the compiler to understand that any access to `dest` cannot
         // be out of bounds, and thus saves corresponding checks in the for loop.
