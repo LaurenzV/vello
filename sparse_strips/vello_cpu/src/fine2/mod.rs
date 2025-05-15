@@ -279,6 +279,7 @@ pub(crate) mod strip {
     ) {
         let src_alpha = N::splat_alpha(*src_c);
         let src_c = N::splat_color(*src_c);
+        let one = N::one();
 
         for (bg_part, masks) in target
             .chunks_exact_mut(N::LENGTH)
@@ -286,7 +287,7 @@ pub(crate) mod strip {
         {
             let bg_c = N::load(bg_part);
             let mask_a = N::load_alphas(masks);
-            let inv_src_a_mask_a = mask_a.normalized_mul_sub(src_alpha, N::one());
+            let inv_src_a_mask_a = mask_a.normalized_mul_sub(src_alpha, one);
 
             let res = bg_c.normalized_mul_mul_add(inv_src_a_mask_a, src_c, mask_a);
             res.store(bg_part);
