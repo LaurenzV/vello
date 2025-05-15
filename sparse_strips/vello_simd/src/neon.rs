@@ -380,19 +380,6 @@ impl u8x16 {
     }
 
     #[inline(always)]
-    fn load_alphas(src: &[u8]) -> Self {
-        let src: &[u8; 4] = src.try_into().unwrap();
-
-        unsafe {
-            let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(*src)));
-            let zip1 = vzip1q_u8(loaded, loaded);
-            let zip2 = vzip1q_u8(zip1, zip1);
-
-            Self(zip2)
-        }
-    }
-
-    #[inline(always)]
     fn splat_4(src: [u8; 4]) -> Self {
         unsafe {
             let loaded = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_ne_bytes(src)));
@@ -448,16 +435,6 @@ impl u8x32 {
 
             Self(u8x16(loaded.0), u8x16(loaded.1))
         }
-    }
-
-    #[inline(always)]
-    fn load_alphas(src: &[u8]) -> Self {
-        let src: &[u8; 8] = src.try_into().unwrap();
-
-        let first = [src[0], src[1], src[2], src[3]];
-        let second = [src[4], src[5], src[6], src[7]];
-
-        Self(u8x16::load_alphas(&first), u8x16::load_alphas(&second))
     }
 
     #[inline(always)]
@@ -531,10 +508,16 @@ impl Type for u8x64 {
     fn load_alphas(src: &[u8]) -> Self {
         let src: &[u8; Self::LENGTH / 4] = src.try_into().unwrap();
 
-        Self(
-            u8x32::load_alphas(&src[0..8]),
-            u8x32::load_alphas(&src[8..16]),
-        )
+        unsafe {
+            let loaded = vld1q_u8(src.as_ptr());
+            let zipped = vzipq_u8(loaded, loaded);
+            let zip1 = vzipq_u8(zipped.0, zipped.0);
+            let zip2 = vzipq_u8(zipped.1, zipped.1);
+            
+            Self(
+                u8x32(u8x16(zip1.0), u8x16(zip1.1)),
+                u8x32(u8x16(zip2.0), u8x16(zip2.1)),)
+        }
     }
 
     #[inline(always)]
