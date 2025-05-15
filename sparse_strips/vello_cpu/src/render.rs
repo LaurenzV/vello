@@ -310,14 +310,18 @@ impl RenderContext {
         // that for u8 it is guaranteed that we are processing 512 bits (the maximum used by our
         // SIMD types) without having to resort to a fallback for smaller sizes for the remaining
         // parts.
-        if let Some(simd) = Neon::new().map(|n| n.get()) {
-            self.do_fine_with_simd(width, height, buffer, render_mode, simd);
-        }   else {
-            self.do_fine_with_simd(width, height, buffer, render_mode, Fallback);
+        
+        match self.simd {
+            Simd::Scalar => self.do_fine_with_simd(width, height, buffer, render_mode, Fallback),
+            Simd::Neon => if let Some(neon) = Neon::new().map(|n| n.get()) {
+                self.do_fine_with_simd(width, height, buffer, render_mode, neon);
+            }   else {
+                self.do_fine_with_simd(width, height, buffer, render_mode, Fallback);
+            }
         }
     }
     
-    fn do_fine_with_simd<T: vello_simd::Simd>(&self, width: u16, height: u16, buffer: &mut [u8], render_mode: RenderMode, simd: T) {
+    fn do_fine_with_simd<T: vello_simd::Simd>(&self, width: u16, height: u16, buffer: &mut [u8], render_mode: RenderMode, _: T) {
         match render_mode {
             RenderMode::OptimizeSpeed => self.do_fine_with_type::<T::Integer>(width, height, buffer),
             RenderMode::OptimizeQuality => self.do_fine_with_type::<T::Float>(width, height, buffer),
