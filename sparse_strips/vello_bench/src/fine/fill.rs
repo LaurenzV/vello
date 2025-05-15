@@ -9,8 +9,8 @@ use vello_dev_macros::vello_bench;
 use vello_simd::Type;
 
 pub fn fill(c: &mut Criterion) {
-    opaque_short(c);
-    opaque_long(c);
+    // opaque_short(c);
+    // opaque_long(c);
     transparent_short(c);
     transparent_long(c);
 }
