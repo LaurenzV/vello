@@ -408,14 +408,25 @@ impl u8x16 {
     }
 
     #[inline(always)]
-    fn normalized_mul(self, other: Self) -> u16x16 {
+    fn widening_mul(self, other: Self) -> u16x16 {
         unsafe {
             let left_low = vget_low_u8(self.0);
             let right_low = vget_low_u8(other.0);
-            let high = div_255(vmull_high_u8(self.0, other.0));
-            let low = div_255(vmull_u8(left_low, right_low));
+            let high = vmull_high_u8(self.0, other.0);
+            let low = vmull_u8(left_low, right_low);
 
             u16x16(uint16x8x2_t(low, high))
+        }
+    }
+
+    #[inline(always)]
+    fn normalized_widening_mul(self, other: Self) -> u16x16 {
+        unsafe {
+            let mut mulled = self.widening_mul(other);
+            mulled.0.0 = div_255(mulled.0.0);
+            mulled.0.1 = div_255(mulled.0.1);
+
+            mulled
         }
     }
 }
@@ -470,8 +481,8 @@ impl u8x32 {
 
     #[inline(always)]
     fn normalized_mul(self, other: Self) -> u16x32 {
-        let first = self.0.normalized_mul(other.0);
-        let second = self.1.normalized_mul(other.1);
+        let first = self.0.normalized_widening_mul(other.0);
+        let second = self.1.normalized_widening_mul(other.1);
         
         u16x32(first, second)
     }
