@@ -89,6 +89,18 @@ pub trait Type: Base {
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         other2 - self.normalized_mul(other1)
     }
+    
+    #[inline(always)]
+    fn pack(
+        out_buf: &mut [u8],
+        in_buf: &mut [Self::Scalar],
+        width: usize,
+        height: usize,
+        x: usize,
+        y: usize,
+    ) {
+        pack::<Self>(out_buf, in_buf, width, height, x, y);
+    }
 }
 
 pub trait NumberKind: Base {
@@ -107,4 +119,42 @@ pub trait Widened<N: Type>: Base {
 pub trait ColorLike: Copy + Debug {
     fn to_rgba8(self) -> [u8; 4];
     fn to_rgbf32(self) -> [f32; 4];
+}
+
+
+fn pack<F: Type>(
+    out_buf: &mut [u8],
+    in_buf: &mut [F::Scalar],
+    width: usize,
+    height: usize,
+    x: usize,
+    y: usize,
+) {
+    const TILE_HEIGHT: usize = 4;
+    const WIDE_TILE_WIDTH: usize = 256;
+    const COLOR_COMPONENTS: usize = 4;
+
+    let base_ix = (y * TILE_HEIGHT * width + x * WIDE_TILE_WIDTH)
+        * COLOR_COMPONENTS;
+
+    // Make sure we don't process rows outside the range of the pixmap.
+    let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
+
+    for j in 0..max_height {
+        let line_ix = base_ix + j * width * COLOR_COMPONENTS;
+
+        // Make sure we don't process columns outside the range of the pixmap.
+        let max_width =
+            (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
+        let target_len = max_width * COLOR_COMPONENTS;
+        // This helps the compiler to understand that any access to `dest` cannot
+        // be out of bounds, and thus saves corresponding checks in the for loop.
+        let dest = &mut out_buf[line_ix..][..target_len];
+
+        for i in 0..max_width {
+            let src = &in_buf[(i * TILE_HEIGHT + j) * COLOR_COMPONENTS..]
+                [..COLOR_COMPONENTS];
+            dest[i * COLOR_COMPONENTS..][..COLOR_COMPONENTS].copy_from_slice(&F::Scalar::to_rgba8(src));
+        }
+    }
 }
