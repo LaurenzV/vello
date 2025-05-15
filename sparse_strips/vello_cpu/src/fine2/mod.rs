@@ -59,21 +59,7 @@ impl<N: Type> Fine<N> {
     }
 
     pub fn clear(&mut self, premul_color: &PremulColor) {
-        let c = premul_color.as_premul_f32().components;
         let blend_buf = self.blend_buf.last_mut().unwrap();
-
-        // if c[0] == c[1]
-        //     && c[1] == c[2]
-        //     && c[2] == c[3]
-        // {
-        //     // All components are the same, so we can use memset instead.
-        //     blend_buf.fill(c[0]);
-        // } else {
-        //     let loaded = N::splat_color(premul_color);
-        //     for z in blend_buf.array_chunks_mut::<C>() {
-        //         loaded.store(z)
-        //     }
-        // }
 
         let loaded = N::splat_color(*premul_color);
         for z in blend_buf.chunks_exact_mut(N::LENGTH) {
