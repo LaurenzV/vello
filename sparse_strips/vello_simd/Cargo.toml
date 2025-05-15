@@ -10,6 +10,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+bytemuck = { workspace = true, features = [] }
 
 [features]
 

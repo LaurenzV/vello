@@ -1,10 +1,11 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{Base, Type, Widened, arith_ops, Simd, ColorLike};
+use crate::{Base, Type, Widened, arith_ops, Simd, ColorLike, TILE_HEIGHT, WIDE_TILE_WIDTH, COLOR_COMPONENTS, NumberKind};
 use std::arch::aarch64::*;
 use std::arch::is_aarch64_feature_detected;
 use std::ops::{Add, Mul, Sub};
+use bytemuck::cast_slice;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Neon(NeonImpl);
@@ -596,6 +597,56 @@ impl Type for u8x64 {
     #[inline(always)]
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         other2 - self.normalized_mul(other1)
+    }
+
+    #[inline(always)]
+    fn pack(out_buf: &mut [u8], in_buf: &mut [Self::Scalar], x: usize, y: usize, width: usize, height: usize) {
+        let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
+        let max_width =
+            (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
+        
+        if max_height != TILE_HEIGHT || max_width != WIDE_TILE_WIDTH {
+            crate::pack::<Self>(out_buf, in_buf, x, y, width, height);
+        } else {
+            panic!();
+            let (user_x, _) =(x * WIDE_TILE_WIDTH, y * TILE_HEIGHT);
+            let row_len = width * COLOR_COMPONENTS;
+            let mut base_slice = {
+                let row_ix = y * usize::from(TILE_HEIGHT) * row_len;
+                let (_, tail) = out_buf.split_at_mut(row_ix);
+                tail
+            };
+    
+            let mut dest_slices: [&mut [u8]; TILE_HEIGHT] = [&mut [], &mut [], &mut [], &mut []];
+    
+            for s in &mut dest_slices {
+                let (row, tail) = base_slice.split_at_mut(row_len);
+    
+                *s = &mut row[user_x*COLOR_COMPONENTS..][..COLOR_COMPONENTS*width];
+    
+                base_slice = tail;
+            }
+    
+            for (idx, col) in in_buf.chunks_exact(Self::LENGTH).enumerate() {
+                let dest_idx = idx * Self::LENGTH;
+                
+                let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
+                unsafe {
+                    let loaded = vld4q_u32(casted.as_ptr());
+                    let reinterpreted = [
+                        vreinterpretq_u8_u32(loaded.0),
+                        vreinterpretq_u8_u32(loaded.1),
+                        vreinterpretq_u8_u32(loaded.2),
+                        vreinterpretq_u8_u32(loaded.3)
+                    ];
+    
+                    for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
+                        let target = &mut dest[dest_idx..];
+                        vst1q_u8(target.as_mut_ptr(), src)
+                    }
+                }
+            }
+        }
     }
 }
 
