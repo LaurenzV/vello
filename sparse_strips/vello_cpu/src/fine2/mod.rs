@@ -67,20 +67,6 @@ impl<N: Type> Fine<N> {
         }
     }
 
-    #[doc(hidden)]
-    pub fn pack(&mut self, out_buf: &mut [u8]) {
-        let blend_buf = self.blend_buf.last_mut().unwrap();
-
-        pack::<N::Scalar>(
-            out_buf,
-            blend_buf,
-            self.width.into(),
-            self.height.into(),
-            self.wide_coords.0.into(),
-            self.wide_coords.1.into(),
-        );
-    }
-
     pub(crate) fn run_cmd(&mut self, cmd: &Cmd, alphas: &[u8], paints: &[EncodedPaint]) {
         match cmd {
             Cmd::Fill(f) => {
@@ -191,6 +177,37 @@ impl<N: Type> Fine<N> {
         }
     }
 
+    #[doc(hidden)]
+    pub fn pack(&mut self, out_buf: &mut [u8]) {
+        let blend_buf = self.blend_buf.last_mut().unwrap();
+        let (x, y) = (self.wide_coords.0 as usize, self.wide_coords.1 as usize);
+        let (width, height) = (self.width as usize, self.height as usize);
+
+        let base_ix = (y * usize::from(Tile::HEIGHT) * width + x * usize::from(WideTile::WIDTH))
+            * COLOR_COMPONENTS;
+
+        // Make sure we don't process rows outside the range of the pixmap.
+        let max_height = (height - y * usize::from(Tile::HEIGHT)).min(usize::from(Tile::HEIGHT));
+
+        for j in 0..max_height {
+            let line_ix = base_ix + j * width * COLOR_COMPONENTS;
+
+            // Make sure we don't process columns outside the range of the pixmap.
+            let max_width =
+                (width - x * usize::from(WideTile::WIDTH)).min(usize::from(WideTile::WIDTH));
+            let target_len = max_width * COLOR_COMPONENTS;
+            // This helps the compiler to understand that any access to `dest` cannot
+            // be out of bounds, and thus saves corresponding checks in the for loop.
+            let dest = &mut out_buf[line_ix..][..target_len];
+
+            for i in 0..max_width {
+                let src = &blend_buf[(i * usize::from(Tile::HEIGHT) + j) * COLOR_COMPONENTS..]
+                    [..COLOR_COMPONENTS];
+                dest[i * COLOR_COMPONENTS..][..COLOR_COMPONENTS].copy_from_slice(&N::Scalar::to_rgba8(src));
+            }
+        }
+    }
+
     fn clip_fill(&mut self, x: usize, width: usize) {
         unimplemented!()
     }
@@ -200,44 +217,10 @@ impl<N: Type> Fine<N> {
     }
 }
 
-fn pack<F: NumberKind>(
-    out_buf: &mut [u8],
-    scratch: &ScratchBuf<F>,
-    width: usize,
-    height: usize,
-    x: usize,
-    y: usize,
-) {
-    let base_ix = (y * usize::from(Tile::HEIGHT) * width + x * usize::from(WideTile::WIDTH))
-        * COLOR_COMPONENTS;
-
-    // Make sure we don't process rows outside the range of the pixmap.
-    let max_height = (height - y * usize::from(Tile::HEIGHT)).min(usize::from(Tile::HEIGHT));
-
-    for j in 0..max_height {
-        let line_ix = base_ix + j * width * COLOR_COMPONENTS;
-
-        // Make sure we don't process columns outside the range of the pixmap.
-        let max_width =
-            (width - x * usize::from(WideTile::WIDTH)).min(usize::from(WideTile::WIDTH));
-        let target_len = max_width * COLOR_COMPONENTS;
-        // This helps the compiler to understand that any access to `dest` cannot
-        // be out of bounds, and thus saves corresponding checks in the for loop.
-        let dest = &mut out_buf[line_ix..][..target_len];
-
-        for i in 0..max_width {
-            let src = &scratch[(i * usize::from(Tile::HEIGHT) + j) * COLOR_COMPONENTS..]
-                [..COLOR_COMPONENTS];
-            dest[i * COLOR_COMPONENTS..][..COLOR_COMPONENTS].copy_from_slice(&F::to_rgba8(src));
-        }
-    }
-}
-
 pub(crate) mod fill {
     use vello_common::paint::PremulColor;
     use vello_simd::{NumberKind, Type};
 
-    #[inline(never)]
     pub(crate) fn alpha_composite<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
@@ -257,7 +240,6 @@ pub(crate) mod strip {
     use vello_common::paint::PremulColor;
     use vello_simd::{Type};
 
-    #[inline(never)]
     pub(crate) fn alpha_composite<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
