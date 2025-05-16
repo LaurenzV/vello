@@ -221,6 +221,8 @@ impl Type for f32x8 {
     fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgbf32()[3])
     }
+
+    // TODO: Add optimized version of packing
 }
 
 impl Widened<f32x8> for f32x8 {
