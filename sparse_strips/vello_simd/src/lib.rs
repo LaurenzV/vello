@@ -94,7 +94,6 @@ pub trait Type: Base {
         other2 - self.normalized_mul(other1)
     }
 
-    #[inline(always)]
     fn pack(
         out_buf: &mut [u8],
         in_buf: &mut [Self::Scalar],

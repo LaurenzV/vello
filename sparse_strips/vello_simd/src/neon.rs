@@ -603,7 +603,6 @@ impl Type for u8x64 {
         other2 - self.normalized_mul(other1)
     }
 
-    #[inline(always)]
     fn pack(
         out_buf: &mut [u8],
         in_buf: &mut [Self::Scalar],
@@ -617,10 +616,11 @@ impl Type for u8x64 {
 
         if max_height != TILE_HEIGHT || max_width != WIDE_TILE_WIDTH {
             // In theory, it would be possible to handle tiles where the pixmap does not
-            // have the full height (i.e. at the very bottom) using the below code. However,
-            // I'm seeing a significant slowdown in benchmarks when adding a `.take(max_height)`
-            // to the iterators below, so we instead just fallback to scalar packing for those
-            // edge cases, so we have the full performance for the general case.
+            // have the full height or full width (i.e. at the very bottom or very right) 
+            // by adapting the below code. However, I'm seeing a significant slowdown in benchmarks 
+            // when removing above if conditions, so we instead just fallback to scalar packing 
+            // for for all cases where we are not packing a full 256x4 tile, 
+            // so that we have the full performance for the general case.
             crate::pack::<Self>(out_buf, in_buf, x, y, width, height);
         } else {
             let (user_x, _) = (x * WIDE_TILE_WIDTH, y * TILE_HEIGHT);
@@ -654,27 +654,9 @@ impl Type for u8x64 {
                         vreinterpretq_u8_u32(loaded.3),
                     ];
 
-                    if ((max_width * COLOR_COMPONENTS) - dest_idx) >= 16 {
-                        // We are handling a 4x4 block, use SIMD for full power.
-                        for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
-                            let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
-                            vst1q_u8(target.as_mut_ptr(), src)
-                        }
-                    } else {
-                        // We are handling a remainder (can only happen for the last 
-                        // part of wide tiles on the very right), use scalar copying.Ω
-                        // for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
-                        //     let mut storage = [0u8; 16];
-                        //     vst1q_u8(storage.as_mut_ptr(), src);
-                        //     
-                        //     let target = &mut dest[dest_idx..];
-                        //     
-                        //     for (target, src) in target.chunks_exact_mut(4).zip(storage.chunks_exact(4)) {
-                        //         target.copy_from_slice(src);
-                        //     }
-                        // }
-                        // 
-                        // break;
+                    for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
+                        let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
+                        vst1q_u8(target.as_mut_ptr(), src)
                     }
                 }
             }
