@@ -616,6 +616,11 @@ impl Type for u8x64 {
         let max_width = (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
 
         if max_height != TILE_HEIGHT || max_width != WIDE_TILE_WIDTH {
+            // In theory, it would be possible to handle tiles where the pixmap does not
+            // have the full height (i.e. at the very bottom) using the below code. However,
+            // I'm seeing a significant slowdown in benchmarks when adding a `.take(max_height)`
+            // to the iterators below, so we instead just fallback to scalar packing for those
+            // edge cases, so we have the full performance for the general case.
             crate::pack::<Self>(out_buf, in_buf, x, y, width, height);
         } else {
             let (user_x, _) = (x * WIDE_TILE_WIDTH, y * TILE_HEIGHT);
@@ -627,9 +632,7 @@ impl Type for u8x64 {
             };
             
             let mut dest_slices: [&mut [u8]; TILE_HEIGHT] = [&mut [], &mut [], &mut [], &mut []];
-
-            // We need to take at most `max_height` here, because the height of the pixmap 
-            // might not be 4 for the bottom-most wide tile!
+            
             for s in &mut dest_slices.iter_mut() {
                 let (row, tail) = base_slice.split_at_mut(row_len);
 
