@@ -615,7 +615,7 @@ impl Type for u8x64 {
         let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
         let max_width = (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
 
-        if max_height != TILE_HEIGHT || max_width != WIDE_TILE_WIDTH {
+        if max_width != WIDE_TILE_WIDTH {
             crate::pack::<Self>(out_buf, in_buf, x, y, width, height);
         } else {
             let (user_x, _) = (x * WIDE_TILE_WIDTH, y * TILE_HEIGHT);
@@ -625,10 +625,12 @@ impl Type for u8x64 {
                 let (_, tail) = out_buf.split_at_mut(row_ix);
                 tail
             };
-
+            
             let mut dest_slices: [&mut [u8]; TILE_HEIGHT] = [&mut [], &mut [], &mut [], &mut []];
 
-            for s in &mut dest_slices {
+            // We need to take at most `max_height` here, because the height of the pixmap 
+            // might not be 4 for the bottom-most wide tile!
+            for s in &mut dest_slices.iter_mut().take(max_height) {
                 let (row, tail) = base_slice.split_at_mut(row_len);
 
                 *s = &mut row[user_x * COLOR_COMPONENTS..][..max_width * COLOR_COMPONENTS];
@@ -636,7 +638,7 @@ impl Type for u8x64 {
                 base_slice = tail;
             }
 
-            for (idx, col) in in_buf.chunks_exact(Self::LENGTH).enumerate() {
+            for (idx, col) in in_buf.chunks_exact(Self::LENGTH).take(max_width).enumerate() {
                 let dest_idx = idx * Self::LENGTH / 4;
 
                 let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
@@ -649,7 +651,9 @@ impl Type for u8x64 {
                         vreinterpretq_u8_u32(loaded.3),
                     ];
 
-                    for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
+                    // Same as above, only take `max_height` at most since for the bottom-most wide tile,
+                    // we are not guaranteed to have 4 rows in the pixmap.
+                    for (dest, src) in dest_slices.iter_mut().take(max_height).zip(reinterpreted) {
                         let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
                         vst1q_u8(target.as_mut_ptr(), src)
                     }
