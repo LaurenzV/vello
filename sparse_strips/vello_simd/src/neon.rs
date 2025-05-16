@@ -654,11 +654,27 @@ impl Type for u8x64 {
                         vreinterpretq_u8_u32(loaded.3),
                     ];
 
-                    // Same as above, only take `max_height` at most since for the bottom-most wide tile,
-                    // we are not guaranteed to have 4 rows in the pixmap.
-                    for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
-                        let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
-                        vst1q_u8(target.as_mut_ptr(), src)
+                    if ((max_width * COLOR_COMPONENTS) - dest_idx) >= 16 {
+                        // We are handling a 4x4 block, use SIMD for full power.
+                        for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
+                            let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
+                            vst1q_u8(target.as_mut_ptr(), src)
+                        }
+                    } else {
+                        // We are handling a remainder (can only happen for the last 
+                        // part of wide tiles on the very right), use scalar copying.Ω
+                        // for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
+                        //     let mut storage = [0u8; 16];
+                        //     vst1q_u8(storage.as_mut_ptr(), src);
+                        //     
+                        //     let target = &mut dest[dest_idx..];
+                        //     
+                        //     for (target, src) in target.chunks_exact_mut(4).zip(storage.chunks_exact(4)) {
+                        //         target.copy_from_slice(src);
+                        //     }
+                        // }
+                        // 
+                        // break;
                     }
                 }
             }
