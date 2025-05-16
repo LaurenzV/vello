@@ -149,7 +149,7 @@ impl Type for f32x4 {
     fn load_alphas(src: &[u8]) -> Self {
         Self::from_normalized_u8(src[0])
     }
-    
+
     #[inline(always)]
     fn splat_color<T: ColorLike>(color: T) -> Self {
         Self::splat_4(color.to_rgbf32())

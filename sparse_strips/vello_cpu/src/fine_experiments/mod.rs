@@ -15,12 +15,12 @@ pub fn opaque_u8(blend_buf: &mut [u8], color: u32, color_u8: [u8; 4], width: usi
         // let single = vreinterpretq_u8_u32(vdupq_n_u32(color));
         let single = vreinterpretq_u8_u32(vdupq_n_u32(u32::from_be_bytes(color_u8)));
         let m = uint8x16x4_t(single, single, single, single);
-    
-        for c in blend_buf[..width* HEIGHT * COLOR_COMPONENTS].chunks_exact_mut(64) {
+
+        for c in blend_buf[..width * HEIGHT * COLOR_COMPONENTS].chunks_exact_mut(64) {
             vst1q_u8_x4(c.as_mut_ptr(), m);
         }
     }
-    
+
     // 5.3 ns
     // for c in blend_buf[..width * HEIGHT * COLOR_COMPONENTS].chunks_exact_mut(4) {
     //     c.copy_from_slice(color);

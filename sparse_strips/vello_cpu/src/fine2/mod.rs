@@ -17,7 +17,7 @@ use vello_common::{
     coarse::{Cmd, WideTile},
     tile::Tile,
 };
-use vello_simd::{NumberKind, Type, Widened, neon, fallback};
+use vello_simd::{NumberKind, Type, Widened, fallback, neon};
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -199,10 +199,7 @@ pub(crate) mod fill {
     use vello_common::paint::PremulColor;
     use vello_simd::{NumberKind, Type};
 
-    pub(crate) fn alpha_composite<N: Type>(
-        target: &mut [N::Scalar],
-        src_c: &PremulColor,
-    ) {
+    pub(crate) fn alpha_composite<N: Type>(target: &mut [N::Scalar], src_c: &PremulColor) {
         let one_minus_alpha = N::splat_alpha(*src_c).one_minus();
         let src_c = N::splat_color(*src_c);
 
@@ -216,7 +213,7 @@ pub(crate) mod fill {
 
 pub(crate) mod strip {
     use vello_common::paint::PremulColor;
-    use vello_simd::{Type};
+    use vello_simd::Type;
 
     pub(crate) fn alpha_composite<N: Type>(
         target: &mut [N::Scalar],

@@ -3,12 +3,15 @@
 
 #![allow(non_camel_case_types)]
 #![allow(missing_docs)]
-#![expect(non_camel_case_types, reason = "We want our SIMD types to not necessarily be camel case.")]
+#![expect(
+    non_camel_case_types,
+    reason = "We want our SIMD types to not necessarily be camel case."
+)]
 
+pub mod fallback;
 mod macros;
 #[cfg(target_arch = "aarch64")]
 pub mod neon;
-pub mod fallback;
 
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
@@ -26,7 +29,8 @@ pub trait Base:
     + Mul<Self, Output = Self>
     + Sub<Self, Output = Self>
     + Debug
-{}
+{
+}
 
 // Unfortunately we cannot make C an associated constant instead, because generic const expressions
 // are unstable and therefore we can't use them in `load` and `store`.
@@ -89,7 +93,7 @@ pub trait Type: Base {
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         other2 - self.normalized_mul(other1)
     }
-    
+
     #[inline(always)]
     fn pack(
         out_buf: &mut [u8],
@@ -137,24 +141,22 @@ pub(crate) fn pack<F: Type>(
     let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
 
     // Make sure we don't process columns outside the range of the pixmap.
-    let max_width =
-        (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
+    let max_width = (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
 
-    let base_ix = (y * TILE_HEIGHT * width + x * WIDE_TILE_WIDTH)
-        * COLOR_COMPONENTS;
+    let base_ix = (y * TILE_HEIGHT * width + x * WIDE_TILE_WIDTH) * COLOR_COMPONENTS;
 
     for j in 0..max_height {
         let line_ix = base_ix + j * width * COLOR_COMPONENTS;
-        
+
         let target_len = max_width * COLOR_COMPONENTS;
         // This helps the compiler to understand that any access to `dest` cannot
         // be out of bounds, and thus saves corresponding checks in the for loop.
         let dest = &mut out_buf[line_ix..][..target_len];
 
         for i in 0..max_width {
-            let src = &in_buf[(i * TILE_HEIGHT + j) * COLOR_COMPONENTS..]
-                [..COLOR_COMPONENTS];
-            dest[i * COLOR_COMPONENTS..][..COLOR_COMPONENTS].copy_from_slice(&F::Scalar::to_rgba8(src));
+            let src = &in_buf[(i * TILE_HEIGHT + j) * COLOR_COMPONENTS..][..COLOR_COMPONENTS];
+            dest[i * COLOR_COMPONENTS..][..COLOR_COMPONENTS]
+                .copy_from_slice(&F::Scalar::to_rgba8(src));
         }
     }
 }

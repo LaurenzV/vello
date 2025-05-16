@@ -1,11 +1,14 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{Base, Type, Widened, arith_ops, Simd, ColorLike, TILE_HEIGHT, WIDE_TILE_WIDTH, COLOR_COMPONENTS, NumberKind};
+use crate::{
+    Base, COLOR_COMPONENTS, ColorLike, NumberKind, Simd, TILE_HEIGHT, Type, WIDE_TILE_WIDTH,
+    Widened, arith_ops,
+};
+use bytemuck::cast_slice;
 use std::arch::aarch64::*;
 use std::arch::is_aarch64_feature_detected;
 use std::ops::{Add, Mul, Sub};
-use bytemuck::cast_slice;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Neon(NeonImpl);
@@ -14,11 +17,11 @@ impl Neon {
     pub fn new() -> Option<Self> {
         if is_aarch64_feature_detected!("neon") {
             Some(Self(NeonImpl))
-        }   else {
+        } else {
             None
         }
     }
-    
+
     pub fn get(&self) -> impl Simd + Sized + use<> {
         self.0
     }
@@ -105,7 +108,7 @@ impl f32x4 {
     fn normalized_mul_mul_add(self, other1: Self, other2: Self, other3: Self) -> Self {
         self.normalized_mul_add(other1, other2 * other3)
     }
-    
+
     #[inline(always)]
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         unsafe { Self(vfmsq_f32(other2.0, self.0, other1.0)) }
@@ -387,7 +390,7 @@ impl u8x16 {
             Self(loaded)
         }
     }
-    
+
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe { Self(vdupq_n_u8(value)) }
@@ -457,7 +460,7 @@ impl u8x32 {
             Self(loaded, loaded)
         }
     }
-    
+
     #[inline(always)]
     fn splat(value: u8) -> Self {
         unsafe {
@@ -484,7 +487,7 @@ impl u8x32 {
     fn normalized_mul(self, other: Self) -> u16x32 {
         let first = self.0.normalized_widening_mul(other.0);
         let second = self.1.normalized_widening_mul(other.1);
-        
+
         u16x32(first, second)
     }
 }
@@ -525,10 +528,11 @@ impl Type for u8x64 {
             let zipped = vzipq_u8(loaded, loaded);
             let zip1 = vzipq_u8(zipped.0, zipped.0);
             let zip2 = vzipq_u8(zipped.1, zipped.1);
-            
+
             Self(
                 u8x32(u8x16(zip1.0), u8x16(zip1.1)),
-                u8x32(u8x16(zip2.0), u8x16(zip2.1)),)
+                u8x32(u8x16(zip2.0), u8x16(zip2.1)),
+            )
         }
     }
 
@@ -585,51 +589,56 @@ impl Type for u8x64 {
     fn normalized_mul(self, other: Self) -> Self {
         let first = self.0.normalized_mul(other.0);
         let second = self.1.normalized_mul(other.1);
-    
+
         u16x64(first, second).narrow()
     }
-    
+
     #[inline(always)]
     fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
         self.normalized_mul(other1) + other2
     }
-    
+
     #[inline(always)]
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         other2 - self.normalized_mul(other1)
     }
 
     #[inline(always)]
-    fn pack(out_buf: &mut [u8], in_buf: &mut [Self::Scalar], x: usize, y: usize, width: usize, height: usize) {
+    fn pack(
+        out_buf: &mut [u8],
+        in_buf: &mut [Self::Scalar],
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+    ) {
         let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
-        let max_width =
-            (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
-        
+        let max_width = (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
+
         if max_height != TILE_HEIGHT || max_width != WIDE_TILE_WIDTH {
             crate::pack::<Self>(out_buf, in_buf, x, y, width, height);
         } else {
-            panic!();
-            let (user_x, _) =(x * WIDE_TILE_WIDTH, y * TILE_HEIGHT);
+            let (user_x, _) = (x * WIDE_TILE_WIDTH, y * TILE_HEIGHT);
             let row_len = width * COLOR_COMPONENTS;
             let mut base_slice = {
                 let row_ix = y * usize::from(TILE_HEIGHT) * row_len;
                 let (_, tail) = out_buf.split_at_mut(row_ix);
                 tail
             };
-    
+
             let mut dest_slices: [&mut [u8]; TILE_HEIGHT] = [&mut [], &mut [], &mut [], &mut []];
-    
+
             for s in &mut dest_slices {
                 let (row, tail) = base_slice.split_at_mut(row_len);
-    
-                *s = &mut row[user_x*COLOR_COMPONENTS..][..COLOR_COMPONENTS*width];
-    
+
+                *s = &mut row[user_x * COLOR_COMPONENTS..][..max_width * COLOR_COMPONENTS];
+
                 base_slice = tail;
             }
-    
+
             for (idx, col) in in_buf.chunks_exact(Self::LENGTH).enumerate() {
-                let dest_idx = idx * Self::LENGTH;
-                
+                let dest_idx = idx * Self::LENGTH / 4;
+
                 let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
                 unsafe {
                     let loaded = vld4q_u32(casted.as_ptr());
@@ -637,11 +646,11 @@ impl Type for u8x64 {
                         vreinterpretq_u8_u32(loaded.0),
                         vreinterpretq_u8_u32(loaded.1),
                         vreinterpretq_u8_u32(loaded.2),
-                        vreinterpretq_u8_u32(loaded.3)
+                        vreinterpretq_u8_u32(loaded.3),
                     ];
-    
+
                     for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
-                        let target = &mut dest[dest_idx..];
+                        let target = &mut dest[dest_idx..][..16];
                         vst1q_u8(target.as_mut_ptr(), src)
                     }
                 }

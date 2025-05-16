@@ -32,12 +32,12 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
 
                 format!("{}/{}_{}", module, suffix1, suffix2)
             }
-            
+
             fn run_integer<S: Simd>(b: &mut Bencher, s: S) {
                 let mut fine = Fine::<S::Integer>::new(WideTile::WIDTH, Tile::HEIGHT);
                 #inner_fn_name(b, &mut fine);
             }
-            
+
             fn run_float<S: Simd>(b: &mut Bencher, s: S) {
                 let mut fine = Fine::<S::Float>::new(WideTile::WIDTH, Tile::HEIGHT);
                 #inner_fn_name(b, &mut fine);
