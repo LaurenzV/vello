@@ -1,8 +1,8 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{Base, ColorLike, NumberKind, Simd, Type, Widened};
-use std::ops::{Add, Mul, Sub};
+use crate::{Base, ColorLike, Float, NumberKind, Simd, Type, Widened};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Fallback;
@@ -79,6 +79,19 @@ impl Sub for f32x4 {
     fn sub(mut self, rhs: Self) -> Self::Output {
         for i in 0..4 {
             self.0[i] = self.0[i] - rhs.0[i];
+        }
+
+        self
+    }
+}
+
+impl Div for f32x4 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(mut self, rhs: Self) -> Self::Output {
+        for i in 0..4 {
+            self.0[i] = self.0[i] / rhs.0[i];
         }
 
         self
@@ -170,6 +183,28 @@ impl Widened<f32x4> for f32x4 {
     #[inline(always)]
     fn normalize(self) -> Self {
         self
+    }
+}
+
+impl Float for f32x4 {
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        f32x4([
+            self.0[0].sqrt(),
+            self.0[1].sqrt(),
+            self.0[2].sqrt(),
+            self.0[3].sqrt(),
+        ])
+    }
+
+    #[inline(always)]
+    fn powf(self, exponent: f32) -> Self {
+        f32x4([
+            self.0[0].powf(exponent),
+            self.0[1].powf(exponent),
+            self.0[2].powf(exponent),
+            self.0[3].powf(exponent),
+        ])
     }
 }
 

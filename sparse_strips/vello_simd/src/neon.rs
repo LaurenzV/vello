@@ -1,14 +1,11 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{
-    Base, COLOR_COMPONENTS, ColorLike, NumberKind, Simd, TILE_HEIGHT, Type, WIDE_TILE_WIDTH,
-    Widened, arith_ops,
-};
+use crate::{Base, COLOR_COMPONENTS, ColorLike, NumberKind, Simd, TILE_HEIGHT, Type, WIDE_TILE_WIDTH, Widened, arith_ops, Float};
 use bytemuck::cast_slice;
 use std::arch::aarch64::*;
 use std::arch::is_aarch64_feature_detected;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Neon(NeonImpl);
@@ -73,6 +70,15 @@ impl Sub for f32x4 {
     }
 }
 
+impl Div for f32x4 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        unsafe { Self(vdivq_f32(self.0, rhs.0)) }
+    }
+}
+
 impl f32x4 {
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
@@ -119,6 +125,18 @@ impl f32x4 {
 pub struct f32x8(f32x4, f32x4);
 
 arith_ops!(f32x8);
+
+impl Div for f32x8 {
+    type Output = Self;
+    
+    #[inline(always)]
+    fn div(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 / rhs.0;
+        self.1 = self.1 / rhs.1;
+    
+        self
+    }
+}
 
 impl Base for f32x8 {}
 
@@ -234,6 +252,38 @@ impl Widened<f32x8> for f32x8 {
     #[inline(always)]
     fn normalize(self) -> Self {
         self
+    }
+}
+
+impl Float for f32x8 {
+    fn sqrt(mut self) -> Self {
+        unsafe {
+            self.0.0 = vsqrtq_f32(self.0.0);
+            self.1.0 = vsqrtq_f32(self.1.0);
+        }
+        
+        self
+    }
+
+    fn powf(mut self, exponent: f32) -> Self {
+        let mut storage = [0.0; 8];
+        unsafe {
+            vst1q_f32_x2(storage.as_mut_ptr(), float32x4x2_t(self.0.0, self.1.0));
+            
+            storage[0] = storage[0].powf(exponent);
+            storage[1] = storage[1].powf(exponent);
+            storage[2] = storage[2].powf(exponent);
+            storage[3] = storage[3].powf(exponent);
+            storage[4] = storage[4].powf(exponent);
+            storage[5] = storage[5].powf(exponent);
+            storage[6] = storage[6].powf(exponent);
+            storage[7] = storage[7].powf(exponent);
+            
+            let loaded = vld1q_f32_x2(storage.as_ptr());
+            
+            Self(f32x4(loaded.0), f32x4(loaded.1))
+        }
+        
     }
 }
 

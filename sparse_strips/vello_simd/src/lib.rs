@@ -14,7 +14,7 @@ mod macros;
 pub mod neon;
 
 use std::fmt::Debug;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 /// A SIMD level for a specific target architecture.
 pub trait Simd: Copy + Debug + Sized {
@@ -123,6 +123,21 @@ pub trait Widened<N: Type>: Base {
 pub trait ColorLike: Copy + Debug {
     fn to_rgba8(self) -> [u8; 4];
     fn to_rgbf32(self) -> [f32; 4];
+}
+
+pub trait Float: Type<Scalar = f32> + Div<Self, Output = Self> {
+    fn sqrt(self) -> Self;
+    fn powf(self, exponent: Self::Scalar) -> Self;
+
+    // See https://raphlinus.github.io/audio/2018/09/05/sigmoid.html for a little
+    // explanation of this approximation to the erf function.
+    /// Approximate the erf function.
+    fn compute_erf7(x: Self) -> Self {
+        let x = x * Self::splat(core::f32::consts::FRAC_2_SQRT_PI);
+        let xx = x * x;
+        let x = x + (Self::splat(0.24295) + (Self::splat(0.03395) + Self::splat(0.0104) * xx) * xx) * (x * xx);
+        x / (Self::splat(1.0) + x * x).sqrt()
+    }
 }
 
 pub(crate) const TILE_HEIGHT: usize = 4;
