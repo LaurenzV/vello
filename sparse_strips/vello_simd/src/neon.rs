@@ -650,7 +650,7 @@ impl Type for u8x64 {
                     ];
 
                     for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
-                        let target = &mut dest[dest_idx..][..16];
+                        let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
                         vst1q_u8(target.as_mut_ptr(), src)
                     }
                 }
