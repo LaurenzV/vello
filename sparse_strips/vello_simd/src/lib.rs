@@ -13,6 +13,7 @@ mod macros;
 #[cfg(target_arch = "aarch64")]
 pub mod neon;
 
+use std::arch::aarch64::float32x4_t;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -139,6 +140,8 @@ pub trait Float: Type<Scalar = f32> + Div<Self, Output = Self> {
         let x = x + (Self::splat(0.24295) + (Self::splat(0.03395) + Self::splat(0.0104) * xx) * xx) * (x * xx);
         x / (Self::splat(1.0) + x * x).sqrt()
     }
+
+    fn splat_col_pos(pos: (f32, f32), x_advance: (f32, f32), y_advance: (f32, f32)) -> (Self, Self);
 }
 
 pub trait Convertible<T> where T: Type {

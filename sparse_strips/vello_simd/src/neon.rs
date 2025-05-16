@@ -316,6 +316,17 @@ impl Float for f32x8 {
         }
         
     }
+
+    #[inline(always)]
+    fn splat_col_pos(pos: (f32, f32), x_advance: (f32, f32), y_advance: (f32, f32)) -> (Self, Self) {
+        let first_col = splat_col_pos(pos, y_advance);
+        let second_col = splat_col_pos((pos.0 + x_advance.0, pos.1 + x_advance.1), y_advance);
+        
+        let x_pos = f32x8(f32x4(first_col.0), f32x4(second_col.0));
+        let y_pos = f32x8(f32x4(first_col.1), f32x4(second_col.1));
+
+        (x_pos, y_pos)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -755,5 +766,16 @@ fn div_255(input: uint16x8_t) -> uint16x8_t {
         let p1 = vdupq_n_u16(255);
         let p2 = vaddq_u16(input, p1);
         vshrq_n_u16::<8>(p2)
+    }
+}
+
+fn splat_col_pos(pos: (f32, f32), advance: (f32, f32)) -> (float32x4_t, float32x4_t) {
+    unsafe {
+        let column_mask = vld1q_f32([0.0, 1.0, 2.0, 3.0].as_ptr());
+
+        let x_positions = vfmaq_f32(vdupq_n_f32(pos.0), column_mask, vdupq_n_f32(advance.0));
+        let y_positions = vfmaq_f32(vdupq_n_f32(pos.1), column_mask, vdupq_n_f32(advance.1));
+
+        (x_positions, y_positions)
     }
 }

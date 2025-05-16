@@ -227,6 +227,25 @@ impl Float for f32x4 {
             self.0[3].powf(exponent),
         ])
     }
+
+    #[inline(always)]
+    fn splat_col_pos(pos: (f32, f32), _: (f32, f32), y_advance: (f32, f32)) -> (Self, Self) {
+        let x_pos = f32x4([
+            pos.0,
+            pos.0 + y_advance.0,
+            pos.0 + y_advance.0 * 2.0,
+            pos.0 + y_advance.0 * 3.0,
+        ]);
+        
+        let y_pos = f32x4([
+            pos.1,
+            pos.1 + y_advance.1,
+            pos.1 + y_advance.1 * 2.0,
+            pos.1 + y_advance.1 * 3.0,
+        ]);
+
+        (x_pos, y_pos)
+    }
 }
 
 
