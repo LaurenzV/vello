@@ -94,6 +94,7 @@ pub trait Type: Base {
         other2 - self.normalized_mul(other1)
     }
 
+    #[inline(always)]
     fn pack(
         out_buf: &mut [u8],
         in_buf: &mut [Self::Scalar],
@@ -128,6 +129,7 @@ pub(crate) const TILE_HEIGHT: usize = 4;
 pub(crate) const WIDE_TILE_WIDTH: usize = 256;
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 
+#[inline(always)]
 pub(crate) fn pack<F: Type>(
     out_buf: &mut [u8],
     in_buf: &mut [F::Scalar],

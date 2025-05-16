@@ -603,6 +603,7 @@ impl Type for u8x64 {
         other2 - self.normalized_mul(other1)
     }
 
+    #[inline(always)]
     fn pack(
         out_buf: &mut [u8],
         in_buf: &mut [Self::Scalar],
@@ -613,7 +614,7 @@ impl Type for u8x64 {
     ) {
         let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
         let max_width = (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
-
+    
         if max_height != TILE_HEIGHT || max_width != WIDE_TILE_WIDTH {
             // In theory, it would be possible to handle tiles where the pixmap does not
             // have the full height or full width (i.e. at the very bottom or very right) 
@@ -635,15 +636,15 @@ impl Type for u8x64 {
             
             for s in &mut dest_slices.iter_mut() {
                 let (row, tail) = base_slice.split_at_mut(row_len);
-
+    
                 *s = &mut row[user_x * COLOR_COMPONENTS..][..max_width * COLOR_COMPONENTS];
-
+    
                 base_slice = tail;
             }
-
+    
             for (idx, col) in in_buf.chunks_exact(Self::LENGTH).enumerate() {
                 let dest_idx = idx * Self::LENGTH / 4;
-
+    
                 let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
                 unsafe {
                     let loaded = vld4q_u32(casted.as_ptr());
@@ -653,7 +654,7 @@ impl Type for u8x64 {
                         vreinterpretq_u8_u32(loaded.2),
                         vreinterpretq_u8_u32(loaded.3),
                     ];
-
+    
                     for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
                         let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
                         vst1q_u8(target.as_mut_ptr(), src)
