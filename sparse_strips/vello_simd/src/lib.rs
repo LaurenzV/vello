@@ -38,6 +38,7 @@ pub trait Base:
 pub trait Type: Base {
     type Scalar: NumberKind;
     type Widened: Widened<Self>;
+    type Float: Float;
 
     const LENGTH: usize;
 

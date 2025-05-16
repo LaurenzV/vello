@@ -143,6 +143,7 @@ impl Base for f32x8 {}
 impl Type for f32x8 {
     type Scalar = f32;
     type Widened = Self;
+    type Float = Self;
 
     const LENGTH: usize = 8;
 
@@ -239,7 +240,7 @@ impl Type for f32x8 {
     fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgbf32()[3])
     }
-
+    
     // TODO: Add optimized version of packing
 }
 

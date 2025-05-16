@@ -172,6 +172,8 @@ impl Type for f32x4 {
     fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgbf32()[3])
     }
+
+    type Float = Self;
 }
 
 impl Widened<f32x4> for f32x4 {
@@ -321,6 +323,7 @@ impl Base for u8x16 {}
 impl Type for u8x16 {
     type Scalar = u8;
     type Widened = u16x16;
+    type Float = f32x4;
 
     const LENGTH: usize = 16;
 

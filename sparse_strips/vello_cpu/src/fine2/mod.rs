@@ -3,6 +3,9 @@
 
 //! Fine rasterization runs the commands in each wide tile to determine the final RGBA value
 //! of each pixel and pack it into the pixmap.
+
+mod rounded_blurred_rect;
+
 use crate::util::scalar::div_255;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -18,6 +21,7 @@ use vello_common::{
     tile::Tile,
 };
 use vello_simd::{NumberKind, Type, Widened, fallback, neon};
+use crate::fine::FineType;
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -236,4 +240,8 @@ pub(crate) mod strip {
             res.store(bg_part);
         }
     }
+}
+
+trait Painter {
+    fn paint<F: FineType>(self, target: &mut [F]);
 }
