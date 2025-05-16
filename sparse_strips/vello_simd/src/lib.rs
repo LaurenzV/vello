@@ -38,7 +38,7 @@ pub trait Base:
 pub trait Type: Base {
     type Scalar: NumberKind;
     type Widened: Widened<Self>;
-    type Float: Float;
+    type Float: Float + Convertible<Self>;
 
     const LENGTH: usize;
 
@@ -139,6 +139,10 @@ pub trait Float: Type<Scalar = f32> + Div<Self, Output = Self> {
         let x = x + (Self::splat(0.24295) + (Self::splat(0.03395) + Self::splat(0.0104) * xx) * xx) * (x * xx);
         x / (Self::splat(1.0) + x * x).sqrt()
     }
+}
+
+pub trait Convertible<T> where T: Type {
+    fn convert(val: &[T::Scalar]) -> Self;
 }
 
 pub(crate) const TILE_HEIGHT: usize = 4;

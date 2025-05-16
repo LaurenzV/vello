@@ -1,7 +1,7 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{Base, ColorLike, Float, NumberKind, Simd, Type, Widened};
+use crate::{Base, ColorLike, Convertible, Float, NumberKind, Simd, Type, Widened};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
@@ -176,6 +176,25 @@ impl Type for f32x4 {
     type Float = Self;
 }
 
+impl Convertible<f32x4> for f32x4 {
+    #[inline(always)]
+    fn convert(val: &[f32]) -> Self {
+        Self::load(val)
+    }
+}
+
+impl Convertible<u8x16> for f32x4 {
+    #[inline(always)]
+    fn convert(val: &[u8]) -> Self {
+        f32x4([
+            val[0] as f32 / 255.0,
+            val[1] as f32 / 255.0,
+            val[2] as f32 / 255.0,
+            val[3] as f32 / 255.0,
+        ])
+    }
+}
+
 impl Widened<f32x4> for f32x4 {
     #[inline(always)]
     fn narrow(self) -> f32x4 {
@@ -209,6 +228,7 @@ impl Float for f32x4 {
         ])
     }
 }
+
 
 #[derive(Copy, Clone, Debug)]
 pub struct u16x16([u16; 16]);

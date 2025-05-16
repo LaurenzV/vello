@@ -1,7 +1,7 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{Base, COLOR_COMPONENTS, ColorLike, NumberKind, Simd, TILE_HEIGHT, Type, WIDE_TILE_WIDTH, Widened, arith_ops, Float};
+use crate::{Base, COLOR_COMPONENTS, ColorLike, NumberKind, Simd, TILE_HEIGHT, Type, WIDE_TILE_WIDTH, Widened, arith_ops, Float, Convertible};
 use bytemuck::cast_slice;
 use std::arch::aarch64::*;
 use std::arch::is_aarch64_feature_detected;
@@ -139,6 +139,36 @@ impl Div for f32x8 {
 }
 
 impl Base for f32x8 {}
+
+impl Convertible<f32x8> for f32x8 {
+    #[inline(always)]
+    fn convert(val: &[f32]) -> Self {
+        Self::load(val)
+    }
+}
+
+impl Convertible<u8x64> for f32x8 {
+    #[inline(always)]
+    fn convert(val: &[u8]) -> Self {
+        let src: &[u8; Self::LENGTH] = val.try_into().unwrap();
+
+        unsafe {
+            let loaded = vld1_u8(src.as_ptr());
+            let p1 = vmovl_u8(loaded);
+
+            let u16_low = vget_low_u16(p1); 
+            let u16_high = vget_high_u16(p1);
+
+            let u32_low = vmovl_u16(u16_low);  
+            let u32_high = vmovl_u16(u16_high);
+            
+            let f32_low = vdivq_f32(vcvtq_f32_u32(u32_low), vdupq_n_f32(255.0));
+            let f32_high = vdivq_f32(vcvtq_f32_u32(u32_high), vdupq_n_f32(255.0));
+
+            f32x8(f32x4(f32_low), f32x4(f32_high))
+        }
+    }
+}
 
 impl Type for f32x8 {
     type Scalar = f32;
@@ -555,6 +585,7 @@ impl Base for u8x64 {}
 impl Type for u8x64 {
     type Scalar = u8;
     type Widened = u16x64;
+    type Float = f32x8;
 
     const LENGTH: usize = 64;
 
