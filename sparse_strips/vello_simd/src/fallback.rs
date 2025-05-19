@@ -269,7 +269,7 @@ impl Float for f32x4 {
             pos.0 + y_advance.0 * 2.0,
             pos.0 + y_advance.0 * 3.0,
         ]);
-        
+
         let y_pos = f32x4([
             pos.1,
             pos.1 + y_advance.1,
@@ -280,7 +280,6 @@ impl Float for f32x4 {
         (x_pos, y_pos)
     }
 }
-
 
 #[derive(Copy, Clone, Debug)]
 pub struct u16x16([u16; 16]);
@@ -443,7 +442,7 @@ impl Type for u8x16 {
         for i in 0..16 {
             self.0[i] = self.0[i].min(other.0[i]);
         }
-        
+
         self
     }
 
@@ -481,14 +480,14 @@ impl Type for u8x16 {
     fn from_float(f: &[Self::Float]) -> Self {
         let f: &[f32x4; 4] = f.try_into().unwrap();
         let mut storage = [0u8; 16];
-        
+
         for (s, f) in storage.chunks_exact_mut(4).zip(f) {
             s[0] = (f.0[0] * 255.0 + 0.5) as u8;
             s[1] = (f.0[1] * 255.0 + 0.5) as u8;
             s[2] = (f.0[2] * 255.0 + 0.5) as u8;
             s[3] = (f.0[3] * 255.0 + 0.5) as u8;
         }
-        
+
         Self(storage)
     }
 }

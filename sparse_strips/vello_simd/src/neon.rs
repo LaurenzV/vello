@@ -1,7 +1,10 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{Base, COLOR_COMPONENTS, ColorLike, NumberKind, Simd, TILE_HEIGHT, Type, WIDE_TILE_WIDTH, Widened, arith_ops, Float, Convertible};
+use crate::{
+    Base, COLOR_COMPONENTS, ColorLike, Convertible, Float, NumberKind, Simd, TILE_HEIGHT, Type,
+    WIDE_TILE_WIDTH, Widened, arith_ops,
+};
 use bytemuck::cast_slice;
 use std::arch::aarch64::*;
 use std::arch::is_aarch64_feature_detected;
@@ -124,12 +127,12 @@ impl f32x4 {
     fn min(self, other: Self) -> Self {
         unsafe { Self(vminq_f32(self.0, other.0)) }
     }
-    
+
     #[inline(always)]
     fn max(self, other: Self) -> Self {
         unsafe { Self(vmaxq_f32(self.0, other.0)) }
     }
-    
+
     #[inline(always)]
     fn abs(self) -> Self {
         unsafe { Self(vabsq_f32(self.0)) }
@@ -143,12 +146,12 @@ arith_ops!(f32x8);
 
 impl Div for f32x8 {
     type Output = Self;
-    
+
     #[inline(always)]
     fn div(mut self, rhs: Self) -> Self::Output {
         self.0 = self.0 / rhs.0;
         self.1 = self.1 / rhs.1;
-    
+
         self
     }
 }
@@ -171,12 +174,12 @@ impl Convertible<u8x64> for f32x8 {
             let loaded = vld1_u8(src.as_ptr());
             let p1 = vmovl_u8(loaded);
 
-            let u16_low = vget_low_u16(p1); 
+            let u16_low = vget_low_u16(p1);
             let u16_high = vget_high_u16(p1);
 
-            let u32_low = vmovl_u16(u16_low);  
+            let u32_low = vmovl_u16(u16_low);
             let u32_high = vmovl_u16(u16_high);
-            
+
             let f32_low = vdivq_f32(vcvtq_f32_u32(u32_low), vdupq_n_f32(255.0));
             let f32_high = vdivq_f32(vcvtq_f32_u32(u32_high), vdupq_n_f32(255.0));
 
@@ -290,7 +293,7 @@ impl Type for f32x8 {
     fn min(mut self, other: Self) -> Self {
         self.0 = self.0.min(other.0);
         self.1 = self.1.min(other.1);
-        
+
         self
     }
 
@@ -328,7 +331,7 @@ impl Float for f32x8 {
             self.0.0 = vsqrtq_f32(self.0.0);
             self.1.0 = vsqrtq_f32(self.1.0);
         }
-        
+
         self
     }
 
@@ -337,7 +340,7 @@ impl Float for f32x8 {
         let mut storage = [0.0; 8];
         unsafe {
             vst1q_f32_x2(storage.as_mut_ptr(), float32x4x2_t(self.0.0, self.1.0));
-            
+
             storage[0] = storage[0].powf(exponent);
             storage[1] = storage[1].powf(exponent);
             storage[2] = storage[2].powf(exponent);
@@ -346,27 +349,30 @@ impl Float for f32x8 {
             storage[5] = storage[5].powf(exponent);
             storage[6] = storage[6].powf(exponent);
             storage[7] = storage[7].powf(exponent);
-            
+
             let loaded = vld1q_f32_x2(storage.as_ptr());
-            
+
             Self(f32x4(loaded.0), f32x4(loaded.1))
         }
-        
     }
 
     #[inline(always)]
     fn abs(mut self) -> Self {
         self.0 = self.0.abs();
         self.1 = self.1.abs();
-        
+
         self
     }
 
     #[inline(always)]
-    fn splat_col_pos(pos: (f32, f32), x_advance: (f32, f32), y_advance: (f32, f32)) -> (Self, Self) {
+    fn splat_col_pos(
+        pos: (f32, f32),
+        x_advance: (f32, f32),
+        y_advance: (f32, f32),
+    ) -> (Self, Self) {
         let first_col = splat_col_pos(pos, y_advance);
         let second_col = splat_col_pos((pos.0 + x_advance.0, pos.1 + x_advance.1), y_advance);
-        
+
         let x_pos = f32x8(f32x4(first_col.0), f32x4(second_col.0));
         let y_pos = f32x8(f32x4(first_col.1), f32x4(second_col.1));
 
@@ -796,13 +802,13 @@ impl Type for u8x64 {
     ) {
         let max_height = (height - y * TILE_HEIGHT).min(TILE_HEIGHT);
         let max_width = (width - x * WIDE_TILE_WIDTH).min(WIDE_TILE_WIDTH);
-    
+
         if max_height != TILE_HEIGHT || max_width != WIDE_TILE_WIDTH {
             // In theory, it would be possible to handle tiles where the pixmap does not
-            // have the full height or full width (i.e. at the very bottom or very right) 
-            // by adapting the below code. However, I'm seeing a significant slowdown in benchmarks 
-            // when removing above if conditions, so we instead just fallback to scalar packing 
-            // for for all cases where we are not packing a full 256x4 tile, 
+            // have the full height or full width (i.e. at the very bottom or very right)
+            // by adapting the below code. However, I'm seeing a significant slowdown in benchmarks
+            // when removing above if conditions, so we instead just fallback to scalar packing
+            // for for all cases where we are not packing a full 256x4 tile,
             // so that we have the full performance for the general case.
             crate::pack::<Self>(out_buf, in_buf, x, y, width, height);
         } else {
@@ -813,20 +819,20 @@ impl Type for u8x64 {
                 let (_, tail) = out_buf.split_at_mut(row_ix);
                 tail
             };
-            
+
             let mut dest_slices: [&mut [u8]; TILE_HEIGHT] = [&mut [], &mut [], &mut [], &mut []];
-            
+
             for s in &mut dest_slices.iter_mut() {
                 let (row, tail) = base_slice.split_at_mut(row_len);
-    
+
                 *s = &mut row[user_x * COLOR_COMPONENTS..][..max_width * COLOR_COMPONENTS];
-    
+
                 base_slice = tail;
             }
-    
+
             for (idx, col) in in_buf.chunks_exact(Self::LENGTH).enumerate() {
                 let dest_idx = idx * Self::LENGTH / 4;
-    
+
                 let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
                 unsafe {
                     let loaded = vld4q_u32(casted.as_ptr());
@@ -836,9 +842,10 @@ impl Type for u8x64 {
                         vreinterpretq_u8_u32(loaded.2),
                         vreinterpretq_u8_u32(loaded.3),
                     ];
-    
+
                     for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
-                        let target: &mut [u8; 16] = (&mut dest[dest_idx..][..16]).try_into().unwrap();
+                        let target: &mut [u8; 16] =
+                            (&mut dest[dest_idx..][..16]).try_into().unwrap();
                         vst1q_u8(target.as_mut_ptr(), src)
                     }
                 }
@@ -850,7 +857,7 @@ impl Type for u8x64 {
     fn from_float(f: &[Self::Float]) -> Self {
         let f: &[f32x8; 8] = f.try_into().unwrap();
         let mut storage = [0u8; 64];
-        
+
         unsafe {
             for (f, storage) in f.iter().zip(storage.chunks_exact_mut(8)) {
                 let val1 = vfmaq_f32(vdupq_n_f32(0.5), f.0.0, vdupq_n_f32(255.0));
@@ -864,7 +871,10 @@ impl Type for u8x64 {
 
             let loaded = vld1q_u8_x4(storage.as_ptr());
 
-            u8x64(u8x32(u8x16(loaded.0), u8x16(loaded.1)), u8x32(u8x16(loaded.2), u8x16(loaded.3)))
+            u8x64(
+                u8x32(u8x16(loaded.0), u8x16(loaded.1)),
+                u8x32(u8x16(loaded.2), u8x16(loaded.3)),
+            )
         }
     }
 }

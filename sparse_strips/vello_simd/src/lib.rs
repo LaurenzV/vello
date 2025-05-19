@@ -140,17 +140,23 @@ pub trait Float: Type<Scalar = f32> + Div<Self, Output = Self> {
     fn compute_erf7(x: Self) -> Self {
         let x = x * Self::splat(core::f32::consts::FRAC_2_SQRT_PI);
         let xx = x * x;
-        let x = x + (Self::splat(0.24295) + (Self::splat(0.03395) + Self::splat(0.0104) * xx) * xx) * (x * xx);
+        let x = x
+            + (Self::splat(0.24295) + (Self::splat(0.03395) + Self::splat(0.0104) * xx) * xx)
+                * (x * xx);
         x / (Self::splat(1.0) + x * x).sqrt()
     }
 
     fn splat_col_pos(
-        base_pos: (f32, f32), 
-        x_advance: (f32, f32), 
-        y_advance: (f32, f32)) -> (Self, Self);
+        base_pos: (f32, f32),
+        x_advance: (f32, f32),
+        y_advance: (f32, f32),
+    ) -> (Self, Self);
 }
 
-pub trait Convertible<T> where T: Type {
+pub trait Convertible<T>
+where
+    T: Type,
+{
     fn convert(val: &[T::Scalar]) -> Self;
 }
 

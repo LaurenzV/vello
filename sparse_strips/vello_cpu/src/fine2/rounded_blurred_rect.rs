@@ -38,13 +38,13 @@ impl<'a> BlurredRoundedRectFiller<'a> {
         let width = F::Float::splat(self.rect.width);
         let height = F::Float::splat(self.rect.height);
         let r1 = F::Float::splat(self.rect.r1);
-        let exponent =self.rect.exponent;
+        let exponent = self.rect.exponent;
         let recip_exponent = self.rect.recip_exponent;
         let scale = F::Float::splat(self.rect.scale);
         let min_edge = F::Float::splat(self.rect.min_edge);
         let std_dev_inv = F::Float::splat(self.rect.std_dev_inv);
         let start_pos = self.cur_pos;
-        
+
         let mut cur_pos = self.cur_pos;
 
         let calc_pos = |idx: usize| {
@@ -53,7 +53,7 @@ impl<'a> BlurredRoundedRectFiller<'a> {
 
             start_pos + self.rect.x_advance * col_idx as f64 + self.rect.y_advance * row_idx as f64
         };
-        
+
         let color = F::splat_color(self.rect.color);
         let mut storage = vec![];
         let mut idx = 0;
@@ -67,15 +67,15 @@ impl<'a> BlurredRoundedRectFiller<'a> {
                     (self.rect.x_advance.x as f32, self.rect.x_advance.y as f32),
                     (self.rect.y_advance.x as f32, self.rect.y_advance.y as f32),
                 );
-            
+
                 let alpha_val = {
                     let v0 = F::Float::splat(0.0);
                     let v1 = F::Float::splat(0.5);
-                    
+
                     let y = j + v1 - v1 * height;
                     let y0 = y.abs() - (h * v1 - r1);
                     let y1 = y0.max(v0);
-            
+
                     let x = i + v1 - v1 * width;
                     let x0 = x.abs() - (w * v1 - r1);
                     let x1 = x0.max(v0);
@@ -84,21 +84,21 @@ impl<'a> BlurredRoundedRectFiller<'a> {
                     let d = d_pos + d_neg - r1;
                     let z = scale
                         * (F::Float::compute_erf7(std_dev_inv * (min_edge + d))
-                        - F::Float::compute_erf7(std_dev_inv * d));
-                    
+                            - F::Float::compute_erf7(std_dev_inv * d));
+
                     z
                 };
-                
+
                 storage.push(alpha_val);
-                
-                idx +=  F::LENGTH;
+
+                idx += F::LENGTH;
 
                 cur_pos = calc_pos(idx);
             }
-            
+
             let loaded_alpha = F::from_float(&storage);
             let multiplied = color.normalized_mul(loaded_alpha);
-            
+
             multiplied.store(column);
         }
     }
