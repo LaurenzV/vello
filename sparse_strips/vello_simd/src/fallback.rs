@@ -197,6 +197,11 @@ impl Type for f32x4 {
     fn from_float(f: &[Self::Float]) -> Self {
         f[0]
     }
+
+    #[inline(always)]
+    fn splat_4th_element(self) -> Self {
+        Self([self.0[3], self.0[3], self.0[3], self.0[3]])
+    }
 }
 
 impl Convertible<f32x4> for f32x4 {
@@ -420,6 +425,14 @@ impl Type for u8x16 {
         }
 
         Self(result)
+    }
+
+    #[inline(always)]
+    fn splat_4th_element(self) -> Self {
+        Self([
+            self.0[3], self.0[3], self.0[3], self.0[3], self.0[7], self.0[7], self.0[7], self.0[7], self.0[11], self.0[11], self.0[11],
+            self.0[11], self.0[15], self.0[15], self.0[15], self.0[15],
+        ])
     }
 
     #[inline(always)]

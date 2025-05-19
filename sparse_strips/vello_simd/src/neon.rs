@@ -137,6 +137,16 @@ impl f32x4 {
     fn abs(self) -> Self {
         unsafe { Self(vabsq_f32(self.0)) }
     }
+    
+    #[inline(always)]
+    fn splat_4th_element(self) -> Self {
+        unsafe {
+            let z0 = vzip2q_f32(self.0, self.0);
+            let z1 = vzip2q_f32(z0, z0);
+            
+            Self(z1)
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -310,7 +320,10 @@ impl Type for f32x8 {
         f[0]
     }
 
-    // TODO: Add optimized version of packing
+    #[inline(always)]
+    fn splat_4th_element(self) -> Self {
+        Self(self.0.splat_4th_element(), self.1.splat_4th_element())
+    }
 }
 
 impl Widened<f32x8> for f32x8 {
@@ -588,6 +601,24 @@ impl u8x16 {
     fn max(self, other: Self) -> Self {
         unsafe { Self(vmaxq_u8(self.0, other.0)) }
     }
+    
+    #[inline(always)]
+    fn splat_4th_element(self) -> Self {
+        unsafe {
+            let low = vget_low_u8(self.0);
+            let high = vget_high_u8(self.0);
+
+            let table = uint8x8x2_t(low, high);
+
+            let idx_lo = vld1_u8([3, 3, 3, 3, 7, 7, 7, 7].as_ptr());
+            let idx_hi = vld1_u8([11, 11, 11, 11, 15, 15, 15, 15].as_ptr());
+
+            let out_lo = vtbl2_u8(table, idx_lo);
+            let out_hi = vtbl2_u8(table, idx_hi);
+
+            Self(vcombine_u8(out_lo, out_hi))
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -658,6 +689,14 @@ impl u8x32 {
     fn max(mut self, other: Self) -> Self {
         self.0 = self.0.max(other.0);
         self.1 = self.1.max(other.1);
+
+        self
+    }
+
+    #[inline(always)]
+    fn splat_4th_element(mut self) -> Self {
+        self.0 = self.0.splat_4th_element();
+        self.1 = self.1.splat_4th_element();
 
         self
     }
@@ -876,6 +915,14 @@ impl Type for u8x64 {
                 u8x32(u8x16(loaded.2), u8x16(loaded.3)),
             )
         }
+    }
+
+    #[inline(always)]
+    fn splat_4th_element(mut self) -> Self {
+        self.0 = self.0.splat_4th_element();
+        self.1 = self.1.splat_4th_element();
+
+        self
     }
 }
 

@@ -211,6 +211,16 @@ pub(crate) mod fill {
         }
     }
 
+    pub(crate) fn alpha_composite<
+        N: Type,
+        T: Iterator<Item = N>
+    >(target: &mut [N::Scalar], src_c: T) {
+        for (part, src_c) in target.chunks_exact_mut(N::LENGTH).zip(src_c) {
+            let one_minus_alpha = src_c.splat_4th_element().one_minus();
+            alpha_composite_inner(part, src_c, one_minus_alpha)
+        }
+    }
+
     #[inline(always)]
     fn alpha_composite_inner<
         N: Type
@@ -243,6 +253,26 @@ pub(crate) mod strip {
             .zip(alphas.chunks_exact(N::LENGTH / 4))
         {
             // Not passing the `one` explicitly here messes with auto-vectorization.
+            alpha_composite_inner(bg_part, masks, src_c, src_a, one);
+        }
+    }
+
+    pub(crate) fn alpha_composite<
+        N: Type,
+        T: Iterator<Item = N>
+    >(
+        target: &mut [N::Scalar],
+        src_c: T,
+        alphas: &[u8],
+    ) {
+        let one = N::one();
+
+        for ((bg_part, masks), src_c) in target
+            .chunks_exact_mut(N::LENGTH)
+            .zip(alphas.chunks_exact(N::LENGTH / 4))
+            .zip(src_c)
+        {
+            let src_a = src_c.splat_4th_element();
             alpha_composite_inner(bg_part, masks, src_c, src_a, one);
         }
     }
