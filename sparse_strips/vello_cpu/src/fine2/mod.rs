@@ -148,7 +148,7 @@ impl<N: Type> Fine<N> {
                     return;
                 }
 
-                fill::alpha_composite::<N>(blend_buf, color);
+                fill::alpha_composite_solid::<N>(blend_buf, color);
             }
             Paint::Indexed(_) => unimplemented!(),
         }
@@ -174,7 +174,7 @@ impl<N: Type> Fine<N> {
 
         match fill {
             Paint::Solid(color) => {
-                strip::alpha_composite::<N>(blend_buf, color, alphas);
+                strip::alpha_composite_solid::<N>(blend_buf, color, alphas);
             }
             Paint::Indexed(_) => unimplemented!(),
         }
@@ -202,7 +202,7 @@ pub(crate) mod fill {
     use vello_common::paint::PremulColor;
     use vello_simd::{NumberKind, Type};
 
-    pub(crate) fn alpha_composite<N: Type>(target: &mut [N::Scalar], src_c: &PremulColor) {
+    pub(crate) fn alpha_composite_solid<N: Type>(target: &mut [N::Scalar], src_c: &PremulColor) {
         let one_minus_alpha = N::splat_alpha(*src_c).one_minus();
         let src_c = N::splat_color(*src_c);
 
@@ -229,7 +229,7 @@ pub(crate) mod strip {
     use vello_common::paint::PremulColor;
     use vello_simd::Type;
 
-    pub(crate) fn alpha_composite<N: Type>(
+    pub(crate) fn alpha_composite_solid<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
         alphas: &[u8],
