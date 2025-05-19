@@ -234,7 +234,7 @@ pub(crate) mod strip {
         src_c: &PremulColor,
         alphas: &[u8],
     ) {
-        let src_alpha = N::splat_alpha(*src_c);
+        let src_a = N::splat_alpha(*src_c);
         let src_c = N::splat_color(*src_c);
         let one = N::one();
 
@@ -242,13 +242,27 @@ pub(crate) mod strip {
             .chunks_exact_mut(N::LENGTH)
             .zip(alphas.chunks_exact(N::LENGTH / 4))
         {
-            let bg_c = N::load(bg_part);
-            let mask_a = N::load_alphas(masks);
-            let inv_src_a_mask_a = mask_a.normalized_mul_sub(src_alpha, one);
-
-            let res = bg_c.normalized_mul_mul_add(inv_src_a_mask_a, src_c, mask_a);
-            res.store(bg_part);
+            // Not passing the `one` explicitly here messes with auto-vectorization.
+            alpha_composite_inner(bg_part, masks, src_c, src_a, one);
         }
+    }
+
+    #[inline(always)]
+    fn alpha_composite_inner<
+        N: Type
+    >(
+        target: &mut [N::Scalar],
+        masks: &[u8],
+        src_c: N,
+        src_a: N,
+        one: N,
+    ) {
+        let bg_c = N::load(target);
+        let mask_a = N::load_alphas(masks);
+        let inv_src_a_mask_a = mask_a.normalized_mul_sub(src_a, one);
+
+        let res = bg_c.normalized_mul_mul_add(inv_src_a_mask_a, src_c, mask_a);
+        res.store(target);
     }
 }
 
