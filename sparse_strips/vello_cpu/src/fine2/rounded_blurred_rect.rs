@@ -91,7 +91,7 @@ impl<'a> BlurredRoundedRectFiller<'a> {
 
                 storage.push(alpha_val);
 
-                idx += F::LENGTH;
+                idx += F::Float::LENGTH;
 
                 cur_pos = calc_pos(idx);
             }

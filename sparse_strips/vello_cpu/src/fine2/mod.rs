@@ -21,6 +21,7 @@ use vello_common::{
     tile::Tile,
 };
 use vello_simd::{NumberKind, Type, Widened, fallback, neon};
+use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -126,12 +127,31 @@ impl<N: Type> Fine<N> {
         width: usize,
         fill: &Paint,
         blend_mode: BlendMode,
-        _: &[EncodedPaint],
+        encoded_paints: &[EncodedPaint],
     ) {
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
 
         let default_blend = blend_mode == BlendMode::new(Mix::Normal, Compose::SrcOver);
+
+        fn fill_complex_paint<T: Type>(
+            color_buf: &mut [T::Scalar],
+            blend_buf: &mut [T::Scalar],
+            has_opacities: bool,
+            filler: impl Painter,
+        ) {
+            if has_opacities {
+                filler.paint::<T>(color_buf);
+                fill::alpha_composite(
+                    blend_buf,
+                    color_buf.chunks_exact(T::LENGTH).map(|e| T::load(e)),
+                );
+            } else {
+                // Similarly to solid colors we can just override the previous values
+                // if all colors in the gradient are fully opaque.
+                filler.paint::<T>(blend_buf);
+            }
+        }
 
         match fill {
             Paint::Solid(color) => {
@@ -150,7 +170,23 @@ impl<N: Type> Fine<N> {
 
                 fill::alpha_composite_solid::<N>(blend_buf, color);
             }
-            Paint::Indexed(_) => unimplemented!(),
+            Paint::Indexed(paint) => {
+                let color_buf =
+                    &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+                
+                let encoded_paint = &encoded_paints[paint.index()];
+
+                let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
+                let start_y = self.wide_coords.1 * Tile::HEIGHT;
+
+                match encoded_paint {
+                    EncodedPaint::BlurredRoundedRect(b) => {
+                        let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
+                        fill_complex_paint::<N>(color_buf, blend_buf, true, filler);
+                    }
+                    _ => unimplemented!()
+                }
+            },
         }
     }
 
@@ -162,7 +198,7 @@ impl<N: Type> Fine<N> {
         alphas: &[u8],
         fill: &Paint,
         _: BlendMode,
-        _: &[EncodedPaint],
+        encoded_paints: &[EncodedPaint],
     ) {
         debug_assert!(
             alphas.len() >= width,
@@ -172,11 +208,43 @@ impl<N: Type> Fine<N> {
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
 
+        fn strip_complex_paint<F: Type>(
+            color_buf: &mut [F::Scalar],
+            blend_buf: &mut [F::Scalar],
+            filler: impl Painter,
+            alphas: &[u8],
+        ) {
+            filler.paint::<F>(color_buf);
+            
+            strip::alpha_composite(
+                blend_buf,
+                color_buf.chunks_exact(F::LENGTH).map(|e| F::load(e)),
+                alphas,
+            );
+        }
+
         match fill {
             Paint::Solid(color) => {
                 strip::alpha_composite_solid::<N>(blend_buf, color, alphas);
             }
-            Paint::Indexed(_) => unimplemented!(),
+            Paint::Indexed(paint) => {
+                let encoded_paint = &encoded_paints[paint.index()];
+
+                let color_buf =
+                    &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+
+
+                let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
+                let start_y = self.wide_coords.1 * Tile::HEIGHT;
+
+                match encoded_paint {
+                    EncodedPaint::BlurredRoundedRect(b) => {
+                        let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
+                        strip_complex_paint::<N>(color_buf, blend_buf, filler, alphas);
+                    }
+                    _ => unimplemented!()
+                }
+            },
         }
     }
 
