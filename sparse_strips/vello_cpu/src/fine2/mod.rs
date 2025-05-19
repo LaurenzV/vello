@@ -242,5 +242,5 @@ pub(crate) mod strip {
 }
 
 trait Painter {
-    fn paint<F: Type>(self, target: &mut [F]);
+    fn paint<F: Type>(self, target: &mut [F::Scalar]);
 }

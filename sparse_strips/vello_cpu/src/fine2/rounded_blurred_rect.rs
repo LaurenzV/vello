@@ -9,6 +9,7 @@ use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::kurbo::Point;
 use vello_common::math::compute_erf7;
+use vello_common::tile::Tile;
 use vello_simd::{Float, Type};
 
 #[derive(Debug)]
@@ -31,70 +32,80 @@ impl<'a> BlurredRoundedRectFiller<'a> {
         }
     }
 
-    // TODO: Add optimized version for non-rotated rectangles. We can precompute all of the
-    // variables that only depend on y.
-    pub(super) fn run<F: Type>(mut self, target: &mut [F]) {
+    pub(super) fn run<F: Type>(mut self, target: &mut [F::Scalar]) {
         let h = F::Float::splat(self.rect.h);
         let w = F::Float::splat(self.rect.w);
         let width = F::Float::splat(self.rect.width);
         let height = F::Float::splat(self.rect.height);
         let r1 = F::Float::splat(self.rect.r1);
-        let exponent = F::Float::splat(self.rect.exponent);
-        let recip_exponent = F::Float::splat(self.rect.recip_exponent);
+        let exponent =self.rect.exponent;
+        let recip_exponent = self.rect.recip_exponent;
         let scale = F::Float::splat(self.rect.scale);
         let min_edge = F::Float::splat(self.rect.min_edge);
         let std_dev_inv = F::Float::splat(self.rect.std_dev_inv);
-
-        let col = F::splat_color(self.rect.color);
-        let mut storage = vec![];
+        let start_pos = self.cur_pos;
         
-        let mut col_idx = 0;
-        let mut row_idx = 0;
+        let mut cur_pos = self.cur_pos;
+
+        let calc_pos = |idx: usize| {
+            let col_idx = idx / (COLOR_COMPONENTS * Tile::HEIGHT as usize);
+            let row_idx = idx & (COLOR_COMPONENTS * Tile::HEIGHT as usize - 1);
+
+            start_pos + self.rect.x_advance * col_idx as f64 + self.rect.y_advance * row_idx as f64
+        };
+        
+        let color = F::splat_color(self.rect.color);
+        let mut storage = vec![];
+        let mut idx = 0;
 
         for column in target.chunks_exact_mut(F::LENGTH) {
-            let mut col_pos = self.cur_pos;
             storage.truncate(0);
 
             for _ in 0..(F::LENGTH / F::Float::LENGTH) {
-                let (i, j) = Float::splat_col_pos(
-                    (col_pos.x as f32, col_pos.y as f32),
+                let (i, j) = F::Float::splat_col_pos(
+                    (cur_pos.x as f32, cur_pos.y as f32),
                     (self.rect.x_advance.x as f32, self.rect.x_advance.y as f32),
                     (self.rect.y_advance.x as f32, self.rect.y_advance.y as f32),
                 );
             
                 let alpha_val = {
-                    let v0 = Float::splat(0.0);
-                    let v1 = Float::splat(0.5);
+                    let v0 = F::Float::splat(0.0);
+                    let v1 = F::Float::splat(0.5);
                     
                     let y = j + v1 - v1 * height;
                     let y0 = y.abs() - (h * v1 - r1);
                     let y1 = y0.max(v0);
             
-                    let x = i + 0.5 - 0.5 * width;
-                    let x0 = x.abs() - (w * 0.5 - r1);
-                    let x1 = x0.max(0.0);
+                    let x = i + v1 - v1 * width;
+                    let x0 = x.abs() - (w * v1 - r1);
+                    let x1 = x0.max(v0);
                     let d_pos = (x1.powf(exponent) + y1.powf(exponent)).powf(recip_exponent);
-                    let d_neg = x0.max(y0).min(0.0);
+                    let d_neg = x0.max(y0).min(v0);
                     let d = d_pos + d_neg - r1;
                     let z = scale
-                        * (compute_erf7(std_dev_inv * (min_edge + d))
-                        - compute_erf7(std_dev_inv * d));
-            
-                    F::from_normalized_f32(z)
+                        * (F::Float::compute_erf7(std_dev_inv * (min_edge + d))
+                        - F::Float::compute_erf7(std_dev_inv * d));
+                    
+                    z
                 };
-            
-                for component in &mut pixel_color {
-                    *component = component.normalized_mul(alpha_val);
-                }
-            
-                pixel.copy_from_slice(&pixel_color);
+                
+                storage.push(alpha_val);
+                
+                idx +=  F::LENGTH;
+
+                cur_pos = calc_pos(idx);
             }
+            
+            let loaded_alpha = F::from_float(&storage);
+            let multiplied = color.normalized_mul(loaded_alpha);
+            
+            multiplied.store(column);
         }
     }
 }
 
 impl Painter for BlurredRoundedRectFiller<'_> {
-    fn paint<F: Type>(self, target: &mut [F]) {
-        self.run(target);
+    fn paint<F: Type>(self, target: &mut [F::Scalar]) {
+        self.run::<F>(target);
     }
 }
