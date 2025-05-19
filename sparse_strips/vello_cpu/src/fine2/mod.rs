@@ -207,10 +207,21 @@ pub(crate) mod fill {
         let src_c = N::splat_color(*src_c);
 
         for part in target.chunks_exact_mut(N::LENGTH) {
-            let mut bg_c = N::load(part);
-            bg_c = bg_c.normalized_mul_add(one_minus_alpha, src_c);
-            bg_c.store(part);
+            alpha_composite_inner(part, src_c, one_minus_alpha)
         }
+    }
+
+    #[inline(always)]
+    fn alpha_composite_inner<
+        N: Type
+    >(
+        target: &mut [N::Scalar], 
+        src_c: N,
+        one_minus_alpha: N
+    ) {
+        let mut bg_c = N::load(target);
+        bg_c = bg_c.normalized_mul_add(one_minus_alpha, src_c);
+        bg_c.store(target);
     }
 }
 
