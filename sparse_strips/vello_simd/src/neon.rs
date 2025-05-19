@@ -119,6 +119,16 @@ impl f32x4 {
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         unsafe { Self(vfmsq_f32(other2.0, self.0, other1.0)) }
     }
+
+    #[inline(always)]
+    fn min(self, other: Self) -> Self {
+        unsafe { Self(vminq_f32(self.0, other.0)) }
+    }
+    
+    #[inline(always)]
+    fn max(self, other: Self) -> Self {
+        unsafe { Self(vmaxq_f32(self.0, other.0)) }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -270,7 +280,23 @@ impl Type for f32x8 {
     fn splat_alpha<T: ColorLike>(color: T) -> Self {
         Self::splat(color.to_rgbf32()[3])
     }
-    
+
+    #[inline(always)]
+    fn min(mut self, other: Self) -> Self {
+        self.0 = self.0.min(other.0);
+        self.1 = self.1.min(other.1);
+        
+        self
+    }
+
+    #[inline(always)]
+    fn max(mut self, other: Self) -> Self {
+        self.0 = self.0.max(other.0);
+        self.1 = self.1.max(other.1);
+
+        self
+    }
+
     // TODO: Add optimized version of packing
 }
 
@@ -527,6 +553,16 @@ impl u8x16 {
             mulled
         }
     }
+
+    #[inline(always)]
+    fn min(self, other: Self) -> Self {
+        unsafe { Self(vminq_u8(self.0, other.0)) }
+    }
+
+    #[inline(always)]
+    fn max(self, other: Self) -> Self {
+        unsafe { Self(vmaxq_u8(self.0, other.0)) }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -583,6 +619,22 @@ impl u8x32 {
         let second = self.1.normalized_widening_mul(other.1);
 
         u16x32(first, second)
+    }
+
+    #[inline(always)]
+    fn min(mut self, other: Self) -> Self {
+        self.0 = self.0.min(other.0);
+        self.1 = self.1.min(other.1);
+
+        self
+    }
+
+    #[inline(always)]
+    fn max(mut self, other: Self) -> Self {
+        self.0 = self.0.max(other.0);
+        self.1 = self.1.max(other.1);
+
+        self
     }
 }
 
@@ -696,6 +748,22 @@ impl Type for u8x64 {
     #[inline(always)]
     fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
         other2 - self.normalized_mul(other1)
+    }
+
+    #[inline(always)]
+    fn min(mut self, other: Self) -> Self {
+        self.0 = self.0.min(other.0);
+        self.1 = self.1.min(other.1);
+
+        self
+    }
+
+    #[inline(always)]
+    fn max(mut self, other: Self) -> Self {
+        self.0 = self.0.max(other.0);
+        self.1 = self.1.max(other.1);
+
+        self
     }
 
     #[inline(always)]

@@ -174,6 +174,24 @@ impl Type for f32x4 {
     }
 
     type Float = Self;
+
+    #[inline(always)]
+    fn min(mut self, other: Self) -> Self {
+        for i in 0..4 {
+            self.0[i] = self.0[i].min(other.0[i]);
+        }
+
+        self
+    }
+
+    #[inline(always)]
+    fn max(mut self, other: Self) -> Self {
+        for i in 0..4 {
+            self.0[i] = self.0[i].max(other.0[i]);
+        }
+
+        self
+    }
 }
 
 impl Convertible<f32x4> for f32x4 {
@@ -403,6 +421,24 @@ impl Type for u8x16 {
     #[inline(always)]
     fn splat(value: u8) -> Self {
         Self([value; 16])
+    }
+
+    #[inline(always)]
+    fn min(mut self, other: Self) -> Self {
+        for i in 0..16 {
+            self.0[i] = self.0[i].min(other.0[i]);
+        }
+        
+        self
+    }
+
+    #[inline(always)]
+    fn max(mut self, other: Self) -> Self {
+        for i in 0..16 {
+            self.0[i] = self.0[i].max(other.0[i]);
+        }
+
+        self
     }
 
     #[inline(always)]

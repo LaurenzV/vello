@@ -21,7 +21,6 @@ use vello_common::{
     tile::Tile,
 };
 use vello_simd::{NumberKind, Type, Widened, fallback, neon};
-use crate::fine::FineType;
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -243,5 +242,5 @@ pub(crate) mod strip {
 }
 
 trait Painter {
-    fn paint<F: FineType>(self, target: &mut [F]);
+    fn paint<F: Type>(self, target: &mut [F]);
 }

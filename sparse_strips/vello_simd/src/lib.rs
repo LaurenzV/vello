@@ -13,7 +13,6 @@ mod macros;
 #[cfg(target_arch = "aarch64")]
 pub mod neon;
 
-use std::arch::aarch64::float32x4_t;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -49,6 +48,8 @@ pub trait Type: Base {
     fn splat_color<T: ColorLike>(color: T) -> Self;
     fn splat_alpha<T: ColorLike>(color: T) -> Self;
     fn splat(value: Self::Scalar) -> Self;
+    fn min(self, other: Self) -> Self;
+    fn max(self, other: Self) -> Self;
     fn from_normalized_u8(value: u8) -> Self;
     fn store(self, dest: &mut [Self::Scalar]);
     fn widen(self) -> Self::Widened;
