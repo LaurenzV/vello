@@ -53,6 +53,7 @@ pub trait Type: Base {
     fn from_normalized_u8(value: u8) -> Self;
     fn store(self, dest: &mut [Self::Scalar]);
     fn widen(self) -> Self::Widened;
+    fn from_float(f: &[Self::Float]) -> Self;
 
     #[inline(always)]
     fn zero() -> Self {
@@ -131,6 +132,7 @@ pub trait ColorLike: Copy + Debug {
 pub trait Float: Type<Scalar = f32> + Div<Self, Output = Self> {
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;
+    fn abs(self) -> Self;
 
     // See https://raphlinus.github.io/audio/2018/09/05/sigmoid.html for a little
     // explanation of this approximation to the erf function.
@@ -142,7 +144,10 @@ pub trait Float: Type<Scalar = f32> + Div<Self, Output = Self> {
         x / (Self::splat(1.0) + x * x).sqrt()
     }
 
-    fn splat_col_pos(pos: (f32, f32), x_advance: (f32, f32), y_advance: (f32, f32)) -> (Self, Self);
+    fn splat_col_pos(
+        base_pos: (f32, f32), 
+        x_advance: (f32, f32), 
+        y_advance: (f32, f32)) -> (Self, Self);
 }
 
 pub trait Convertible<T> where T: Type {

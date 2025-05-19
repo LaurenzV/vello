@@ -192,6 +192,11 @@ impl Type for f32x4 {
 
         self
     }
+
+    #[inline(always)]
+    fn from_float(f: &[Self::Float]) -> Self {
+        f[0]
+    }
 }
 
 impl Convertible<f32x4> for f32x4 {
@@ -243,6 +248,16 @@ impl Float for f32x4 {
             self.0[1].powf(exponent),
             self.0[2].powf(exponent),
             self.0[3].powf(exponent),
+        ])
+    }
+
+    #[inline(always)]
+    fn abs(self) -> Self {
+        f32x4([
+            self.0[0].abs(),
+            self.0[1].abs(),
+            self.0[2].abs(),
+            self.0[3].abs(),
         ])
     }
 
@@ -460,6 +475,21 @@ impl Type for u8x16 {
         }
 
         u16x16(converted)
+    }
+
+    #[inline(always)]
+    fn from_float(f: &[Self::Float]) -> Self {
+        let f: &[f32x4; 4] = f.try_into().unwrap();
+        let mut storage = [0u8; 16];
+        
+        for (s, f) in storage.chunks_exact_mut(4).zip(f) {
+            s[0] = (f.0[0] * 255.0 + 0.5) as u8;
+            s[1] = (f.0[1] * 255.0 + 0.5) as u8;
+            s[2] = (f.0[2] * 255.0 + 0.5) as u8;
+            s[3] = (f.0[3] * 255.0 + 0.5) as u8;
+        }
+        
+        Self(storage)
     }
 }
 

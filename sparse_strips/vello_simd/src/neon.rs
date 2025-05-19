@@ -129,6 +129,11 @@ impl f32x4 {
     fn max(self, other: Self) -> Self {
         unsafe { Self(vmaxq_f32(self.0, other.0)) }
     }
+    
+    #[inline(always)]
+    fn abs(self) -> Self {
+        unsafe { Self(vabsq_f32(self.0)) }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -297,6 +302,11 @@ impl Type for f32x8 {
         self
     }
 
+    #[inline(always)]
+    fn from_float(f: &[Self::Float]) -> Self {
+        f[0]
+    }
+
     // TODO: Add optimized version of packing
 }
 
@@ -323,6 +333,7 @@ impl Float for f32x8 {
     }
 
     fn powf(mut self, exponent: f32) -> Self {
+        // TODO: SIMDify
         let mut storage = [0.0; 8];
         unsafe {
             vst1q_f32_x2(storage.as_mut_ptr(), float32x4x2_t(self.0.0, self.1.0));
@@ -341,6 +352,14 @@ impl Float for f32x8 {
             Self(f32x4(loaded.0), f32x4(loaded.1))
         }
         
+    }
+
+    #[inline(always)]
+    fn abs(mut self) -> Self {
+        self.0 = self.0.abs();
+        self.1 = self.1.abs();
+        
+        self
     }
 
     #[inline(always)]
@@ -824,6 +843,28 @@ impl Type for u8x64 {
                     }
                 }
             }
+        }
+    }
+
+    #[inline(always)]
+    fn from_float(f: &[Self::Float]) -> Self {
+        let f: &[f32x8; 8] = f.try_into().unwrap();
+        let mut storage = [0u8; 64];
+        
+        unsafe {
+            for (f, storage) in f.iter().zip(storage.chunks_exact_mut(8)) {
+                let val1 = vfmaq_f32(vdupq_n_f32(0.5), f.0.0, vdupq_n_f32(255.0));
+                let val2 = vfmaq_f32(vdupq_n_f32(0.5), f.1.0, vdupq_n_f32(255.0));
+                let val1 = vmovn_u32(vcvtq_u32_f32(val1));
+                let val2 = vmovn_u32(vcvtq_u32_f32(val2));
+                let combined = vcombine_u16(val1, val2);
+                let reduced = vmovn_u16(combined);
+                vst1_u8(storage.as_mut_ptr(), reduced);
+            }
+
+            let loaded = vld1q_u8_x4(storage.as_ptr());
+
+            u8x64(u8x32(u8x16(loaded.0), u8x16(loaded.1)), u8x32(u8x16(loaded.2), u8x16(loaded.3)))
         }
     }
 }

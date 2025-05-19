@@ -9,7 +9,7 @@ use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::kurbo::Point;
 use vello_common::math::compute_erf7;
-use vello_simd::Type;
+use vello_simd::{Float, Type};
 
 #[derive(Debug)]
 pub(crate) struct BlurredRoundedRectFiller<'a> {
@@ -45,22 +45,31 @@ impl<'a> BlurredRoundedRectFiller<'a> {
         let min_edge = F::Float::splat(self.rect.min_edge);
         let std_dev_inv = F::Float::splat(self.rect.std_dev_inv);
 
-        let col = F::splat_color(&self.rect.color);
+        let col = F::splat_color(self.rect.color);
+        let mut storage = vec![];
+        
+        let mut col_idx = 0;
+        let mut row_idx = 0;
 
         for column in target.chunks_exact_mut(F::LENGTH) {
             let mut col_pos = self.cur_pos;
+            storage.truncate(0);
 
-            for group in column.chunks_exact_mut(F::Float::LENGTH) {
-                let mut pixel_color = col;
-
-                let j = col_pos.y as f32;
-                let i = col_pos.x as f32;
-
+            for _ in 0..(F::LENGTH / F::Float::LENGTH) {
+                let (i, j) = Float::splat_col_pos(
+                    (col_pos.x as f32, col_pos.y as f32),
+                    (self.rect.x_advance.x as f32, self.rect.x_advance.y as f32),
+                    (self.rect.y_advance.x as f32, self.rect.y_advance.y as f32),
+                );
+            
                 let alpha_val = {
-                    let y = j + 0.5 - 0.5 * height;
-                    let y0 = y.abs() - (h * 0.5 - r1);
-                    let y1 = y0.max(0.0);
-
+                    let v0 = Float::splat(0.0);
+                    let v1 = Float::splat(0.5);
+                    
+                    let y = j + v1 - v1 * height;
+                    let y0 = y.abs() - (h * v1 - r1);
+                    let y1 = y0.max(v0);
+            
                     let x = i + 0.5 - 0.5 * width;
                     let x0 = x.abs() - (w * 0.5 - r1);
                     let x1 = x0.max(0.0);
@@ -70,26 +79,22 @@ impl<'a> BlurredRoundedRectFiller<'a> {
                     let z = scale
                         * (compute_erf7(std_dev_inv * (min_edge + d))
                         - compute_erf7(std_dev_inv * d));
-
+            
                     F::from_normalized_f32(z)
                 };
-
+            
                 for component in &mut pixel_color {
                     *component = component.normalized_mul(alpha_val);
                 }
-
+            
                 pixel.copy_from_slice(&pixel_color);
-
-                col_pos += self.rect.y_advance;
             }
-
-            self.cur_pos += self.rect.x_advance;
         }
     }
 }
 
 impl Painter for BlurredRoundedRectFiller<'_> {
-    fn paint<F: FineType>(self, target: &mut [F]) {
+    fn paint<F: Type>(self, target: &mut [F]) {
         self.run(target);
     }
 }
