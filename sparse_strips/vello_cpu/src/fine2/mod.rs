@@ -190,11 +190,38 @@ impl<N: Type> Fine<N> {
     }
 
     fn clip_fill(&mut self, x: usize, width: usize) {
-        unimplemented!()
+        let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
+        let target_buffer = rest.last_mut().unwrap();
+
+        let source_buffer =
+            &mut source_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let target_buffer =
+            &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+
+        fill::alpha_composite(
+            target_buffer,
+            source_buffer
+                .chunks_exact(N::LENGTH)
+                .map(|e| N::load(e)),
+        );
     }
 
     fn clip_strip(&mut self, x: usize, width: usize, alphas: &[u8]) {
-        unimplemented!()
+        let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
+        let target_buffer = rest.last_mut().unwrap();
+
+        let source_buffer =
+            &mut source_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let target_buffer =
+            &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+
+        strip::alpha_composite(
+            target_buffer,
+            source_buffer
+                .chunks_exact(N::LENGTH)
+                .map(|e| N::load(e)),
+            alphas,
+        );
     }
 }
 
