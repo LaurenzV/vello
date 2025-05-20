@@ -1,6 +1,7 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::iter;
 use crate::{Base, ColorLike, Convertible, Float, NumberKind, Simd, Type, Widened};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -495,11 +496,11 @@ impl Type for u8x16 {
         let f: &[f32x4; 1] = f.try_into().unwrap();
         let mut storage = [0u8; 16];
 
-        for (s, f) in storage.chunks_exact_mut(4).zip(f) {
+        for (s, f) in storage.chunks_exact_mut(4).zip(iter::repeat(f[0])) {
             s[0] = (f.0[0] * 255.0 + 0.5) as u8;
             s[1] = (f.0[1] * 255.0 + 0.5) as u8;
             s[2] = (f.0[2] * 255.0 + 0.5) as u8;
-            s[3] = (f.0[3] * 255.0 + 0.5) as u8;
+            s[3] = (f.0[0] * 255.0 + 0.5) as u8;
         }
 
         Self(storage)

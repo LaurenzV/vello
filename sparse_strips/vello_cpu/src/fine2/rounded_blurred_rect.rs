@@ -18,7 +18,7 @@ pub(crate) struct BlurredRoundedRectFiller<T: Type> {
     start_pos: Point,
     x_advance: Vec2,
     y_advance: Vec2,
-    color: T::Float
+    color: T
 }
 
 impl<T: Type> BlurredRoundedRectFiller<T> {
@@ -26,7 +26,7 @@ impl<T: Type> BlurredRoundedRectFiller<T> {
         let start_pos = rect.transform * Point::new(f64::from(start_x), f64::from(start_y));
         let x_advance = rect.x_advance;
         let y_advance = rect.y_advance;
-        let color = T::Float::splat_color(rect.color);
+        let color = T::splat_color(rect.color);
         let rect = SimdRectangle::<T::Float>::new(rect);
         
         Self {
@@ -49,12 +49,13 @@ impl<T: Type> BlurredRoundedRectFiller<T> {
                 storage.clear();
                 
                 for _ in 0..((T::LENGTH / 4) / T::Float::LENGTH) {
-                    storage.push(alpha_calculator.next().unwrap().normalized_mul(color));
+                    storage.push(alpha_calculator.next().unwrap());
                 }
                 
                 let loaded = T::from_float(storage.as_slice());
+                let mulled = loaded.normalized_mul(color);
                 
-                loaded.store(column);
+                mulled.store(column);
             }
         }   else {
             unimplemented!()
