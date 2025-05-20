@@ -92,12 +92,7 @@ struct AlphaCalculator<'a, F: Float> {
 }
 
 impl<'a, F: Float> AlphaCalculator<'a, F> {
-    pub fn new(
-        start_pos: Point,
-        x_advance: Vec2,
-        y_advance: Vec2,
-        r: &'a SimdRectangle<F>,
-    ) -> Self {
+    fn new(start_pos: Point, x_advance: Vec2, y_advance: Vec2, r: &'a SimdRectangle<F>) -> Self {
         Self {
             start_pos,
             x_advance,
@@ -129,7 +124,7 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
         let r = self.r;
 
         let y = j + r.height.mul_sub(r.v1, r.v1);
-        let y0 =  r.h.mul_sub(r.v1, y.abs()) + r.r1;
+        let y0 = r.h.mul_sub(r.v1, y.abs()) + r.r1;
         let y1 = y0.max(r.v0);
 
         let x = i + r.width.mul_sub(r.v1, r.v1);
@@ -165,7 +160,7 @@ struct SimdRectangle<F: Float> {
 }
 
 impl<F: Float> SimdRectangle<F> {
-    pub fn new(encoded: &EncodedBlurredRoundedRectangle) -> Self {
+    fn new(encoded: &EncodedBlurredRoundedRectangle) -> Self {
         let h = F::splat(encoded.h);
         let w = F::splat(encoded.w);
         let width = F::splat(encoded.width);
