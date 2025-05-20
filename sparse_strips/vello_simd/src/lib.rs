@@ -148,14 +148,17 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
 
     // See https://raphlinus.github.io/audio/2018/09/05/sigmoid.html for a little
     // explanation of this approximation to the erf function.
+    // Doing `inline(always)` seems to reduce performance for some reason.
     /// Approximate the erf function.
     fn compute_erf7(x: Self) -> Self {
         let x = x * Self::splat(core::f32::consts::FRAC_2_SQRT_PI);
         let xx = x * x;
-        let x = x
-            + (Self::splat(0.24295) + (Self::splat(0.03395) + Self::splat(0.0104) * xx) * xx)
-                * (x * xx);
-        x / (Self::splat(1.0) + x * x).sqrt()
+        let p1 = xx.mul_add(Self::splat(0.0104), Self::splat(0.03395));
+        let p2 = xx.mul_add(p1, Self::splat(0.24295));
+        let p3 = x * xx;
+        let x = p3.mul_add(p2, x);
+        let denom = x.mul_add(x, Self::splat(1.0)).sqrt();
+        x / denom
     }
 
     fn splat_col_pos(

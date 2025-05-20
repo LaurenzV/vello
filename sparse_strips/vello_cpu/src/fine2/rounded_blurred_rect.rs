@@ -129,11 +129,11 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
         let r = self.r;
 
         let y = j + r.height.mul_sub(r.v1, r.v1);
-        let y0 =  y.abs() - (r.h * r.v1) + r.r1;
+        let y0 =  r.h.mul_sub(r.v1, y.abs()) + r.r1;
         let y1 = y0.max(r.v0);
 
         let x = i + r.width.mul_sub(r.v1, r.v1);
-        let x0 = x.abs() - (r.w * r.v1 - r.r1);
+        let x0 = r.w.mul_sub(r.v1, x.abs()) + r.r1;
         let x1 = x0.max(r.v0);
         let d_pos = (x1.powf(r.exponent) + y1.powf(r.exponent)).powf(r.recip_exponent);
         let d_neg = x0.max(y0).min(r.v0);
