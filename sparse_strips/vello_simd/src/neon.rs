@@ -324,6 +324,10 @@ impl Type for f32x8 {
     fn splat_4th_element(self) -> Self {
         Self(self.0.splat_4th_element(), self.1.splat_4th_element())
     }
+
+    fn load_alphas_f32(src: &[f32]) -> Self {
+        todo!()
+    }
 }
 
 impl Widened<f32x8> for f32x8 {
@@ -923,6 +927,10 @@ impl Type for u8x64 {
         self.1 = self.1.splat_4th_element();
 
         self
+    }
+
+    fn load_alphas_f32(src: &[f32]) -> Self {
+        todo!()
     }
 }
 

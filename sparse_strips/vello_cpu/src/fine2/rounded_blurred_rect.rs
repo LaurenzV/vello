@@ -18,7 +18,7 @@ pub(crate) struct BlurredRoundedRectFiller<T: Type> {
     start_pos: Point,
     x_advance: Vec2,
     y_advance: Vec2,
-    color: T
+    color: T,
 }
 
 impl<T: Type> BlurredRoundedRectFiller<T> {
@@ -28,37 +28,57 @@ impl<T: Type> BlurredRoundedRectFiller<T> {
         let y_advance = rect.y_advance;
         let color = T::splat_color(rect.color);
         let rect = SimdRectangle::<T::Float>::new(rect);
-        
+
         Self {
             start_pos,
             rect,
             x_advance,
             y_advance,
-            color
+            color,
         }
     }
 
     pub(super) fn run(mut self, target: &mut [T::Scalar]) {
         let mut alpha_calculator = AlphaCalculator::<T::Float>::new(
-            self.start_pos, self.x_advance, self.y_advance, &self.rect);
+            self.start_pos,
+            self.x_advance,
+            self.y_advance,
+            &self.rect,
+        );
         let color = self.color;
-        
+
         if T::LENGTH / 4 >= T::Float::LENGTH {
             let mut storage = vec![];
             for column in target.chunks_exact_mut(T::LENGTH) {
                 storage.clear();
-                
+
                 for _ in 0..((T::LENGTH / 4) / T::Float::LENGTH) {
                     storage.push(alpha_calculator.next().unwrap());
                 }
-                
+
                 let loaded = T::from_float(storage.as_slice());
                 let mulled = loaded.normalized_mul(color);
-                
+
                 mulled.store(column);
             }
-        }   else {
-            unimplemented!()
+        } else {
+            let mut iter = target.chunks_exact_mut(T::LENGTH);
+
+            'outer: loop {
+                let mut stored_alpha = vec![0.0f32; T::Float::LENGTH];
+                let alphas = alpha_calculator.next().unwrap();
+                alphas.store(&mut stored_alpha);
+
+                for alphas in stored_alpha.chunks_exact(T::LENGTH / 4) {
+                    let Some(column) = iter.next() else {
+                        break 'outer;
+                    };
+
+                    let t = T::load_alphas_f32(alphas);
+                    let mulled = t.normalized_mul(color);
+                    mulled.store(column);
+                }
+            }
         }
     }
 }
@@ -123,7 +143,7 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
                 - F::compute_erf7(r.std_dev_inv * d));
 
         self.idx += F::LENGTH;
-        
+
         Some(z)
     }
 }

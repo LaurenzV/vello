@@ -1,8 +1,8 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::iter;
 use crate::{Base, ColorLike, Convertible, Float, NumberKind, Simd, Type, Widened};
+use std::iter;
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
@@ -202,6 +202,11 @@ impl Type for f32x4 {
     #[inline(always)]
     fn splat_4th_element(self) -> Self {
         Self([self.0[3], self.0[3], self.0[3], self.0[3]])
+    }
+
+    #[inline(always)]
+    fn load_alphas_f32(src: &[f32]) -> Self {
+        Self([src[0], src[0], src[0], src[0]])
     }
 }
 
@@ -414,6 +419,29 @@ impl Type for u8x16 {
         Self([
             src[0], src[0], src[0], src[0], src[1], src[1], src[1], src[1], src[2], src[2], src[2],
             src[2], src[3], src[3], src[3], src[3],
+        ])
+    }
+
+    fn load_alphas_f32(src: &[f32]) -> Self {
+        let c = |v: f32| (v * 255.0 + 0.5) as u8;
+
+        Self([
+            c(src[0]),
+            c(src[0]),
+            c(src[0]),
+            c(src[0]),
+            c(src[1]),
+            c(src[1]),
+            c(src[1]),
+            c(src[1]),
+            c(src[2]),
+            c(src[2]),
+            c(src[2]),
+            c(src[2]),
+            c(src[3]),
+            c(src[3]),
+            c(src[3]),
+            c(src[3]),
         ])
     }
 
