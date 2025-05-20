@@ -8,7 +8,6 @@
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::kurbo::Point;
-use vello_common::math::compute_erf7;
 use vello_common::tile::Tile;
 use vello_simd::{Float, Type};
 
@@ -104,8 +103,8 @@ impl<'a> BlurredRoundedRectFiller<'a> {
     }
 }
 
-impl Painter for BlurredRoundedRectFiller<'_> {
-    fn paint<F: Type>(self, target: &mut [F::Scalar]) {
+impl<F: Type> Painter<F> for BlurredRoundedRectFiller<'_> {
+    fn paint(self, target: &mut [F::Scalar]) {
         self.run::<F>(target);
     }
 }

@@ -138,10 +138,10 @@ impl<N: Type> Fine<N> {
             color_buf: &mut [T::Scalar],
             blend_buf: &mut [T::Scalar],
             has_opacities: bool,
-            filler: impl Painter,
+            filler: impl Painter<T>,
         ) {
             if has_opacities {
-                filler.paint::<T>(color_buf);
+                filler.paint(color_buf);
                 fill::alpha_composite(
                     blend_buf,
                     color_buf.chunks_exact(T::LENGTH).map(|e| T::load(e)),
@@ -149,7 +149,7 @@ impl<N: Type> Fine<N> {
             } else {
                 // Similarly to solid colors we can just override the previous values
                 // if all colors in the gradient are fully opaque.
-                filler.paint::<T>(blend_buf);
+                filler.paint(blend_buf);
             }
         }
 
@@ -211,10 +211,10 @@ impl<N: Type> Fine<N> {
         fn strip_complex_paint<F: Type>(
             color_buf: &mut [F::Scalar],
             blend_buf: &mut [F::Scalar],
-            filler: impl Painter,
+            filler: impl Painter<F>,
             alphas: &[u8],
         ) {
-            filler.paint::<F>(color_buf);
+            filler.paint(color_buf);
             
             strip::alpha_composite(
                 blend_buf,
@@ -391,6 +391,6 @@ pub(crate) mod strip {
     }
 }
 
-trait Painter {
-    fn paint<F: Type>(self, target: &mut [F::Scalar]);
+trait Painter<F: Type> {
+    fn paint(self, target: &mut [F::Scalar]);
 }
