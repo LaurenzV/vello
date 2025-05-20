@@ -93,13 +93,14 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let calc_pos = |idx: usize| {
-            let col_idx = idx / (COLOR_COMPONENTS * Tile::HEIGHT as usize);
-            let row_idx = idx & (COLOR_COMPONENTS * Tile::HEIGHT as usize - 1);
+            let col_idx = idx / (Tile::HEIGHT as usize);
+            let row_idx = idx & (Tile::HEIGHT as usize - 1);
 
             self.start_pos + self.x_advance * col_idx as f64 + self.y_advance * row_idx as f64
         };
 
         let pos = calc_pos(self.idx);
+        eprintln!("pos: {:?}", pos);
 
         let (i, j) = F::splat_col_pos(
             (pos.x as f32, pos.y as f32),
@@ -124,6 +125,7 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
 
         self.idx += F::LENGTH;
 
+        eprintln!("i: {:?}, j: {:?}, z: {:?}", i, j, z);
         Some(z)
     }
 }
