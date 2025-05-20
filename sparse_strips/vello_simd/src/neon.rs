@@ -137,13 +137,13 @@ impl f32x4 {
     fn abs(self) -> Self {
         unsafe { Self(vabsq_f32(self.0)) }
     }
-    
+
     #[inline(always)]
     fn splat_4th_element(self) -> Self {
         unsafe {
             let z0 = vzip2q_f32(self.0, self.0);
             let z1 = vzip2q_f32(z0, z0);
-            
+
             Self(z1)
         }
     }
@@ -601,7 +601,7 @@ impl u8x16 {
     fn max(self, other: Self) -> Self {
         unsafe { Self(vmaxq_u8(self.0, other.0)) }
     }
-    
+
     #[inline(always)]
     fn splat_4th_element(self) -> Self {
         unsafe {
@@ -894,7 +894,7 @@ impl Type for u8x64 {
 
     #[inline(always)]
     fn from_float(f: &[Self::Float]) -> Self {
-        let f: &[f32x8; 8] = f.try_into().unwrap();
+        let f: &[f32x8; 2] = f.try_into().unwrap();
         let mut storage = [0u8; 64];
 
         unsafe {

@@ -19,8 +19,7 @@ criterion_group!(fine_clear, fine::clear);
 criterion_main!(
     // tile,
     // render_strips,
-    fine_solid,
-    fine_strip,
+    fine_solid, fine_strip,
     fine_clear,
     // fine_pack,
     // fine_gradient,

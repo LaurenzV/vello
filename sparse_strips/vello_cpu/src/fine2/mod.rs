@@ -6,6 +6,7 @@
 
 mod rounded_blurred_rect;
 
+use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::scalar::div_255;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -21,7 +22,6 @@ use vello_common::{
     tile::Tile,
 };
 use vello_simd::{NumberKind, Type, Widened, fallback, neon};
-use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -171,9 +171,9 @@ impl<N: Type> Fine<N> {
                 fill::alpha_composite_solid::<N>(blend_buf, color);
             }
             Paint::Indexed(paint) => {
-                let color_buf =
-                    &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-                
+                let color_buf = &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..]
+                    [..TILE_HEIGHT_COMPONENTS * width];
+
                 let encoded_paint = &encoded_paints[paint.index()];
 
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
@@ -184,9 +184,9 @@ impl<N: Type> Fine<N> {
                         let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
                         fill_complex_paint::<N>(color_buf, blend_buf, true, filler);
                     }
-                    _ => unimplemented!()
+                    _ => unimplemented!(),
                 }
-            },
+            }
         }
     }
 
@@ -215,7 +215,7 @@ impl<N: Type> Fine<N> {
             alphas: &[u8],
         ) {
             filler.paint(color_buf);
-            
+
             strip::alpha_composite(
                 blend_buf,
                 color_buf.chunks_exact(F::LENGTH).map(|e| F::load(e)),
@@ -230,9 +230,8 @@ impl<N: Type> Fine<N> {
             Paint::Indexed(paint) => {
                 let encoded_paint = &encoded_paints[paint.index()];
 
-                let color_buf =
-                    &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
-
+                let color_buf = &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..]
+                    [..TILE_HEIGHT_COMPONENTS * width];
 
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
@@ -242,9 +241,9 @@ impl<N: Type> Fine<N> {
                         let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
                         strip_complex_paint::<N>(color_buf, blend_buf, filler, alphas);
                     }
-                    _ => unimplemented!()
+                    _ => unimplemented!(),
                 }
-            },
+            }
         }
     }
 
@@ -268,9 +267,7 @@ impl<N: Type> Fine<N> {
 
         fill::alpha_composite(
             target_buffer,
-            source_buffer
-                .chunks_exact(N::LENGTH)
-                .map(|e| N::load(e)),
+            source_buffer.chunks_exact(N::LENGTH).map(|e| N::load(e)),
         );
     }
 
@@ -285,9 +282,7 @@ impl<N: Type> Fine<N> {
 
         strip::alpha_composite(
             target_buffer,
-            source_buffer
-                .chunks_exact(N::LENGTH)
-                .map(|e| N::load(e)),
+            source_buffer.chunks_exact(N::LENGTH).map(|e| N::load(e)),
             alphas,
         );
     }
@@ -306,10 +301,10 @@ pub(crate) mod fill {
         }
     }
 
-    pub(crate) fn alpha_composite<
-        N: Type,
-        T: Iterator<Item = N>
-    >(target: &mut [N::Scalar], src_c: T) {
+    pub(crate) fn alpha_composite<N: Type, T: Iterator<Item = N>>(
+        target: &mut [N::Scalar],
+        src_c: T,
+    ) {
         for (part, src_c) in target.chunks_exact_mut(N::LENGTH).zip(src_c) {
             let one_minus_alpha = src_c.splat_4th_element().one_minus();
             alpha_composite_inner(part, src_c, one_minus_alpha)
@@ -317,13 +312,7 @@ pub(crate) mod fill {
     }
 
     #[inline(always)]
-    fn alpha_composite_inner<
-        N: Type
-    >(
-        target: &mut [N::Scalar], 
-        src_c: N,
-        one_minus_alpha: N
-    ) {
+    fn alpha_composite_inner<N: Type>(target: &mut [N::Scalar], src_c: N, one_minus_alpha: N) {
         let mut bg_c = N::load(target);
         bg_c = bg_c.normalized_mul_add(one_minus_alpha, src_c);
         bg_c.store(target);
@@ -352,10 +341,7 @@ pub(crate) mod strip {
         }
     }
 
-    pub(crate) fn alpha_composite<
-        N: Type,
-        T: Iterator<Item = N>
-    >(
+    pub(crate) fn alpha_composite<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],
         src_c: T,
         alphas: &[u8],
@@ -373,9 +359,7 @@ pub(crate) mod strip {
     }
 
     #[inline(always)]
-    fn alpha_composite_inner<
-        N: Type
-    >(
+    fn alpha_composite_inner<N: Type>(
         target: &mut [N::Scalar],
         masks: &[u8],
         src_c: N,

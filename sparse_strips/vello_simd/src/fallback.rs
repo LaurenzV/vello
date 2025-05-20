@@ -430,8 +430,9 @@ impl Type for u8x16 {
     #[inline(always)]
     fn splat_4th_element(self) -> Self {
         Self([
-            self.0[3], self.0[3], self.0[3], self.0[3], self.0[7], self.0[7], self.0[7], self.0[7], self.0[11], self.0[11], self.0[11],
-            self.0[11], self.0[15], self.0[15], self.0[15], self.0[15],
+            self.0[3], self.0[3], self.0[3], self.0[3], self.0[7], self.0[7], self.0[7], self.0[7],
+            self.0[11], self.0[11], self.0[11], self.0[11], self.0[15], self.0[15], self.0[15],
+            self.0[15],
         ])
     }
 
@@ -491,7 +492,7 @@ impl Type for u8x16 {
 
     #[inline(always)]
     fn from_float(f: &[Self::Float]) -> Self {
-        let f: &[f32x4; 4] = f.try_into().unwrap();
+        let f: &[f32x4; 1] = f.try_into().unwrap();
         let mut storage = [0u8; 16];
 
         for (s, f) in storage.chunks_exact_mut(4).zip(f) {

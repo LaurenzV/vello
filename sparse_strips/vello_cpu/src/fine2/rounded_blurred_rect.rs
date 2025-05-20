@@ -7,104 +7,177 @@
 
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::kurbo::Point;
+use vello_common::kurbo::{Affine, Point, Vec2};
 use vello_common::tile::Tile;
 use vello_simd::{Float, Type};
 
 #[derive(Debug)]
-pub(crate) struct BlurredRoundedRectFiller<'a> {
-    /// The current position that should be processed.
-    cur_pos: Point,
+pub(crate) struct BlurredRoundedRectFiller<T: Type> {
     /// The underlying encoded blurred rectangle.
-    rect: &'a EncodedBlurredRoundedRectangle,
+    rect: SimdRectangle<T::Float>,
+    start_pos: Point,
+    x_advance: Vec2,
+    y_advance: Vec2,
 }
 
-impl<'a> BlurredRoundedRectFiller<'a> {
-    pub(crate) fn new(
-        rect: &'a EncodedBlurredRoundedRectangle,
-        start_x: u16,
-        start_y: u16,
-    ) -> Self {
+impl<T: Type> BlurredRoundedRectFiller<T> {
+    pub(crate) fn new(rect: &EncodedBlurredRoundedRectangle, start_x: u16, start_y: u16) -> Self {
+        let start_pos = rect.transform * Point::new(f64::from(start_x), f64::from(start_y));
+        let x_advance = rect.x_advance;
+        let y_advance = rect.y_advance;
+        let rect = SimdRectangle::<T::Float>::new(rect);
         Self {
-            cur_pos: rect.transform * Point::new(f64::from(start_x), f64::from(start_y)),
+            start_pos,
             rect,
+            x_advance,
+            y_advance
         }
     }
 
-    pub(super) fn run<F: Type>(mut self, target: &mut [F::Scalar]) {
-        let h = F::Float::splat(self.rect.h);
-        let w = F::Float::splat(self.rect.w);
-        let width = F::Float::splat(self.rect.width);
-        let height = F::Float::splat(self.rect.height);
-        let r1 = F::Float::splat(self.rect.r1);
-        let exponent = self.rect.exponent;
-        let recip_exponent = self.rect.recip_exponent;
-        let scale = F::Float::splat(self.rect.scale);
-        let min_edge = F::Float::splat(self.rect.min_edge);
-        let std_dev_inv = F::Float::splat(self.rect.std_dev_inv);
-        let start_pos = self.cur_pos;
+    pub(super) fn run(mut self, target: &mut [T::Scalar]) {
+        let mut alpha_calculator = AlphaCalculator::<T::Float>::new(
+            self.start_pos, self.x_advance, self.y_advance, &self.rect);
+        
+        if T::LENGTH / 4 >= T::Float::LENGTH {
+            let mut storage = vec![];
+            for column in target.chunks_exact_mut(T::LENGTH) {
+                storage.clear();
+                
+                let loaded = T::load(column);
+                
+                for _ in 0..((T::LENGTH / 4) / T::Float::LENGTH) {
+                    storage.push(alpha_calculator.next().unwrap());
+                }
+                
+                let loaded_alpha = T::from_float(storage.as_slice());
+                let mulled = loaded.normalized_mul(loaded_alpha);
+                
+                mulled.store(column);
+            }
+        }   else {
+            unimplemented!()
+        }
+    }
+}
 
-        let mut cur_pos = self.cur_pos;
+struct AlphaCalculator<'a, F: Float> {
+    start_pos: Point,
+    x_advance: Vec2,
+    y_advance: Vec2,
+    r: &'a SimdRectangle<F>,
+    idx: usize,
+}
 
+impl<'a, F: Float> AlphaCalculator<'a, F> {
+    pub fn new(
+        start_pos: Point,
+        x_advance: Vec2,
+        y_advance: Vec2,
+        r: &'a SimdRectangle<F>,
+    ) -> Self {
+        Self {
+            start_pos,
+            x_advance,
+            y_advance,
+            r,
+            idx: 0,
+        }
+    }
+}
+
+impl<F: Float> Iterator for AlphaCalculator<'_, F> {
+    type Item = F;
+
+    fn next(&mut self) -> Option<Self::Item> {
         let calc_pos = |idx: usize| {
             let col_idx = idx / (COLOR_COMPONENTS * Tile::HEIGHT as usize);
             let row_idx = idx & (COLOR_COMPONENTS * Tile::HEIGHT as usize - 1);
 
-            start_pos + self.rect.x_advance * col_idx as f64 + self.rect.y_advance * row_idx as f64
+            self.start_pos + self.x_advance * col_idx as f64 + self.y_advance * row_idx as f64
         };
 
-        let color = F::splat_color(self.rect.color);
-        let mut storage = vec![];
-        let mut idx = 0;
+        let pos = calc_pos(self.idx);
 
-        for column in target.chunks_exact_mut(F::LENGTH) {
-            storage.truncate(0);
+        let (i, j) = F::splat_col_pos(
+            (pos.x as f32, pos.y as f32),
+            (self.x_advance.x as f32, self.x_advance.y as f32),
+            (self.y_advance.x as f32, self.y_advance.y as f32),
+        );
+        let r = self.r;
 
-            for _ in 0..(F::LENGTH / F::Float::LENGTH) {
-                let (i, j) = F::Float::splat_col_pos(
-                    (cur_pos.x as f32, cur_pos.y as f32),
-                    (self.rect.x_advance.x as f32, self.rect.x_advance.y as f32),
-                    (self.rect.y_advance.x as f32, self.rect.y_advance.y as f32),
-                );
+        let y = j + r.v1 - r.v1 * r.height;
+        let y0 = y.abs() - (r.h * r.v1 - r.r1);
+        let y1 = y0.max(r.v0);
 
-                let alpha_val = {
-                    let v0 = F::Float::splat(0.0);
-                    let v1 = F::Float::splat(0.5);
+        let x = i + r.v1 - r.v1 * r.width;
+        let x0 = x.abs() - (r.w * r.v1 - r.r1);
+        let x1 = x0.max(r.v0);
+        let d_pos = (x1.powf(r.exponent) + y1.powf(r.exponent)).powf(r.recip_exponent);
+        let d_neg = x0.max(y0).min(r.v0);
+        let d = d_pos + d_neg - r.r1;
+        let z = r.scale
+            * (F::compute_erf7(r.std_dev_inv * (r.min_edge + d))
+                - F::compute_erf7(r.std_dev_inv * d));
 
-                    let y = j + v1 - v1 * height;
-                    let y0 = y.abs() - (h * v1 - r1);
-                    let y1 = y0.max(v0);
+        self.idx += F::LENGTH;
 
-                    let x = i + v1 - v1 * width;
-                    let x0 = x.abs() - (w * v1 - r1);
-                    let x1 = x0.max(v0);
-                    let d_pos = (x1.powf(exponent) + y1.powf(exponent)).powf(recip_exponent);
-                    let d_neg = x0.max(y0).min(v0);
-                    let d = d_pos + d_neg - r1;
-                    let z = scale
-                        * (F::Float::compute_erf7(std_dev_inv * (min_edge + d))
-                            - F::Float::compute_erf7(std_dev_inv * d));
+        Some(z)
+    }
+}
 
-                    z
-                };
+#[derive(Debug)]
+struct SimdRectangle<F: Float> {
+    pub exponent: f32,
+    pub recip_exponent: f32,
+    pub scale: F,
+    pub std_dev_inv: F,
+    pub min_edge: F,
+    pub w: F,
+    pub h: F,
+    pub width: F,
+    pub height: F,
+    pub r1: F,
+    pub v0: F,
+    pub v1: F,
+    pub color: F,
+}
 
-                storage.push(alpha_val);
+impl<F: Float> SimdRectangle<F> {
+    pub fn new(encoded: &EncodedBlurredRoundedRectangle) -> Self {
+        let h = F::splat(encoded.h);
+        let w = F::splat(encoded.w);
+        let width = F::splat(encoded.width);
+        let height = F::splat(encoded.height);
+        let r1 = F::splat(encoded.r1);
+        let exponent = encoded.exponent;
+        let recip_exponent = encoded.recip_exponent;
+        let scale = F::splat(encoded.scale);
+        let min_edge = F::splat(encoded.min_edge);
+        let std_dev_inv = F::splat(encoded.std_dev_inv);
+        let v0 = F::splat(0.0);
+        let v1 = F::splat(0.5);
+        let color = F::splat_color(encoded.color);
 
-                idx += F::Float::LENGTH;
-
-                cur_pos = calc_pos(idx);
-            }
-
-            let loaded_alpha = F::from_float(&storage);
-            let multiplied = color.normalized_mul(loaded_alpha);
-
-            multiplied.store(column);
+        Self {
+            exponent,
+            recip_exponent,
+            scale,
+            std_dev_inv,
+            min_edge,
+            w,
+            v0,
+            v1,
+            h,
+            width,
+            height,
+            color,
+            r1,
         }
     }
 }
 
-impl<F: Type> Painter<F> for BlurredRoundedRectFiller<'_> {
+impl<F: Type> Painter<F> for BlurredRoundedRectFiller<F> {
     fn paint(self, target: &mut [F::Scalar]) {
-        self.run::<F>(target);
+        self.run(target);
     }
 }

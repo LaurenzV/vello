@@ -130,7 +130,7 @@ pub trait ColorLike: Copy + Debug {
     fn to_rgbf32(self) -> [f32; 4];
 }
 
-pub trait Float: Type<Scalar = f32> + Div<Self, Output = Self> {
+pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;
     fn abs(self) -> Self;
