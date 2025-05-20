@@ -100,7 +100,6 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
         };
 
         let pos = calc_pos(self.idx);
-        eprintln!("pos: {:?}", pos);
 
         let (i, j) = F::splat_col_pos(
             (pos.x as f32, pos.y as f32),
@@ -124,8 +123,7 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
                 - F::compute_erf7(r.std_dev_inv * d));
 
         self.idx += F::LENGTH;
-
-        eprintln!("i: {:?}, j: {:?}, z: {:?}", i, j, z);
+        
         Some(z)
     }
 }
