@@ -18,6 +18,7 @@ pub(crate) struct BlurredRoundedRectFiller<T: Type> {
     start_pos: Point,
     x_advance: Vec2,
     y_advance: Vec2,
+    color: T::Float
 }
 
 impl<T: Type> BlurredRoundedRectFiller<T> {
@@ -25,34 +26,35 @@ impl<T: Type> BlurredRoundedRectFiller<T> {
         let start_pos = rect.transform * Point::new(f64::from(start_x), f64::from(start_y));
         let x_advance = rect.x_advance;
         let y_advance = rect.y_advance;
+        let color = T::Float::splat_color(rect.color);
         let rect = SimdRectangle::<T::Float>::new(rect);
+        
         Self {
             start_pos,
             rect,
             x_advance,
-            y_advance
+            y_advance,
+            color
         }
     }
 
     pub(super) fn run(mut self, target: &mut [T::Scalar]) {
         let mut alpha_calculator = AlphaCalculator::<T::Float>::new(
             self.start_pos, self.x_advance, self.y_advance, &self.rect);
+        let color = self.color;
         
         if T::LENGTH / 4 >= T::Float::LENGTH {
             let mut storage = vec![];
             for column in target.chunks_exact_mut(T::LENGTH) {
                 storage.clear();
                 
-                let loaded = T::load(column);
-                
                 for _ in 0..((T::LENGTH / 4) / T::Float::LENGTH) {
-                    storage.push(alpha_calculator.next().unwrap());
+                    storage.push(alpha_calculator.next().unwrap().normalized_mul(color));
                 }
                 
-                let loaded_alpha = T::from_float(storage.as_slice());
-                let mulled = loaded.normalized_mul(loaded_alpha);
+                let loaded = T::from_float(storage.as_slice());
                 
-                mulled.store(column);
+                loaded.store(column);
             }
         }   else {
             unimplemented!()
@@ -139,7 +141,6 @@ struct SimdRectangle<F: Float> {
     pub r1: F,
     pub v0: F,
     pub v1: F,
-    pub color: F,
 }
 
 impl<F: Float> SimdRectangle<F> {
@@ -156,7 +157,6 @@ impl<F: Float> SimdRectangle<F> {
         let std_dev_inv = F::splat(encoded.std_dev_inv);
         let v0 = F::splat(0.0);
         let v1 = F::splat(0.5);
-        let color = F::splat_color(encoded.color);
 
         Self {
             exponent,
@@ -170,7 +170,6 @@ impl<F: Float> SimdRectangle<F> {
             h,
             width,
             height,
-            color,
             r1,
         }
     }
