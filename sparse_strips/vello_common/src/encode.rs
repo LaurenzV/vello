@@ -201,9 +201,8 @@ impl EncodeExt for Gradient {
                 // Make sure the center of the gradient falls on the origin (0, 0).
                 x_offset = -center.x as f32;
                 y_offset = -center.y as f32;
-                clamp_range = (0.0, end_angle - start_angle);
 
-                EncodedKind::Sweep(SweepKind { start_angle } )
+                EncodedKind::Sweep(SweepKind { start_angle, angle_delta: end_angle - start_angle } )
             }
         };
 
@@ -623,7 +622,8 @@ impl RadialKind {
 /// Computed properties of a sweep gradient.
 #[derive(Debug)]
 pub struct SweepKind {
-    start_angle: f32
+    start_angle: f32,
+    angle_delta: f32,
 }
 
 /// A kind of encoded gradient.
@@ -686,12 +686,14 @@ impl GradientLike for SweepKind {
     fn cur_pos(&self, pos: Point) -> f32 {
         // The position in a sweep gradient is simply determined by its angle from the origin.
         let angle = (-pos.y as f32).atan2(pos.x as f32);
-
-        (if angle >= 0.0 {
+        
+        let adjusted_angle = if angle >= 0.0 {
             angle
         } else {
             angle + 2.0 * PI
-        }) - self.start_angle
+        };
+
+        (adjusted_angle - self.start_angle) / self.angle_delta
     }
 
     fn has_undefined(&self) -> bool {
