@@ -902,25 +902,21 @@ impl Type for u8x64 {
     #[inline(always)]
     fn from_float(f: &[Self::Float]) -> Self {
         let f: &[f32x8; 2] = f.try_into().unwrap();
-        let mut storage = [0u8; 64];
+        let mut stored = [u8x16::splat(0); 4];
+        let ordered = [f[0].0, f[0].1, f[1].0, f[1].1];
 
         unsafe {
-            for (f, storage) in f.iter().zip(storage.chunks_exact_mut(8)) {
-                let val1 = vfmaq_f32(vdupq_n_f32(0.5), f.0.0, vdupq_n_f32(255.0));
-                let val2 = vfmaq_f32(vdupq_n_f32(0.5), f.1.0, vdupq_n_f32(255.0));
-                let val1 = vmovn_u32(vcvtq_u32_f32(val1));
-                let val2 = vmovn_u32(vcvtq_u32_f32(val2));
-                let combined = vcombine_u16(val1, val2);
-                let reduced = vmovn_u16(combined);
-                vst1_u8(storage.as_mut_ptr(), reduced);
+            for (f, stored) in ordered.iter().zip(stored.iter_mut()) {
+                let mulled = vfmaq_f32(vdupq_n_f32(0.5), f.0, vdupq_n_f32(255.0));
+                let converted = vmovn_u32(vcvtq_u32_f32(mulled));
+                let zipped = vzip_u16(converted, converted);
+                let combined = vcombine_u16(zipped.0, zipped.1);
+                let moved = vmovn_u16(combined);
+                let zipped = vzip_u8(moved, moved);
+                stored.0 = vcombine_u8(zipped.0, zipped.1);
             }
 
-            let loaded = vld1q_u8_x4(storage.as_ptr());
-
-            u8x64(
-                u8x32(u8x16(loaded.0), u8x16(loaded.1)),
-                u8x32(u8x16(loaded.2), u8x16(loaded.3)),
-            )
+            u8x64(u8x32(stored[0], stored[1]), u8x32(stored[2], stored[3]))
         }
     }
 
