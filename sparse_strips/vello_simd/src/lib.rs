@@ -136,6 +136,16 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     fn powf(self, exponent: Self::Scalar) -> Self;
     fn abs(self) -> Self;
 
+    #[inline(always)]
+    fn mul_add(self, other1: Self, other2: Self) -> Self {
+        Self::normalized_mul_add(self, other1, other2)
+    }
+
+    #[inline(always)]
+    fn mul_sub(self, other1: Self, other2: Self) -> Self {
+        Self::normalized_mul_sub(self, other1, other2)
+    }
+
     // See https://raphlinus.github.io/audio/2018/09/05/sigmoid.html for a little
     // explanation of this approximation to the erf function.
     /// Approximate the erf function.
