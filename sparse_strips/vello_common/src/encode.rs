@@ -130,12 +130,11 @@ impl EncodeExt for Gradient {
                 // y_1 and x_1 are both 0.
 
                 let end_val = (dx * dx + dy * dy).sqrt();
-                clamp_range = (0.0, end_val);
 
                 EncodedKind::Linear(LinearKind {
                     // We store the inverse distance, so that in the function that evaluates the
                     // position, we can do a multiplication instead of having to do a division.
-                    inv_distance: 1.0 / distance,
+                    inv_distance: 1.0 / (distance * end_val),
                     y2_minus_y1,
                     x2_minus_x1,
                 })
