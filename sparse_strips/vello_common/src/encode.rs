@@ -133,7 +133,9 @@ impl EncodeExt for Gradient {
                 clamp_range = (0.0, end_val);
 
                 EncodedKind::Linear(LinearKind {
-                    distance,
+                    // We store the inverse distance, so that in the function that evaluates the
+                    // position, we can do a multiplication instead of having to do a division.
+                    inv_distance: 1.0 / distance,
                     y2_minus_y1,
                     x2_minus_x1,
                 })
@@ -552,7 +554,7 @@ pub struct EncodedImage {
 /// Computed properties of a linear gradient.
 #[derive(Debug)]
 pub struct LinearKind {
-    distance: f32,
+    inv_distance: f32,
     y2_minus_y1: f32,
     x2_minus_x1: f32,
 }
@@ -702,9 +704,7 @@ impl GradientLike for SweepKind {
 
 impl GradientLike for LinearKind {
     fn cur_pos(&self, pos: Point) -> f32 {
-        // The position of a point relative to a linear gradient is determined by its distance
-        // to the normal vector. See `encode_into` for more information.
-        (pos.x as f32 * self.y2_minus_y1 - pos.y as f32 * self.x2_minus_x1) / self.distance
+        (pos.x as f32 * self.y2_minus_y1 - pos.y as f32 * self.x2_minus_x1) * self.inv_distance
     }
 
     fn has_undefined(&self) -> bool {
