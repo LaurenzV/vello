@@ -325,8 +325,9 @@ impl Type for f32x8 {
         Self(self.0.splat_4th_element(), self.1.splat_4th_element())
     }
 
+    #[inline(always)]
     fn load_alphas_f32(src: &[f32]) -> Self {
-        todo!()
+        Self(f32x4::splat(src[0]), f32x4::splat(src[1]))
     }
 }
 
@@ -343,6 +344,7 @@ impl Widened<f32x8> for f32x8 {
 }
 
 impl Float for f32x8 {
+    #[inline(always)]
     fn sqrt(mut self) -> Self {
         unsafe {
             self.0.0 = vsqrtq_f32(self.0.0);
@@ -352,6 +354,7 @@ impl Float for f32x8 {
         self
     }
 
+    #[inline(always)]
     fn powf(mut self, exponent: f32) -> Self {
         // TODO: SIMDify
         let mut storage = [0.0; 8];
@@ -929,6 +932,7 @@ impl Type for u8x64 {
         self
     }
 
+    #[inline(always)]
     fn load_alphas_f32(src: &[f32]) -> Self {
         todo!()
     }

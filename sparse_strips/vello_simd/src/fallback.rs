@@ -422,6 +422,7 @@ impl Type for u8x16 {
         ])
     }
 
+    #[inline(always)]
     fn load_alphas_f32(src: &[f32]) -> Self {
         let c = |v: f32| (v * 255.0 + 0.5) as u8;
 
