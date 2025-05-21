@@ -42,17 +42,17 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
     }
 
     pub(super) fn run<T: Type>(mut self, target: &mut [T::Scalar]) {
+        let mut storage = vec![0.0f32; 16];
+        
         target
             .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
             .for_each(|column| {
-                self.run_column::<T>(column);
+                self.run_column::<T>(column, &mut storage);
                 self.cur_pos += self.gradient.x_advance;
             });
     }
 
-    fn run_column<T: Type>(&mut self, col: &mut [T::Scalar]) {
-        let mut storage: SmallVec<[f32; 16]> = smallvec![0.0; 16];
-        
+    fn run_column<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
         let pad = self.gradient.pad;
         let extend = |val| extend(val, pad);
         let mut pos = self.cur_pos;
@@ -75,7 +75,7 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
             pos += self.gradient.y_advance;
         }
 
-        T::load_f32_many(&storage).store(col);
+        T::load_f32_many(storage).store(col);
     }
 
 }
