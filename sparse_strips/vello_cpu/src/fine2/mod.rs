@@ -4,9 +4,10 @@
 //! Fine rasterization runs the commands in each wide tile to determine the final RGBA value
 //! of each pixel and pack it into the pixmap.
 
-mod rounded_blurred_rect;
 mod gradient;
+mod rounded_blurred_rect;
 
+use crate::fine2::gradient::GradientFiller;
 use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::scalar::div_255;
 use alloc::vec;
@@ -23,7 +24,6 @@ use vello_common::{
     tile::Tile,
 };
 use vello_simd::{NumberKind, Type, Widened, fallback, neon};
-use crate::fine2::gradient::GradientFiller;
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -187,15 +187,13 @@ impl<N: Type> Fine<N> {
                         let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
                         fill_complex_paint::<N>(color_buf, blend_buf, true, filler);
                     }
-                    EncodedPaint::Gradient(g) => {
-                        match &g.kind {
-                            EncodedKind::Linear(l) => {
-                                let filler = GradientFiller::new(g, l, start_x, start_y);
-                                fill_complex_paint::<N>(color_buf, blend_buf, g.has_opacities, filler);
-                            }
-                            _ => unimplemented!(),
+                    EncodedPaint::Gradient(g) => match &g.kind {
+                        EncodedKind::Linear(l) => {
+                            let filler = GradientFiller::new(g, l, start_x, start_y);
+                            fill_complex_paint::<N>(color_buf, blend_buf, g.has_opacities, filler);
                         }
-                    }
+                        _ => unimplemented!(),
+                    },
                     _ => unimplemented!(),
                 }
             }
@@ -254,20 +252,13 @@ impl<N: Type> Fine<N> {
                         let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
                         strip_complex_paint::<N>(color_buf, blend_buf, filler, alphas);
                     }
-                    EncodedPaint::Gradient(g) => {
-                        match &g.kind {
-                            EncodedKind::Linear(l) => {
-                                let fillter = GradientFiller::new(g, l, start_x, start_y);
-                                strip_complex_paint::<N>(
-                                    color_buf,
-                                    blend_buf,
-                                    fillter,
-                                    alphas,
-                                );
-                            }
-                            _ => unimplemented!(),
+                    EncodedPaint::Gradient(g) => match &g.kind {
+                        EncodedKind::Linear(l) => {
+                            let fillter = GradientFiller::new(g, l, start_x, start_y);
+                            strip_complex_paint::<N>(color_buf, blend_buf, fillter, alphas);
                         }
-                    }
+                        _ => unimplemented!(),
+                    },
                     _ => unimplemented!(),
                 }
             }

@@ -1,9 +1,9 @@
-use smallvec::{smallvec, SmallVec};
+use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
+use smallvec::{SmallVec, smallvec};
 use vello_common::encode::{EncodedGradient, GradientLike, GradientRange};
 use vello_common::kurbo::Point;
 use vello_common::tile::Tile;
 use vello_simd::{Float, Type};
-use crate::fine2::{Painter, COLOR_COMPONENTS, TILE_HEIGHT_COMPONENTS};
 
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a, G: GradientLike> {
@@ -31,13 +31,15 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
             kind,
         }
     }
-    
+
     #[inline]
     fn calc_pos(&self) -> Point {
         let col_idx = self.idx >> (Tile::HEIGHT.trailing_zeros() as usize);
         let row_idx = self.idx & (Tile::HEIGHT as usize - 1);
-        
-        self.start_pos + self.gradient.x_advance * col_idx as f64 + self.gradient.y_advance * row_idx as f64
+
+        self.start_pos
+            + self.gradient.x_advance * col_idx as f64
+            + self.gradient.y_advance * row_idx as f64
     }
 
     fn advance(&mut self, target_pos: f32) {
@@ -54,14 +56,14 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
 
     pub(super) fn run<T: Type>(mut self, target: &mut [T::Scalar]) {
         let mut storage = vec![0.0f32; 16];
-        
+
         if T::IS_FLOAT {
             target
                 .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
                 .for_each(|column| {
                     self.run_column_float::<T>(column);
                 });
-        }   else {
+        } else {
             target
                 .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
                 .for_each(|column| {
@@ -85,7 +87,7 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
 
     fn run_column_integer<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
         let pad = self.gradient.pad;
-        
+
         for part in storage.chunks_exact_mut(T::Float::LENGTH) {
             let pos = self.calc_pos();
             let res = self.single::<T::Float>(&pos, pad);
@@ -96,7 +98,7 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
 
         T::load_f32_many(storage).store(col);
     }
-    
+
     #[inline(always)]
     fn single<T: Float>(&mut self, pos: &Point, pad: bool) -> T {
         let dist = extend(self.kind.cur_pos(*pos), pad);
@@ -110,8 +112,7 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
 
         let factor = factors * (dist - x0);
         c0 + factor
-    } 
-
+    }
 }
 
 impl<F: Type, T: GradientLike> Painter<F> for GradientFiller<'_, T> {

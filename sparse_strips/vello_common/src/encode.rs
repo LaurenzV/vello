@@ -182,16 +182,14 @@ impl EncodeExt for Gradient {
                 x_offset = -center.x as f32;
                 y_offset = -center.y as f32;
 
-                EncodedKind::Sweep(SweepKind { start_angle, angle_delta: end_angle - start_angle } )
+                EncodedKind::Sweep(SweepKind {
+                    start_angle,
+                    angle_delta: end_angle - start_angle,
+                })
             }
         };
 
-        let ranges = encode_stops(
-            &stops,
-            pad,
-            self.interpolation_cs,
-            self.hue_direction,
-        );
+        let ranges = encode_stops(&stops, pad, self.interpolation_cs, self.hue_direction);
 
         // This represents the transform that needs to be applied to the starting point of a
         // command before starting with the rendering.
@@ -659,7 +657,7 @@ impl GradientLike for SweepKind {
     fn cur_pos(&self, pos: Point) -> f32 {
         // The position in a sweep gradient is simply determined by its angle from the origin.
         let angle = (-pos.y as f32).atan2(pos.x as f32);
-        
+
         let adjusted_angle = if angle >= 0.0 {
             angle
         } else {

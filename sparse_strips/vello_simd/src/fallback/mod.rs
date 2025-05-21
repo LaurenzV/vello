@@ -1,6 +1,7 @@
-mod u8x16;
 mod f32x4;
+mod u8x16;
 mod u8x32;
+mod u8x64;
 
 use crate::{Base, NumberKind, Simd};
 
@@ -8,7 +9,7 @@ use crate::{Base, NumberKind, Simd};
 pub struct Fallback;
 
 impl Simd for Fallback {
-    type Integer = u8x32::u8x32;
+    type Integer = u8x64::u8x64;
     type Float = f32x4::f32x4;
 }
 

@@ -1,7 +1,7 @@
-use std::ops::{Add, Mul, Sub};
-use crate::{Base, ColorLike, Type, Widened};
 use crate::fallback::div_255;
 use crate::fallback::f32x4::f32x4;
+use crate::{Base, ColorLike, Type, Widened};
+use std::ops::{Add, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x16([u8; 16]);
