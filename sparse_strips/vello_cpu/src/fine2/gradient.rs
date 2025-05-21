@@ -1,12 +1,14 @@
 use smallvec::{smallvec, SmallVec};
 use vello_common::encode::{EncodedGradient, GradientLike, GradientRange};
 use vello_common::kurbo::Point;
+use vello_common::tile::Tile;
 use vello_simd::{Float, Type};
-use crate::fine2::{Painter, TILE_HEIGHT_COMPONENTS};
+use crate::fine2::{Painter, COLOR_COMPONENTS, TILE_HEIGHT_COMPONENTS};
 
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a, G: GradientLike> {
-    cur_pos: Point,
+    start_pos: Point,
+    idx: usize,
     range_idx: usize,
     gradient: &'a EncodedGradient,
     kind: &'a G,
@@ -21,12 +23,21 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
         start_y: u16,
     ) -> Self {
         Self {
-            cur_pos: gradient.transform * Point::new(f64::from(start_x), f64::from(start_y)),
+            start_pos: gradient.transform * Point::new(f64::from(start_x), f64::from(start_y)),
             range_idx: 0,
             cur_range: &gradient.ranges[0],
+            idx: 0,
             gradient,
             kind,
         }
+    }
+    
+    #[inline]
+    fn calc_pos(&self) -> Point {
+        let col_idx = self.idx >> (Tile::HEIGHT.trailing_zeros() as usize);
+        let row_idx = self.idx & (Tile::HEIGHT as usize - 1);
+        
+        self.start_pos + self.gradient.x_advance * col_idx as f64 + self.gradient.y_advance * row_idx as f64
     }
 
     fn advance(&mut self, target_pos: f32) {
@@ -48,43 +59,39 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
             target
                 .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
                 .for_each(|column| {
-                    self.run_column_float::<T>(column, &mut storage);
-                    
-                    self.cur_pos += self.gradient.x_advance;
+                    self.run_column_float::<T>(column);
                 });
         }   else {
             target
                 .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
                 .for_each(|column| {
                     self.run_column_integer::<T>(column, &mut storage);
-                    
-                    self.cur_pos += self.gradient.x_advance;
                 });
         }
     }
 
-    fn run_column_float<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
+    fn run_column_float<T: Type>(&mut self, col: &mut [T::Scalar]) {
         let pad = self.gradient.pad;
-        let mut pos = self.cur_pos;
 
         for pixel in col.chunks_exact_mut(T::LENGTH) {
+            let pos = self.calc_pos();
             let res = self.single::<T::Float>(&pos, pad);
             let converted = T::from_float(&[res]);
             converted.store(pixel);
 
-            pos += self.gradient.y_advance;
+            self.idx += T::Float::LENGTH / COLOR_COMPONENTS;
         }
     }
 
     fn run_column_integer<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
         let pad = self.gradient.pad;
-        let mut pos = self.cur_pos;
         
-        for pixel in storage.chunks_exact_mut(4) {
+        for part in storage.chunks_exact_mut(T::Float::LENGTH) {
+            let pos = self.calc_pos();
             let res = self.single::<T::Float>(&pos, pad);
-            res.store(pixel);
+            res.store(part);
 
-            pos += self.gradient.y_advance;
+            self.idx += T::Float::LENGTH / COLOR_COMPONENTS;
         }
 
         T::load_f32_many(storage).store(col);
