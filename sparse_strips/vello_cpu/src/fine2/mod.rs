@@ -123,6 +123,7 @@ impl<N: Type> Fine<N> {
     }
 
     /// Fill at a given x and with a width using the given paint.
+    #[inline(always)]
     pub fn fill(
         &mut self,
         x: usize,
@@ -202,6 +203,7 @@ impl<N: Type> Fine<N> {
     }
 
     /// Strip at a given x and with a width using the given paint and alpha values.
+    #[inline(always)]
     pub fn strip(
         &mut self,
         x: usize,
