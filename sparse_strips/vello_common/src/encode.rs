@@ -60,10 +60,6 @@ impl EncodeExt for Gradient {
         // one of the points of the gradient lands on the origin (0, 0). We do this because
         // it makes things simpler and allows for some optimizations for certain calculations.
         let (x_offset, y_offset);
-        // The start/end range of the color line. We use this to resolve the extend of the gradient.
-        // Currently radial gradients uses normalized values between 0.0 and 1.0, for sweep and
-        // linear gradients different values are used (TODO: Would be nice to make this more consistent).
-        let mut clamp_range = (0.0, 1.0);
 
         let kind = match self.kind {
             GradientKind::Linear { start, end } => {
@@ -208,8 +204,6 @@ impl EncodeExt for Gradient {
 
         let ranges = encode_stops(
             &stops,
-            clamp_range.0,
-            clamp_range.1,
             pad,
             self.interpolation_cs,
             self.hue_direction,
@@ -247,7 +241,6 @@ impl EncodeExt for Gradient {
             ranges,
             pad,
             has_opacities,
-            clamp_range,
         };
 
         let idx = paints.len();
@@ -363,8 +356,6 @@ fn apply_reflect(stops: &[ColorStop]) -> SmallVec<[ColorStop; 4]> {
 /// Encode all stops into a sequence of ranges.
 fn encode_stops(
     stops: &[ColorStop],
-    start: f32,
-    end: f32,
     pad: bool,
     cs: ColorSpaceTag,
     hue_dir: HueDirection,
@@ -403,8 +394,8 @@ fn encode_stops(
             color
         };
 
-        let x0 = start + (end - start) * left_stop.offset;
-        let x1 = start + (end - start) * right_stop.offset;
+        let x0 = left_stop.offset;
+        let x1 = right_stop.offset;
         let c0 = clamp(left_stop.color.components);
         let c1 = clamp(right_stop.color.components);
 
@@ -654,8 +645,6 @@ pub struct EncodedGradient {
     pub pad: bool,
     /// Whether the gradient requires `source_over` compositing.
     pub has_opacities: bool,
-    /// The values that should be used for clamping when applying the extend.
-    pub clamp_range: (f32, f32),
 }
 
 /// An encoded ange between two color stops.
