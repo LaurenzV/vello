@@ -19,12 +19,12 @@ criterion_group!(fine_rounded_blurred_rect, fine::rounded_blurred_rect);
 criterion_main!(
     // tile,
     // render_strips,
-    fine_solid,
-    fine_strip,
-    fine_clear,
-    fine_pack,
-    // fine_gradient,
-    fine_rounded_blurred_rect,
+    // fine_solid,
+    // fine_strip,
+    // fine_clear,
+    // fine_pack,
+    fine_gradient,
+    // fine_rounded_blurred_rect,
     // fine_blend,
     // fine_image
 );

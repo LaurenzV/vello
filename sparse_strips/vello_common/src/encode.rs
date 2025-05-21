@@ -523,7 +523,7 @@ pub struct EncodedImage {
 }
 
 /// Computed properties of a linear gradient.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct LinearKind {
     pub inv_distance: f32,
     pub y2_minus_y1: f32,

@@ -110,7 +110,8 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
 
     skip_cpu |= {
         input_fn_name_str.contains("compose")
-            || input_fn_name_str.contains("gradient")
+            || input_fn_name_str.contains("radial")
+            || input_fn_name_str.contains("sweep")
             || input_fn_name_str.contains("colr")
             || input_fn_name_str.contains("bitmap")
             || input_fn_name_str.contains("image")

@@ -102,6 +102,16 @@ impl f32x4 {
     }
 
     #[inline(always)]
+    pub(crate) fn fract(self) -> Self {
+        unsafe {
+            let c1 = vcvtq_s32_f32(self.0);
+            let c2 = vcvtq_f32_s32(c1);
+
+            Self(vsubq_f32(self.0, c2))
+        }
+    }
+
+    #[inline(always)]
     pub(crate) fn splat_4th_element(self) -> Self {
         unsafe {
             let z0 = vzip2q_f32(self.0, self.0);

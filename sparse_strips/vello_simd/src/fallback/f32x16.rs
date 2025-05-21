@@ -219,8 +219,14 @@ impl Float for f32x16 {
 
         self
     }
-    
-    
+
+    #[inline(always)]
+    fn fract(mut self) -> Self {
+        self.0 = self.0.fract();
+        self.1 = self.1.fract();
+
+        self
+    }
 
     #[inline(always)]
     fn splat_col_pos(

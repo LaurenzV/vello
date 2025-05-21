@@ -1,8 +1,10 @@
+use std::iter::zip;
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use vello_common::encode::{EncodedGradient, GradientLike, GradientRange, LinearKind};
 use vello_common::kurbo::Point;
 use vello_simd::{Float, Type};
 
+#[derive(Debug)]
 pub struct SimdLinearKind<T: Float> {
     inv_distance: T,
     y2_minus_y1: T,
@@ -30,17 +32,21 @@ impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
 }
 
 #[derive(Debug)]
-pub(crate) struct GradientFiller<'a, T: Float> {
+pub(crate) struct GradientFiller<'a, S: Type> {
     cur_pos: Point,
     idx: usize,
     gradient: &'a EncodedGradient,
-    kind: SimdLinearKind<T>,
+    kind: SimdLinearKind<S::Float>,
     x_advances: (f32, f32),
     y_advances: (f32, f32),
     cur_ranges: Vec<(usize, &'a GradientRange)>,
+    stored_t_vals: Vec<f32>,
+    c0: Vec<f32>,
+    x0: Vec<f32>,
+    factors: Vec<f32>
 }
 
-impl<'a, T: Float> GradientFiller<'a, T> {
+impl<'a, S: Type> GradientFiller<'a, S> {
     pub(crate) fn new(
         gradient: &'a EncodedGradient,
         kind: &'a LinearKind,
@@ -50,34 +56,28 @@ impl<'a, T: Float> GradientFiller<'a, T> {
         Self {
             cur_pos: gradient.transform * Point::new(f64::from(start_x), f64::from(start_y)),
             cur_ranges: vec![],
+            stored_t_vals: vec![0.0; 16],
+            c0: vec![0.0; 64],
+            x0: vec![0.0; 64],
+            factors: vec![0.0; 64],
             idx: 0,
             gradient,
             x_advances: (gradient.x_advance.x as f32, gradient.x_advance.y as f32),
             y_advances: (gradient.y_advance.x as f32, gradient.y_advance.y as f32),
-            kind: kind.into(),
+            kind: (*kind).into(),
         }
     }
 
-    fn advance(&self, target_pos: f32, range_idx: &mut usize, cur_range: &mut &'a GradientRange) {
-        while target_pos > cur_range.x1 || target_pos < cur_range.x0 {
-            if *range_idx == 0 {
-                *range_idx = self.gradient.ranges.len() - 1;
-            } else {
-                *range_idx -= 1;
-            }
+    
 
-            *cur_range = &self.gradient.ranges[*range_idx];
-        }
-    }
-
-    pub(super) fn run<T: Type>(mut self, target: &mut [T::Scalar]) {
-        self.cur_ranges = vec![(0, &self.gradient.ranges[0]); T::Float::LENGTH];
+    pub(super) fn run(mut self, target: &mut [S::Scalar]) {
+        self.cur_ranges = vec![(0, &self.gradient.ranges[0]); 16];
         
-        if T::IS_FLOAT {
+        if S::IS_FLOAT {
             target
                 .chunks_exact_mut(64)
                 .for_each(|column| {
-                    self.run_float::<T>(column);
+                    self.run_float(column);
                     
                     self.cur_pos += self.gradient.x_advance * 4.0;
                 });
@@ -86,60 +86,63 @@ impl<'a, T: Float> GradientFiller<'a, T> {
         }
     }
 
-    fn run_float<T: Type>(&mut self, target: &mut [T::Scalar]) {
+    fn run_float(&mut self, target: &mut [S::Scalar]) {
         let pad = self.gradient.pad;
-        let (x_pos, y_pos) = T::Float::splat_col_pos(
+        let (x_pos, y_pos) = S::Float::splat_col_pos(
             (self.cur_pos.x as f32, self.cur_pos.y as f32),
             self.x_advances,
             self.y_advances,
         );
         
-        let t_vals = self.kind.cur_pos(x_pos, y_pos);
+        let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
+        t_vals.store(&mut self.stored_t_vals);
         
-        let t = 
-
-        for pixel in col.chunks_exact_mut(T::LENGTH) {
-            let res = self.single::<T::Float>(&pos, pad);
-            let converted = T::from_float(&[res]);
-            converted.store(pixel);
-
-            self.idx += T::Float::LENGTH / COLOR_COMPONENTS;
+        for ((((target_pos, (idx, range)), c0), x0), factors) in self.stored_t_vals.iter()
+            .zip(self.cur_ranges.iter_mut())
+            .zip(self.c0.chunks_exact_mut(4))
+            .zip(self.x0.chunks_exact_mut(4))
+            .zip(self.factors.chunks_exact_mut(4))
+        {
+            advance(*target_pos, idx, range, c0, x0, factors, &self.gradient.ranges);
         }
-    }
+        
+        for ((((t, c0), x0), factors), target) in self.stored_t_vals.chunks_exact(S::LENGTH)
+            .zip(self.c0.chunks_exact(S::LENGTH))
+            .zip(self.x0.chunks_exact(S::LENGTH))
+            .zip(self.factors.chunks_exact(S::LENGTH))
+            .zip(target.chunks_exact_mut(S::LENGTH)) {
+            let x0 = S::Float::load(x0);
+            let c0 = S::Float::load(c0);
+            let factors = S::Float::load(factors);
+            let t = S::Float::load(t);
 
-    // fn run_column_integer<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
-    //     let pad = self.gradient.pad;
-    // 
-    //     for part in storage.chunks_exact_mut(T::Float::LENGTH) {
-    //         let pos = self.calc_pos();
-    //         let res = self.single::<T::Float>(&pos, pad);
-    //         res.store(part);
-    // 
-    //         self.idx += T::Float::LENGTH / COLOR_COMPONENTS;
-    //     }
-    // 
-    //     T::load_f32_many(storage).store(col);
-    // }
-
-    #[inline(always)]
-    fn single<T: Float>(&mut self, pos: &Point, pad: bool) -> T {
-        let dist = extend(self.kind.cur_pos(*pos), pad);
-        self.advance(dist);
-
-        let dist = T::splat(dist);
-        let range = self.cur_range;
-        let x0 = T::splat(range.x0);
-        let factors = T::load(&range.factors_f32);
-        let c0 = T::load(&range.c0.as_premul_f32().components);
-
-        let factor = factors * (dist - x0);
-        c0 + factor
+            let factor = factors * (t - x0);
+            let added = c0 + factor;
+            let converted = S::from_float(&[added]);
+            converted.store(target);
+        }
     }
 }
 
-impl<F: Type, T: GradientLike> Painter<F> for GradientFiller<'_, T> {
+fn advance<'a>(target_pos: f32, range_idx: &mut usize, cur_range: &mut &'a GradientRange, c0: &mut [f32], x0: &mut [f32], factors: &mut [f32], ranges: &'a [GradientRange]) {
+    while target_pos > cur_range.x1 || target_pos < cur_range.x0 {
+        if *range_idx == 0 {
+            *range_idx = ranges.len() - 1;
+        } else {
+            *range_idx -= 1;
+        }
+
+        *cur_range = &ranges[*range_idx];
+        c0.copy_from_slice(&cur_range.c0.as_premul_f32().components);
+        factors.copy_from_slice(&cur_range.factors_f32);
+        let x0_n = cur_range.x0;
+        x0.copy_from_slice(&[x0_n; 4]);
+    }
+}
+
+impl<F: Type> Painter<F> for GradientFiller<'_, F> {
     fn paint(self, target: &mut [F::Scalar]) {
-        self.run::<F>(target);
+        self.run(target);
     }
 }
 
@@ -147,14 +150,6 @@ pub(crate) fn extend<T: Float>(mut val: T, pad: bool) -> T {
     if pad {
         val
     } else {
-        while val < 0.0 {
-            val = 1.0;
-        }
-
-        while val > 1.0 {
-            val -= 1.0;
-        }
-
-        val
+        (val - val.floor()).fract()
     }
 }
