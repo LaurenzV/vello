@@ -216,6 +216,15 @@ impl Float for f32x4 {
             self.0[3].abs(),
         ])
     }
+    #[inline(always)]
+    fn floor(self) -> Self {
+        f32x4([
+            self.0[0].floor(),
+            self.0[1].floor(),
+            self.0[2].floor(),
+            self.0[3].floor(),
+        ])
+    }
 
     #[inline(always)]
     fn splat_col_pos(pos: (f32, f32), _: (f32, f32), y_advance: (f32, f32)) -> (Self, Self) {

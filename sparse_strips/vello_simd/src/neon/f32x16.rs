@@ -208,6 +208,14 @@ impl Float for f32x16 {
     }
 
     #[inline(always)]
+    fn floor(mut self) -> Self {
+        self.0 = self.0.floor();
+        self.1 = self.1.floor();
+
+        self
+    }
+
+    #[inline(always)]
     fn splat_col_pos(
         pos: (f32, f32),
         x_advance: (f32, f32),

@@ -97,6 +97,11 @@ impl f32x4 {
     }
 
     #[inline(always)]
+    pub(crate) fn floor(self) -> Self {
+        unsafe { Self(vrndmq_f32(self.0)) }
+    }
+
+    #[inline(always)]
     pub(crate) fn splat_4th_element(self) -> Self {
         unsafe {
             let z0 = vzip2q_f32(self.0, self.0);

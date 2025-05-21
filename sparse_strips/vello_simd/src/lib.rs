@@ -137,6 +137,7 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;
     fn abs(self) -> Self;
+    fn floor(self) -> Self;
 
     #[inline(always)]
     fn mul_add(self, other1: Self, other2: Self) -> Self {
