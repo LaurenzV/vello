@@ -6,7 +6,7 @@
 #[macro_export]
 macro_rules! arith_ops {
     ($name:ident) => {
-        impl Add for $name {
+        impl core::ops::Add for $name {
             type Output = Self;
 
             #[inline(always)]
@@ -18,7 +18,7 @@ macro_rules! arith_ops {
             }
         }
 
-        impl Mul for $name {
+        impl core::ops::Mul for $name {
             type Output = Self;
 
             #[inline(always)]
@@ -30,7 +30,7 @@ macro_rules! arith_ops {
             }
         }
 
-        impl Sub for $name {
+        impl core::ops::Sub for $name {
             type Output = Self;
 
             #[inline(always)]
