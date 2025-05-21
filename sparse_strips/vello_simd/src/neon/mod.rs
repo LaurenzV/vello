@@ -1,5 +1,6 @@
 mod f32x4;
 mod f32x8;
+mod f32x16;
 mod u8x16;
 mod u8x32;
 mod u8x64;
