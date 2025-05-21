@@ -1,4 +1,3 @@
-use criterion::Bencher;
 use std::time::{Duration, Instant};
 use vello_common::color::palette::css::ROYAL_BLUE;
 use vello_common::encode::EncodedPaint;
@@ -21,7 +20,7 @@ fn main() {
     let u8_32 = u32::from_ne_bytes(u8_arr);
     let blend_mode = BlendMode::new(Mix::Normal, Compose::SrcOver);
     let mut blend_buf_u8 = vec![0u8; SCRATCH_BUF_SIZE];
-    let mut blend_buf_f32 = vec![0.0f32; SCRATCH_BUF_SIZE];
+    let blend_buf_f32 = vec![0.0f32; SCRATCH_BUF_SIZE];
 
     let max_duration = 3000;
 
