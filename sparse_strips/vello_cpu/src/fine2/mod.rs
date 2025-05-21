@@ -5,6 +5,7 @@
 //! of each pixel and pack it into the pixmap.
 
 mod rounded_blurred_rect;
+mod gradient;
 
 use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::scalar::div_255;

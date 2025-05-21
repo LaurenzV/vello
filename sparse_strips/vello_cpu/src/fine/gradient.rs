@@ -75,11 +75,11 @@ impl<'a, T: GradientLike> GradientFiller<'a, T> {
 
     fn run_column<F: FineType>(&mut self, col: &mut [F]) {
         let pad = self.gradient.pad;
-        let extend = |val| extend(val, pad, self.gradient.clamp_range);
+        let extend = |val| extend(val, pad);
         let mut pos = self.cur_pos;
 
         for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
-            let dist = extend(self.kind.cur_pos(&pos));
+            let dist = extend(self.kind.cur_pos(pos));
             self.advance(dist);
             let range = self.cur_range;
             let c0 = range.c0.as_premul_f32().components;
@@ -103,7 +103,7 @@ impl<'a, T: GradientLike> GradientFiller<'a, T> {
                 for pixel in column.chunks_exact_mut(COLOR_COMPONENTS) {
                     let actual_pos = pos;
 
-                    if !self.kind.is_defined(&actual_pos) {
+                    if !self.kind.is_defined(actual_pos) {
                         pixel.copy_from_slice(&[F::ZERO, F::ZERO, F::ZERO, F::ZERO]);
                     }
 
@@ -121,21 +121,18 @@ impl<T: GradientLike> Painter for GradientFiller<'_, T> {
     }
 }
 
-pub(crate) fn extend(mut val: f32, pad: bool, clamp_range: (f32, f32)) -> f32 {
-    let start = clamp_range.0;
-    let end = clamp_range.1;
-
+pub(crate) fn extend(mut val: f32, pad: bool) -> f32 {
     if pad {
         val
     } else {
         // Avoid using modulo here because it's slower.
 
-        while val < start {
-            val += end - start;
+        while val < 0.0 {
+            val += 1.0;
         }
 
-        while val > end {
-            val -= end - start;
+        while val > 1.0 {
+            val -= 1.0;
         }
 
         val

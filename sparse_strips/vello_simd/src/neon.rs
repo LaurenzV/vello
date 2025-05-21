@@ -329,6 +329,10 @@ impl Type for f32x8 {
     fn load_alphas_f32(src: &[f32]) -> Self {
         Self(f32x4::splat(src[0]), f32x4::splat(src[1]))
     }
+
+    fn load_f32_many(src: &[f32]) -> Self {
+        todo!()
+    }
 }
 
 impl Widened<f32x8> for f32x8 {
@@ -930,6 +934,10 @@ impl Type for u8x64 {
 
     #[inline(always)]
     fn load_alphas_f32(src: &[f32]) -> Self {
+        todo!()
+    }
+
+    fn load_f32_many(src: &[f32]) -> Self {
         todo!()
     }
 }

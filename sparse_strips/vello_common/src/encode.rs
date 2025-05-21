@@ -8,6 +8,7 @@ use crate::color::palette::css::BLACK;
 use crate::color::{ColorSpaceTag, HueDirection, Srgb, gradient};
 use crate::kurbo::{Affine, Point, Vec2};
 use crate::math::compute_erf7;
+use crate::paint::{Image, IndexedPaint, Paint, PremulColor};
 use crate::peniko::{ColorStop, Extend, Gradient, GradientKind, ImageQuality};
 use crate::pixmap::Pixmap;
 use alloc::borrow::Cow;
@@ -16,7 +17,6 @@ use alloc::vec::Vec;
 use core::f32::consts::PI;
 use core::iter;
 use smallvec::SmallVec;
-use vello_api::paint::{Image, IndexedPaint, Paint, PremulColor};
 
 const DEGENERATE_THRESHOLD: f32 = 1.0e-6;
 const NUDGE_VAL: f32 = 1.0e-7;
@@ -44,10 +44,6 @@ impl EncodeExt for Gradient {
         // one of the points of the gradient lands on the origin (0, 0). We do this because
         // it makes things simpler and allows for some optimizations for certain calculations.
         let (x_offset, y_offset);
-        // The start/end range of the color line. We use this to resolve the extend of the gradient.
-        // Currently radial gradients uses normalized values between 0.0 and 1.0, for sweep and
-        // linear gradients different values are used (TODO: Would be nice to make this more consistent).
-        let mut clamp_range = (0.0, 1.0);
 
         let kind = match self.kind {
             GradientKind::Linear { start, end } => {
@@ -114,10 +110,11 @@ impl EncodeExt for Gradient {
                 // y_1 and x_1 are both 0.
 
                 let end_val = (dx * dx + dy * dy).sqrt();
-                clamp_range = (0.0, end_val);
 
                 EncodedKind::Linear(LinearKind {
-                    distance,
+                    // We store the inverse distance, so that in the function that evaluates the
+                    // position, we can do a multiplication instead of having to do a division.
+                    inv_distance: 1.0 / (distance * end_val),
                     y2_minus_y1,
                     x2_minus_x1,
                 })
@@ -184,16 +181,13 @@ impl EncodeExt for Gradient {
                 // Make sure the center of the gradient falls on the origin (0, 0).
                 x_offset = -center.x as f32;
                 y_offset = -center.y as f32;
-                clamp_range = (start_angle, end_angle);
 
-                EncodedKind::Sweep(SweepKind)
+                EncodedKind::Sweep(SweepKind { start_angle, angle_delta: end_angle - start_angle } )
             }
         };
 
         let ranges = encode_stops(
             &stops,
-            clamp_range.0,
-            clamp_range.1,
             pad,
             self.interpolation_cs,
             self.hue_direction,
@@ -231,7 +225,6 @@ impl EncodeExt for Gradient {
             ranges,
             pad,
             has_opacities,
-            clamp_range,
         };
 
         let idx = paints.len();
@@ -347,15 +340,13 @@ fn apply_reflect(stops: &[ColorStop]) -> SmallVec<[ColorStop; 4]> {
 /// Encode all stops into a sequence of ranges.
 fn encode_stops(
     stops: &[ColorStop],
-    start: f32,
-    end: f32,
     pad: bool,
     cs: ColorSpaceTag,
     hue_dir: HueDirection,
 ) -> Vec<GradientRange> {
     struct EncodedColorStop {
         offset: f32,
-        color: vello_api::color::PremulColor<Srgb>,
+        color: crate::color::PremulColor<Srgb>,
     }
 
     // Create additional (SRGB-encoded) stops in-between to approximate the color space we want to
@@ -387,8 +378,8 @@ fn encode_stops(
             color
         };
 
-        let x0 = start + (end - start) * left_stop.offset;
-        let x1 = start + (end - start) * right_stop.offset;
+        let x0 = left_stop.offset;
+        let x1 = right_stop.offset;
         let c0 = clamp(left_stop.color.components);
         let c1 = clamp(right_stop.color.components);
 
@@ -536,7 +527,7 @@ pub struct EncodedImage {
 /// Computed properties of a linear gradient.
 #[derive(Debug)]
 pub struct LinearKind {
-    distance: f32,
+    inv_distance: f32,
     y2_minus_y1: f32,
     x2_minus_x1: f32,
 }
@@ -551,7 +542,7 @@ pub struct RadialKind {
 }
 
 impl RadialKind {
-    fn pos_inner(&self, pos: &Point) -> Option<f32> {
+    fn pos_inner(&self, pos: Point) -> Option<f32> {
         // The values for a radial gradient can be calculated for any t as follow:
         // Let x(t) = (x_1 - x_0)*t + x_0 (since x_0 is always 0, this shortens to x_1 * t)
         // Let y(t) = (y_1 - y_0)*t + y_0 (since y_0 is always 0, this shortens to y_1 * t)
@@ -605,7 +596,10 @@ impl RadialKind {
 
 /// Computed properties of a sweep gradient.
 #[derive(Debug)]
-pub struct SweepKind;
+pub struct SweepKind {
+    start_angle: f32,
+    angle_delta: f32,
+}
 
 /// A kind of encoded gradient.
 #[derive(Debug)]
@@ -635,8 +629,6 @@ pub struct EncodedGradient {
     pub pad: bool,
     /// Whether the gradient requires `source_over` compositing.
     pub has_opacities: bool,
-    /// The values that should be used for clamping when applying the extend.
-    pub clamp_range: (f32, f32),
 }
 
 /// An encoded ange between two color stops.
@@ -655,53 +647,53 @@ pub struct GradientRange {
 /// Sampling positions in a gradient.
 pub trait GradientLike {
     /// Given a position, return the position on the gradient range.
-    fn cur_pos(&self, pos: &Point) -> f32;
+    fn cur_pos(&self, pos: Point) -> f32;
     /// Whether the gradient is possibly not defined over the whole domain of points.
     fn has_undefined(&self) -> bool;
     /// Whether the current position is defined in the gradient. If `has_undefined` returns `false`,
     /// this will return false for all possible points.
-    fn is_defined(&self, pos: &Point) -> bool;
+    fn is_defined(&self, pos: Point) -> bool;
 }
 
 impl GradientLike for SweepKind {
-    fn cur_pos(&self, pos: &Point) -> f32 {
+    fn cur_pos(&self, pos: Point) -> f32 {
         // The position in a sweep gradient is simply determined by its angle from the origin.
         let angle = (-pos.y as f32).atan2(pos.x as f32);
-
-        if angle >= 0.0 {
+        
+        let adjusted_angle = if angle >= 0.0 {
             angle
         } else {
             angle + 2.0 * PI
-        }
+        };
+
+        (adjusted_angle - self.start_angle) / self.angle_delta
     }
 
     fn has_undefined(&self) -> bool {
         false
     }
 
-    fn is_defined(&self, _: &Point) -> bool {
+    fn is_defined(&self, _: Point) -> bool {
         true
     }
 }
 
 impl GradientLike for LinearKind {
-    fn cur_pos(&self, pos: &Point) -> f32 {
-        // The position of a point relative to a linear gradient is determined by its distance
-        // to the normal vector. See `encode_into` for more information.
-        (pos.x as f32 * self.y2_minus_y1 - pos.y as f32 * self.x2_minus_x1) / self.distance
+    fn cur_pos(&self, pos: Point) -> f32 {
+        (pos.x as f32 * self.y2_minus_y1 - pos.y as f32 * self.x2_minus_x1) * self.inv_distance
     }
 
     fn has_undefined(&self) -> bool {
         false
     }
 
-    fn is_defined(&self, _: &Point) -> bool {
+    fn is_defined(&self, _: Point) -> bool {
         true
     }
 }
 
 impl GradientLike for RadialKind {
-    fn cur_pos(&self, pos: &Point) -> f32 {
+    fn cur_pos(&self, pos: Point) -> f32 {
         self.pos_inner(pos).unwrap_or(0.0)
     }
 
@@ -709,7 +701,7 @@ impl GradientLike for RadialKind {
         self.cone_like
     }
 
-    fn is_defined(&self, pos: &Point) -> bool {
+    fn is_defined(&self, pos: Point) -> bool {
         self.pos_inner(pos).is_some()
     }
 }
@@ -833,11 +825,10 @@ mod tests {
     use super::{EncodeExt, Gradient};
     use crate::color::DynamicColor;
     use crate::color::palette::css::{BLACK, BLUE, GREEN};
-    use crate::kurbo::Point;
+    use crate::kurbo::{Affine, Point};
     use crate::peniko::{ColorStop, ColorStops, GradientKind};
     use alloc::vec;
     use smallvec::smallvec;
-    use vello_api::kurbo::Affine;
 
     #[test]
     fn gradient_missing_stops() {

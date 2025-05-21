@@ -208,6 +208,11 @@ impl Type for f32x4 {
     fn load_alphas_f32(src: &[f32]) -> Self {
         Self([src[0], src[0], src[0], src[0]])
     }
+
+    #[inline(always)]
+    fn load_f32_many(src: &[f32]) -> Self {
+        Self::load(src)
+    }
 }
 
 impl Convertible<f32x4> for f32x4 {
@@ -444,6 +449,17 @@ impl Type for u8x16 {
             c(src[3]),
             c(src[3]),
         ])
+    }
+
+    fn load_f32_many(src: &[f32]) -> Self {
+        let src: &[f32; 16] = src.try_into().unwrap();
+        let mut storage = [0u8; 16];
+        
+        for i in 0..16 {
+            storage[i] = (src[i] * 255.0 + 0.5) as u8;
+        }
+        
+        Self(storage)
     }
 
     #[inline(always)]
