@@ -1,7 +1,4 @@
-use crate::fallback::u8x16::u8x16;
-use crate::fallback::u8x32::u8x32;
-use crate::fallback::u8x64::u8x64;
-use crate::{Base, ColorLike, Convertible, Float, Type, Widened};
+use crate::{Base, ColorLike, Float, Type, Widened};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
@@ -175,37 +172,6 @@ impl Type for f32x4 {
     }
 
     const IS_FLOAT: bool = true;
-}
-
-impl Convertible<f32x4> for f32x4 {
-    #[inline(always)]
-    fn convert(val: &[f32]) -> Self {
-        Self::load(val)
-    }
-}
-
-impl Convertible<u8x16> for f32x4 {
-    #[inline(always)]
-    fn convert(val: &[u8]) -> Self {
-        f32x4([
-            val[0] as f32 / 255.0,
-            val[1] as f32 / 255.0,
-            val[2] as f32 / 255.0,
-            val[3] as f32 / 255.0,
-        ])
-    }
-}
-
-impl Convertible<u8x32> for f32x4 {
-    fn convert(val: &[u8]) -> Self {
-        todo!()
-    }
-}
-
-impl Convertible<u8x64> for f32x4 {
-    fn convert(val: &[u8]) -> Self {
-        todo!()
-    }
 }
 
 impl Widened<f32x4> for f32x4 {
