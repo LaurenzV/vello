@@ -45,6 +45,7 @@ fn div_255(input: uint16x8_t) -> uint16x8_t {
     }
 }
 
+#[inline(always)]
 fn splat_col_pos(pos: (f32, f32), advance: (f32, f32)) -> (float32x4_t, float32x4_t) {
     unsafe {
         let column_mask = vld1q_f32([0.0, 1.0, 2.0, 3.0].as_ptr());

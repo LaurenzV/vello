@@ -106,7 +106,7 @@ impl<'a, S: Type> GradientFiller<'a, S> {
             advance(*target_pos, idx, range, c0, x0, factors, &self.gradient.ranges);
         }
         
-        for ((((t, c0), x0), factors), target) in self.stored_t_vals.chunks_exact(S::LENGTH)
+        for ((((t, c0), x0), factors), target) in self.stored_t_vals.chunks_exact(4)
             .zip(self.c0.chunks_exact(S::LENGTH))
             .zip(self.x0.chunks_exact(S::LENGTH))
             .zip(self.factors.chunks_exact(S::LENGTH))
@@ -114,7 +114,7 @@ impl<'a, S: Type> GradientFiller<'a, S> {
             let x0 = S::Float::load(x0);
             let c0 = S::Float::load(c0);
             let factors = S::Float::load(factors);
-            let t = S::Float::load(t);
+            let t = S::Float::load_alphas_f32(t);
 
             let factor = factors * (t - x0);
             let added = c0 + factor;
@@ -124,6 +124,7 @@ impl<'a, S: Type> GradientFiller<'a, S> {
     }
 }
 
+#[inline]
 fn advance<'a>(target_pos: f32, range_idx: &mut usize, cur_range: &mut &'a GradientRange, c0: &mut [f32], x0: &mut [f32], factors: &mut [f32], ranges: &'a [GradientRange]) {
     while target_pos > cur_range.x1 || target_pos < cur_range.x0 {
         if *range_idx == 0 {
@@ -146,6 +147,7 @@ impl<F: Type> Painter<F> for GradientFiller<'_, F> {
     }
 }
 
+#[inline]
 pub(crate) fn extend<T: Float>(mut val: T, pad: bool) -> T {
     if pad {
         val
