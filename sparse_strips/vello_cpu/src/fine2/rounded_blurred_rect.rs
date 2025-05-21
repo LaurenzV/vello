@@ -108,7 +108,7 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let calc_pos = |idx: usize| {
-            let col_idx = idx / (Tile::HEIGHT as usize);
+            let col_idx = idx >> (Tile::HEIGHT.trailing_zeros() as usize);
             let row_idx = idx & (Tile::HEIGHT as usize - 1);
 
             self.start_pos + self.x_advance * col_idx as f64 + self.y_advance * row_idx as f64
