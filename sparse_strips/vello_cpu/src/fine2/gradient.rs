@@ -134,11 +134,12 @@ fn advance<'a>(target_pos: f32, range_idx: &mut usize, cur_range: &mut &'a Gradi
         }
 
         *cur_range = &ranges[*range_idx];
-        c0.copy_from_slice(&cur_range.c0.as_premul_f32().components);
-        factors.copy_from_slice(&cur_range.factors_f32);
-        let x0_n = cur_range.x0;
-        x0.copy_from_slice(&[x0_n; 4]);
     }
+
+    c0.copy_from_slice(&cur_range.c0.as_premul_f32().components);
+    factors.copy_from_slice(&cur_range.factors_f32);
+    let x0_n = cur_range.x0;
+    x0.copy_from_slice(&[x0_n; 4]);
 }
 
 impl<F: Type> Painter<F> for GradientFiller<'_, F> {
