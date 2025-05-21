@@ -6,6 +6,7 @@ use crate::{
 };
 use bytemuck::cast_slice;
 use std::arch::aarch64::*;
+use crate::neon::f32x16::f32x16;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct u8x64(u8x32, u8x32);
@@ -17,7 +18,7 @@ impl Base for u8x64 {}
 impl Type for u8x64 {
     type Scalar = u8;
     type Widened = u16x64;
-    type Float = f32x8;
+    type Float = f32x16;
 
     const LENGTH: usize = 64;
 
@@ -199,9 +200,9 @@ impl Type for u8x64 {
 
     #[inline(always)]
     fn from_float(f: &[Self::Float]) -> Self {
-        let f: &[f32x8; 2] = f.try_into().unwrap();
+        let f: &[f32x16; 1] = f.try_into().unwrap();
         let mut stored = [u8x16::splat(0); 4];
-        let ordered = [f[0].0, f[0].1, f[1].0, f[1].1];
+        let ordered = [f[0].0.0, f[0].0.1, f[0].1.0, f[0].1.1];
 
         unsafe {
             for (f, stored) in ordered.iter().zip(stored.iter_mut()) {

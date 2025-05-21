@@ -2,6 +2,7 @@ use crate::fallback::f32x4::f32x4;
 use crate::fallback::u8x16::{u8x16, u16x16};
 use crate::{Base, ColorLike, Type, Widened};
 use std::ops::{Add, Mul, Sub};
+use crate::fallback::f32x8::f32x8;
 
 #[derive(Copy, Clone, Debug)]
 pub struct u8x32(u8x16, u8x16);
@@ -47,7 +48,7 @@ impl Base for u8x32 {}
 impl Type for u8x32 {
     type Scalar = u8;
     type Widened = u16x32;
-    type Float = f32x4;
+    type Float = f32x8;
     const IS_FLOAT: bool = false;
 
     const LENGTH: usize = 32;
@@ -144,7 +145,7 @@ impl Type for u8x32 {
 
     #[inline(always)]
     fn from_float(f: &[Self::Float]) -> Self {
-        Self(u8x16::from_float(&f[0..1]), u8x16::from_float(&f[1..2]))
+        Self(u8x16::from_float(&[f[0].0]), u8x16::from_float(&[f[0].1]))
     }
 }
 

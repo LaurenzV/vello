@@ -3,7 +3,7 @@ use crate::{Base, ColorLike, Float, Type, Widened};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
-pub struct f32x8(f32x4, f32x4);
+pub struct f32x8(pub(crate) f32x4, pub(crate) f32x4);
 
 impl Add for f32x8 {
     type Output = Self;

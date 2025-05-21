@@ -82,7 +82,13 @@ impl<'a, S: Type> GradientFiller<'a, S> {
                     self.cur_pos += self.gradient.x_advance * 4.0;
                 });
         } else {
-            unimplemented!()
+            target
+                .chunks_exact_mut(64)
+                .for_each(|column| {
+                    self.run_integer(column);
+
+                    self.cur_pos += self.gradient.x_advance * 4.0;
+                });
         }
     }
 
@@ -121,6 +127,47 @@ impl<'a, S: Type> GradientFiller<'a, S> {
             let converted = S::from_float(&[added]);
             converted.store(target);
         }
+    }
+
+    fn run_integer(&mut self, target: &mut [S::Scalar]) {
+        let pad = self.gradient.pad;
+        let (x_pos, y_pos) = S::Float::splat_col_pos(
+            (self.cur_pos.x as f32, self.cur_pos.y as f32),
+            self.x_advances,
+            self.y_advances,
+        );
+
+        let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
+        t_vals.store(&mut self.stored_t_vals);
+
+        for ((((target_pos, (idx, range)), c0), x0), factors) in self.stored_t_vals.iter()
+            .zip(self.cur_ranges.iter_mut())
+            .zip(self.c0.chunks_exact_mut(4))
+            .zip(self.x0.chunks_exact_mut(4))
+            .zip(self.factors.chunks_exact_mut(4))
+        {
+            advance(*target_pos, idx, range, c0, x0, factors, &self.gradient.ranges);
+        }
+        
+        let mut converted = vec![];
+
+        for ((((t, c0), x0), factors), target) in self.stored_t_vals.chunks_exact(16)
+            .zip(self.c0.chunks_exact(S::LENGTH))
+            .zip(self.x0.chunks_exact(S::LENGTH))
+            .zip(self.factors.chunks_exact(S::LENGTH))
+            .zip(target.chunks_exact_mut(S::LENGTH)) {
+            let x0 = S::Float::load(x0);
+            let c0 = S::Float::load(c0);
+            let factors = S::Float::load(factors);
+            let t = S::Float::load_alphas_f32(t);
+
+            let factor = factors * (t - x0);
+            let added = c0 + factor;
+            converted.push(added);
+        }
+        
+        let res = S::from_float(&converted);
+        res.store(target);
     }
 }
 
