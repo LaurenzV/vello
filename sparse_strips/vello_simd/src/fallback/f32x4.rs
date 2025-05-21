@@ -1,6 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 use crate::{Base, ColorLike, Convertible, Float, Type, Widened};
 use crate::fallback::u8x16::u8x16;
+use crate::fallback::u8x32::u8x32;
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4(pub(crate) [f32; 4]);
@@ -191,6 +192,12 @@ impl Convertible<u8x16> for f32x4 {
             val[2] as f32 / 255.0,
             val[3] as f32 / 255.0,
         ])
+    }
+}
+
+impl Convertible<u8x32> for f32x4 {
+    fn convert(val: &[u8]) -> Self {
+        todo!()
     }
 }
 

@@ -92,6 +92,7 @@ impl Type for u8x16 {
         ])
     }
 
+    #[inline(always)]
     fn load_f32_many(src: &[f32]) -> Self {
         let src: &[f32; 16] = src.try_into().unwrap();
         let mut storage = [0u8; 16];
