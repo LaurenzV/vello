@@ -44,15 +44,39 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
     pub(super) fn run<T: Type>(mut self, target: &mut [T::Scalar]) {
         let mut storage = vec![0.0f32; 16];
         
-        target
-            .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
-            .for_each(|column| {
-                self.run_column::<T>(column, &mut storage);
-                self.cur_pos += self.gradient.x_advance;
-            });
+        if T::IS_FLOAT {
+            target
+                .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
+                .for_each(|column| {
+                    self.run_column_float::<T>(column, &mut storage);
+                    
+                    self.cur_pos += self.gradient.x_advance;
+                });
+        }   else {
+            target
+                .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
+                .for_each(|column| {
+                    self.run_column_integer::<T>(column, &mut storage);
+                    
+                    self.cur_pos += self.gradient.x_advance;
+                });
+        }
     }
 
-    fn run_column<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
+    fn run_column_float<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
+        let pad = self.gradient.pad;
+        let mut pos = self.cur_pos;
+
+        for pixel in col.chunks_exact_mut(T::LENGTH) {
+            let res = self.single::<T::Float>(&pos, pad);
+            let converted = T::from_float(&[res]);
+            converted.store(pixel);
+
+            pos += self.gradient.y_advance;
+        }
+    }
+
+    fn run_column_integer<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
         let pad = self.gradient.pad;
         let mut pos = self.cur_pos;
         
