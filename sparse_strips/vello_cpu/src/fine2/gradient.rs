@@ -1,4 +1,4 @@
-use std::iter::zip;
+use std::iter::{once, zip};
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use vello_common::encode::{EncodedGradient, GradientLike, GradientRange, LinearKind};
 use vello_common::kurbo::Point;
@@ -151,11 +151,10 @@ impl<'a, S: Type> GradientFiller<'a, S> {
         
         let mut converted = vec![];
 
-        for ((((t, c0), x0), factors), target) in self.stored_t_vals.chunks_exact(16)
-            .zip(self.c0.chunks_exact(S::LENGTH))
-            .zip(self.x0.chunks_exact(S::LENGTH))
-            .zip(self.factors.chunks_exact(S::LENGTH))
-            .zip(target.chunks_exact_mut(S::LENGTH)) {
+        for ((((t, c0), x0), factors)) in self.stored_t_vals.chunks_exact(4)
+            .zip(self.c0.chunks_exact(S::Float::LENGTH))
+            .zip(self.x0.chunks_exact(S::Float::LENGTH))
+            .zip(self.factors.chunks_exact(S::Float::LENGTH)) {
             let x0 = S::Float::load(x0);
             let c0 = S::Float::load(c0);
             let factors = S::Float::load(factors);
