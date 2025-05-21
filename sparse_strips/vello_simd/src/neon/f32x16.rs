@@ -1,9 +1,9 @@
+use crate::neon::f32x4::f32x4;
 use crate::neon::f32x8::f32x8;
 use crate::neon::splat_col_pos;
 use crate::{Base, ColorLike, Float, Type, Widened, arith_ops};
 use std::arch::aarch64::*;
 use std::ops::Div;
-use crate::neon::f32x4::f32x4;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct f32x16(pub(crate) f32x8, pub(crate) f32x8);
@@ -38,7 +38,10 @@ impl Type for f32x16 {
         unsafe {
             let loaded = vld1q_f32_x4(src.as_ptr());
 
-            Self(f32x8(f32x4(loaded.0), f32x4(loaded.1)), f32x8(f32x4(loaded.2), f32x4(loaded.2)))
+            Self(
+                f32x8(f32x4(loaded.0), f32x4(loaded.1)),
+                f32x8(f32x4(loaded.2), f32x4(loaded.3)),
+            )
         }
     }
 
@@ -78,7 +81,7 @@ impl Type for f32x16 {
         let dest: &mut [f32; 16] = dest.try_into().unwrap();
 
         let stored = float32x4x4_t(self.0.0.0, self.0.1.0, self.1.0.0, self.1.1.0);
-        
+
         unsafe { vst1q_f32_x4(dest.as_mut_ptr(), stored) }
     }
 
@@ -154,7 +157,10 @@ impl Type for f32x16 {
 
     #[inline(always)]
     fn load_alphas_f32(src: &[f32]) -> Self {
-        Self(f32x8::load_alphas_f32(&src[0..2]), f32x8::load_alphas_f32(&src[2..4]))
+        Self(
+            f32x8::load_alphas_f32(&src[0..2]),
+            f32x8::load_alphas_f32(&src[2..4]),
+        )
     }
 
     fn load_f32_many(src: &[f32]) -> Self {
@@ -181,7 +187,7 @@ impl Float for f32x16 {
     fn sqrt(mut self) -> Self {
         self.0 = self.0.sqrt();
         self.1 = self.1.sqrt();
-        
+
         self
     }
 
@@ -208,7 +214,11 @@ impl Float for f32x16 {
         y_advance: (f32, f32),
     ) -> (Self, Self) {
         let (f_x, f_y) = f32x8::splat_col_pos(pos, x_advance, y_advance);
-        let (s_x, s_y) = f32x8::splat_col_pos((pos.0 + 2.0 * x_advance.0, pos.1 + 2.0 * x_advance.1), x_advance, y_advance);
+        let (s_x, s_y) = f32x8::splat_col_pos(
+            (pos.0 + 2.0 * x_advance.0, pos.1 + 2.0 * x_advance.1),
+            x_advance,
+            y_advance,
+        );
 
         (Self(f_x, s_x), Self(f_y, s_y))
     }
