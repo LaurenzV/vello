@@ -1,0 +1,233 @@
+use crate::fallback::f32x4::f32x4;
+use crate::{Base, ColorLike, Float, Type, Widened};
+use std::ops::{Add, Div, Mul, Sub};
+
+#[derive(Copy, Clone, Debug)]
+pub struct f32x8(f32x4, f32x4);
+
+impl Add for f32x8 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 + rhs.0;
+        self.1 = self.1 + rhs.1;
+
+        self
+    }
+}
+
+impl Mul for f32x8 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 * rhs.0;
+        self.1 = self.1 * rhs.1;
+
+        self
+    }
+}
+
+impl Sub for f32x8 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 - rhs.0;
+        self.1 = self.1 - rhs.1;
+
+        self
+    }
+}
+
+impl Div for f32x8 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(mut self, rhs: Self) -> Self::Output {
+        self.0 = self.0 / rhs.0;
+        self.1 = self.1 / rhs.1;
+
+        self
+    }
+}
+
+impl Base for f32x8 {}
+
+impl Type for f32x8 {
+    type Widened = Self;
+
+    const LENGTH: usize = 8;
+
+    #[inline(always)]
+    fn load(src: &[f32]) -> Self {
+        Self(f32x4::load(&src[0..4]), f32x4::load(&src[4..8]))
+    }
+
+    #[inline(always)]
+    fn splat_4(src: [f32; 4]) -> Self {
+        Self(f32x4::splat_4(src), f32x4::splat_4(src))
+    }
+
+    #[inline(always)]
+    fn splat(value: f32) -> Self {
+        Self(f32x4::splat(value), f32x4::splat(value))
+    }
+
+    #[inline(always)]
+    fn store(self, dest: &mut [f32]) {
+        self.0.store(&mut dest[0..4]);
+        self.1.store(&mut dest[4..8]);
+    }
+
+    #[inline(always)]
+    fn widen(self) -> Self::Widened {
+        self
+    }
+
+    #[inline(always)]
+    fn normalized_mul(self, other: Self) -> Self {
+        self * other
+    }
+
+    #[inline(always)]
+    fn normalized_mul_add(self, other1: Self, other2: Self) -> Self {
+        self * other1 + other2
+    }
+
+    #[inline(always)]
+    fn normalized_mul_mul_add(self, other1: Self, other2: Self, other3: Self) -> Self {
+        self * other1 + other2 * other3
+    }
+
+    #[inline(always)]
+    fn normalized_mul_sub(self, other1: Self, other2: Self) -> Self {
+        other2 - self * other1
+    }
+
+    #[inline(always)]
+    fn from_normalized_u8(value: u8) -> Self {
+        Self::splat(value as f32 / 255.0)
+    }
+
+    type Scalar = f32;
+
+    #[inline(always)]
+    fn load_alphas(src: &[u8]) -> Self {
+        Self(
+            f32x4::load_alphas(&src[0..1]),
+            f32x4::load_alphas(&src[1..2]),
+        )
+    }
+
+    #[inline(always)]
+    fn splat_color<T: ColorLike>(color: T) -> Self {
+        Self::splat_4(color.to_rgbf32())
+    }
+
+    #[inline(always)]
+    fn splat_alpha<T: ColorLike>(color: T) -> Self {
+        Self::splat(color.to_rgbf32()[3])
+    }
+
+    type Float = Self;
+
+    #[inline(always)]
+    fn min(mut self, other: Self) -> Self {
+        self.0 = self.0.min(other.0);
+        self.1 = self.1.min(other.1);
+
+        self
+    }
+
+    #[inline(always)]
+    fn max(mut self, other: Self) -> Self {
+        self.0 = self.0.max(other.0);
+        self.1 = self.1.max(other.1);
+
+        self
+    }
+
+    #[inline(always)]
+    fn from_float(f: &[Self::Float]) -> Self {
+        f[0]
+    }
+
+    #[inline(always)]
+    fn splat_4th_element(self) -> Self {
+        Self(self.0.splat_4th_element(), self.1.splat_4th_element())
+    }
+
+    #[inline(always)]
+    fn load_alphas_f32(src: &[f32]) -> Self {
+        Self(
+            f32x4::load_alphas_f32(&src[0..1]),
+            f32x4::load_alphas_f32(&src[1..2]),
+        )
+    }
+
+    #[inline(always)]
+    fn load_f32_many(src: &[f32]) -> Self {
+        Self::load(src)
+    }
+
+    const IS_FLOAT: bool = true;
+}
+
+impl Widened<f32x8> for f32x8 {
+    #[inline(always)]
+    fn narrow(self) -> f32x8 {
+        self
+    }
+
+    #[inline(always)]
+    fn normalize(self) -> Self {
+        self
+    }
+}
+
+impl Float for f32x8 {
+    #[inline(always)]
+    fn sqrt(mut self) -> Self {
+        self.0 = self.0.sqrt();
+        self.1 = self.1.sqrt();
+
+        self
+    }
+
+    #[inline(always)]
+    fn powf(mut self, exponent: f32) -> Self {
+        self.0 = self.0.powf(exponent);
+        self.1 = self.1.powf(exponent);
+
+        self
+    }
+
+    #[inline(always)]
+    fn abs(mut self) -> Self {
+        self.0 = self.0.abs();
+        self.1 = self.1.abs();
+
+        self
+    }
+
+    #[inline(always)]
+    fn splat_col_pos(
+        pos: (f32, f32),
+        x_advance: (f32, f32),
+        y_advance: (f32, f32),
+    ) -> (Self, Self) {
+        let first_col = f32x4::splat_col_pos(pos, x_advance, y_advance);
+        let second_col = f32x4::splat_col_pos(
+            (pos.0 + x_advance.0, pos.1 + x_advance.1),
+            x_advance,
+            y_advance,
+        );
+
+        let x_pos = f32x8(first_col.0, second_col.0);
+        let y_pos = f32x8(first_col.1, second_col.1);
+
+        (x_pos, y_pos)
+    }
+}

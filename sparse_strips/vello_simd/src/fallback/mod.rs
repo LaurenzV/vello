@@ -1,4 +1,5 @@
 mod f32x4;
+mod f32x8;
 mod u8x16;
 mod u8x32;
 mod u8x64;
@@ -10,7 +11,7 @@ pub struct Fallback;
 
 impl Simd for Fallback {
     type Integer = u8x64::u8x64;
-    type Float = f32x4::f32x4;
+    type Float = f32x8::f32x8;
 }
 
 impl NumberKind for f32 {
