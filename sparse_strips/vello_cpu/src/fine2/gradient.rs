@@ -1,7 +1,7 @@
 use smallvec::{smallvec, SmallVec};
 use vello_common::encode::{EncodedGradient, GradientLike, GradientRange};
 use vello_common::kurbo::Point;
-use vello_simd::Type;
+use vello_simd::{Float, Type};
 use crate::fine2::{Painter, TILE_HEIGHT_COMPONENTS};
 
 #[derive(Debug)]
@@ -54,22 +54,10 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
 
     fn run_column<T: Type>(&mut self, col: &mut [T::Scalar], storage: &mut [f32]) {
         let pad = self.gradient.pad;
-        let extend = |val| extend(val, pad);
         let mut pos = self.cur_pos;
         
         for pixel in storage.chunks_exact_mut(4) {
-            let dist = extend(self.kind.cur_pos(pos));
-            self.advance(dist);
-            
-            let dist = T::Float::splat(dist);
-            let range = self.cur_range;
-            let x0 = T::Float::splat(range.x0);
-            let factors = T::Float::load(&range.factors_f32);
-            let c0 = T::Float::load(&range.c0.as_premul_f32().components);
-            
-            let factor = factors * (dist - x0);
-            let res = c0 + factor;
-            
+            let res = self.single::<T::Float>(&pos, pad);
             res.store(pixel);
 
             pos += self.gradient.y_advance;
@@ -77,6 +65,21 @@ impl<'a, G: GradientLike> GradientFiller<'a, G> {
 
         T::load_f32_many(storage).store(col);
     }
+    
+    #[inline(always)]
+    fn single<T: Float>(&mut self, pos: &Point, pad: bool) -> T {
+        let dist = extend(self.kind.cur_pos(*pos), pad);
+        self.advance(dist);
+
+        let dist = T::splat(dist);
+        let range = self.cur_range;
+        let x0 = T::splat(range.x0);
+        let factors = T::load(&range.factors_f32);
+        let c0 = T::load(&range.c0.as_premul_f32().components);
+
+        let factor = factors * (dist - x0);
+        c0 + factor
+    } 
 
 }
 

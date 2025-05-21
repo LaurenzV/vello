@@ -213,6 +213,8 @@ impl Type for f32x4 {
     fn load_f32_many(src: &[f32]) -> Self {
         Self::load(src)
     }
+
+    const IS_FLOAT: bool = true;
 }
 
 impl Convertible<f32x4> for f32x4 {
@@ -411,6 +413,7 @@ impl Type for u8x16 {
     type Scalar = u8;
     type Widened = u16x16;
     type Float = f32x4;
+    const IS_FLOAT: bool = false;
 
     const LENGTH: usize = 16;
 

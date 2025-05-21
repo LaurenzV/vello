@@ -333,6 +333,8 @@ impl Type for f32x8 {
     fn load_f32_many(src: &[f32]) -> Self {
         todo!()
     }
+
+    const IS_FLOAT: bool = true;
 }
 
 impl Widened<f32x8> for f32x8 {
@@ -940,6 +942,8 @@ impl Type for u8x64 {
     fn load_f32_many(src: &[f32]) -> Self {
         todo!()
     }
+
+    const IS_FLOAT: bool = false;
 }
 
 #[inline(always)]

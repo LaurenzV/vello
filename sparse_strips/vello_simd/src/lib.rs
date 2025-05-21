@@ -40,6 +40,7 @@ pub trait Type: Base {
     type Widened: Widened<Self>;
     type Float: Float + Convertible<Self>;
 
+    const IS_FLOAT: bool;
     const LENGTH: usize;
 
     fn load(src: &[Self::Scalar]) -> Self;
