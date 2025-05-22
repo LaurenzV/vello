@@ -224,13 +224,13 @@ fn advance(
     let mut range_idx = inner.idx;
     let mut cur_range = &ranges[range_idx];
     
-    while target_pos > cur_range.x1 || target_pos < cur_range.x0 {
-        if range_idx == 0 {
-            range_idx = ranges.len() - 1;
-        } else {
-            range_idx -= 1;
-        }
-
+    while target_pos < cur_range.x0 {
+        range_idx -= 1;
+        cur_range = &ranges[range_idx];
+    }
+    
+    while target_pos >= cur_range.x1 {
+        range_idx += 1;
         cur_range = &ranges[range_idx];
     }
 
