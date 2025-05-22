@@ -1,4 +1,5 @@
 use crate::neon::f32x8::f32x8;
+use crate::neon::f32x16::f32x16;
 use crate::neon::u8x16::u8x16;
 use crate::neon::u8x32::{u8x32, u16x32};
 use crate::{
@@ -6,7 +7,6 @@ use crate::{
 };
 use bytemuck::cast_slice;
 use std::arch::aarch64::*;
-use crate::neon::f32x16::f32x16;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct u8x64(u8x32, u8x32);
@@ -201,8 +201,39 @@ impl Type for u8x64 {
     #[inline(always)]
     fn from_float(f: &[Self::Float]) -> Self {
         let f: &[f32x16; 1] = f.try_into().unwrap();
+        Self::from_float_inner(f[0])
+    }
+
+    #[inline(always)]
+    fn splat_4th_element(mut self) -> Self {
+        self.0 = self.0.splat_4th_element();
+        self.1 = self.1.splat_4th_element();
+
+        self
+    }
+
+    #[inline(always)]
+    fn load_alphas_f32(src: &[f32]) -> Self {
+        let casted: &[f32; 16] = src.try_into().unwrap();
+
+        unsafe {
+            let loaded = f32x16::load(casted);
+            Self::from_float_inner(loaded)
+        }
+    }
+
+    fn load_f32_many(src: &[f32]) -> Self {
+        todo!()
+    }
+
+    const IS_FLOAT: bool = false;
+}
+
+impl u8x64 {
+    #[inline(always)]
+    fn from_float_inner(val: f32x16) -> Self {
         let mut stored = [u8x16::splat(0); 4];
-        let ordered = [f[0].0.0, f[0].0.1, f[0].1.0, f[0].1.1];
+        let ordered = [val.0.0, val.0.1, val.1.0, val.1.1];
 
         unsafe {
             for (f, stored) in ordered.iter().zip(stored.iter_mut()) {
@@ -218,25 +249,6 @@ impl Type for u8x64 {
             u8x64(u8x32(stored[0], stored[1]), u8x32(stored[2], stored[3]))
         }
     }
-
-    #[inline(always)]
-    fn splat_4th_element(mut self) -> Self {
-        self.0 = self.0.splat_4th_element();
-        self.1 = self.1.splat_4th_element();
-
-        self
-    }
-
-    #[inline(always)]
-    fn load_alphas_f32(src: &[f32]) -> Self {
-        todo!()
-    }
-
-    fn load_f32_many(src: &[f32]) -> Self {
-        todo!()
-    }
-
-    const IS_FLOAT: bool = false;
 }
 
 #[derive(Copy, Clone, Debug)]
