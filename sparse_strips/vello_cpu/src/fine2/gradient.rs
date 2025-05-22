@@ -144,8 +144,7 @@ impl<'a, S: Type> GradientFiller<'a, S> {
         {
             let t_vals = S::Float::load_alphas_f32(t);
 
-            let factor = factors * (t_vals - x0);
-            let added = c0 + factor;
+            let added = factors.mul_add(t_vals - x0, c0);
             let converted = S::from_float(&[added]);
             converted.store(target);
         }
