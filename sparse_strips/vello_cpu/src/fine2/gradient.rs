@@ -84,15 +84,35 @@ impl<'a, S: Type> GradientFiller<'a, S> {
     pub(super) fn run(mut self, target: &mut [S::Scalar]) {
         let pad = self.gradient.pad;
         
+        let bl = self.gradient.y_advance * 4.0;
+        let tr = self.gradient.x_advance * 4.0;
+        let br = bl + tr;
+        
         let mut range = InnerRange::new(0, &self.gradient.ranges);
-
+        
         target.chunks_exact_mut(64).for_each(|column| {
-            let next_pos = extend_f32(self.kind.cur_pos_scalar(self.cur_pos), pad);
-            advance(next_pos, &mut range, &self.gradient.ranges);
+            let next_pos = self.kind.cur_pos_scalar(self.cur_pos);
+            let next_pos_extended = extend_f32(next_pos, pad);
+            advance(next_pos_extended, &mut range, &self.gradient.ranges);
+            
+            let bl_pos = self.kind.cur_pos_scalar(self.cur_pos + bl);
+            
+            let check_advance = |start_pos: f32, p2: Point| {
+                let end_pos = self.kind.cur_pos_scalar(p2);
+                let delta = end_pos - next_pos;
+                let to_check = next_pos_extended + delta;
+
+                to_check < range.x0 || to_check >= range.x1
+            };
+            
+            let needs_advance = check_advance(next_pos, self.cur_pos +  br) || check_advance(bl_pos, self.cur_pos + tr);
             
             if S::IS_FLOAT {
-                // self.run_float_range_scalar(column, range);
-                self.run_float_range(column, &range);
+                if needs_advance {
+                    self.run_float_range_scalar(column, range);
+                }   else {
+                    self.run_float_range(column, &range);
+                }
             }   else {
                 self.run_float_range_scalar(column, range);
             }
@@ -162,6 +182,7 @@ impl<'a, S: Type> GradientFiller<'a, S> {
 struct InnerRange {
     idx: usize,
     x0: f32,
+    x1: f32,
     c0: [f32; 4],
     factors: [f32; 4]
 }
@@ -173,6 +194,7 @@ impl InnerRange {
         Self {
             idx,
             x0: range.x0,
+            x1: range.x1,
             c0: range.c0.to_rgbf32(),
             factors: range.factors_f32
         }
