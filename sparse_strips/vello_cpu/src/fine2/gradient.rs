@@ -84,26 +84,21 @@ impl<'a, S: Type> GradientFiller<'a, S> {
     pub(super) fn run(mut self, target: &mut [S::Scalar]) {
         let pad = self.gradient.pad;
         
-        let mut cur_idx = 0;
-        let mut range = InnerRange::new(cur_idx, &self.gradient.ranges);
+        let mut range = InnerRange::new(0, &self.gradient.ranges);
 
-        if S::IS_FLOAT {
-            target.chunks_exact_mut(64).for_each(|column| {
-                // let next_pos = extend_f32(self.kind.cur_pos_scalar(self.cur_pos), pad);
-                // advance(next_pos, &mut cur_idx, &mut range, &self.gradient.ranges);
-                
-                self.run_float_range_scalar(column, cur_idx);
+        target.chunks_exact_mut(64).for_each(|column| {
+            let next_pos = extend_f32(self.kind.cur_pos_scalar(self.cur_pos), pad);
+            advance(next_pos, &mut range, &self.gradient.ranges);
+            
+            if S::IS_FLOAT {
+                // self.run_float_range_scalar(column, range);
+                self.run_float_range(column, &range);
+            }   else {
+                self.run_float_range_scalar(column, range);
+            }
 
-                self.cur_pos += self.gradient.x_advance * 4.0;
-            });
-        } else {
-            unimplemented!();
-            // target.chunks_exact_mut(64).for_each(|column| {
-            //     self.run_integer(column);
-            // 
-            //     self.cur_pos += self.gradient.x_advance * 4.0;
-            // });
-        }
+            self.cur_pos += self.gradient.x_advance * 4.0;
+        });
     }
 
     fn run_float_range(&mut self, target: &mut [S::Scalar], range: &InnerRange) {
@@ -133,10 +128,9 @@ impl<'a, S: Type> GradientFiller<'a, S> {
         }
     }
     
-    fn run_float_range_scalar(&mut self, target: &mut [S::Scalar], range_idx: usize) {
+    fn run_float_range_scalar(&mut self, target: &mut [S::Scalar], mut inner: InnerRange) {
        let pad = self.gradient.pad;
        let mut cur_pos = self.cur_pos;
-       let mut inner = InnerRange::new(range_idx, &self.gradient.ranges);
         
        for col in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
            let mut temp_pos = cur_pos;
@@ -164,6 +158,7 @@ impl<'a, S: Type> GradientFiller<'a, S> {
     }
 }
 
+#[derive(Copy, Clone)]
 struct InnerRange {
     idx: usize,
     x0: f32,
