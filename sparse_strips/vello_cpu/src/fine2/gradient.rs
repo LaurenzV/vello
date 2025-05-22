@@ -88,33 +88,36 @@ impl<'a, S: Type> GradientFiller<'a, S> {
         let tr = self.gradient.x_advance * 4.0;
         let br = bl + tr;
         
-        let mut range = InnerRange::new(0, &self.gradient.ranges);
+        let mut cur_range = InnerRange::new(0, &self.gradient.ranges);
+        let mut bottom_range = InnerRange::new(0, &self.gradient.ranges);
         
         target.chunks_exact_mut(64).for_each(|column| {
-            let next_pos = self.kind.cur_pos_scalar(self.cur_pos);
-            let next_pos_extended = extend_f32(next_pos, pad);
-            advance(next_pos_extended, &mut range, &self.gradient.ranges);
+            let cur_pos = self.kind.cur_pos_scalar(self.cur_pos);
+            let cur_pos_extended = extend_f32(cur_pos, pad);
+            advance(cur_pos_extended, &mut cur_range, &self.gradient.ranges);
             
-            let bl_pos = self.kind.cur_pos_scalar(self.cur_pos + bl);
+            let bot_pos = self.kind.cur_pos_scalar(self.cur_pos + bl);
+            let bot_pos_extended = extend_f32(bot_pos, pad);
+            advance(bot_pos_extended, &mut bottom_range, &self.gradient.ranges);
             
-            let check_advance = |start_pos: f32, p2: Point| {
-                let end_pos = self.kind.cur_pos_scalar(p2);
-                let delta = end_pos - next_pos;
-                let to_check = next_pos_extended + delta;
+            fn check_advance(cur_pos: f32, cur_pos_extended: f32, end_pos: f32, cur_range: &InnerRange) -> bool {
+                let delta = end_pos - cur_pos;
+                let to_check = cur_pos_extended + delta;
 
-                to_check < range.x0 || to_check >= range.x1
-            };
+                to_check < cur_range.x0 || to_check >= cur_range.x1
+            }
             
-            let needs_advance = check_advance(next_pos, self.cur_pos +  br) || check_advance(bl_pos, self.cur_pos + tr);
+            let tlbr_advance = check_advance(cur_pos, cur_pos_extended, self.kind.cur_pos_scalar(self.cur_pos +  br), &cur_range);
+            let bltr_advance = check_advance(bot_pos, bot_pos_extended, self.kind.cur_pos_scalar(self.cur_pos +  tr), &bottom_range);
             
             if S::IS_FLOAT {
-                if needs_advance {
-                    self.run_float_range_scalar(column, range);
+                if tlbr_advance || bltr_advance {
+                    self.run_float_range_scalar(column, cur_range);
                 }   else {
-                    self.run_float_range(column, &range);
+                    self.run_float_range(column, &cur_range);
                 }
             }   else {
-                self.run_float_range_scalar(column, range);
+                self.run_float_range_scalar(column, cur_range);
             }
 
             self.cur_pos += self.gradient.x_advance * 4.0;
