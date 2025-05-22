@@ -42,6 +42,7 @@ pub struct Fine<N: Type> {
     pub(crate) wide_coords: (u16, u16),
     pub(crate) blend_buf: Vec<ScratchBuf<N::Scalar>>,
     pub(crate) color_buf: ScratchBuf<N::Scalar>,
+    pub(crate) temp_buf: Vec<f32>,
     phantom_data: PhantomData<N>,
 }
 
@@ -56,6 +57,7 @@ impl<N: Type> Fine<N> {
             wide_coords: (0, 0),
             blend_buf: vec![blend_buf],
             color_buf,
+            temp_buf: vec![0.0; 250],
             phantom_data: PhantomData::default(),
         }
     }
@@ -189,7 +191,7 @@ impl<N: Type> Fine<N> {
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
                         EncodedKind::Linear(l) => {
-                            let filler = GradientFiller::new(g, l, start_x, start_y);
+                            let filler = GradientFiller::new(g, l, &mut self.temp_buf, start_x, start_y);
                             fill_complex_paint::<N>(color_buf, blend_buf, g.has_opacities, filler);
                         }
                         _ => unimplemented!(),
@@ -254,8 +256,8 @@ impl<N: Type> Fine<N> {
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
                         EncodedKind::Linear(l) => {
-                            let fillter = GradientFiller::new(g, l, start_x, start_y);
-                            strip_complex_paint::<N>(color_buf, blend_buf, fillter, alphas);
+                            let filler = GradientFiller::new(g, l, &mut self.temp_buf, start_x, start_y);
+                            strip_complex_paint::<N>(color_buf, blend_buf, filler, alphas);
                         }
                         _ => unimplemented!(),
                     },

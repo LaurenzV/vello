@@ -40,26 +40,33 @@ pub(crate) struct GradientFiller<'a, S: Type> {
     x_advances: (f32, f32),
     y_advances: (f32, f32),
     cur_ranges: Vec<(usize, &'a GradientRange)>,
-    stored_t_vals: Vec<f32>,
-    c0: Vec<f32>,
-    x0: Vec<f32>,
-    factors: Vec<f32>,
+    stored_t_vals: &'a mut [f32; 16],
+    c0: &'a mut [f32; 64],
+    x0: &'a mut [f32; 64],
+    factors: &'a mut [f32; 64],
 }
 
 impl<'a, S: Type> GradientFiller<'a, S> {
     pub(crate) fn new(
         gradient: &'a EncodedGradient,
         kind: &'a LinearKind,
+        temp_buf: &'a mut [f32],
         start_x: u16,
         start_y: u16,
     ) -> Self {
+        let (stored_t_vals, tail) = temp_buf.split_first_chunk_mut::<16>().unwrap();
+        let (c0, tail) = tail.split_first_chunk_mut::<64>().unwrap();
+        let (x0, tail) = tail.split_first_chunk_mut::<64>().unwrap();
+        let (factors, _) = tail.split_first_chunk_mut::<64>().unwrap();
+
+
         Self {
             cur_pos: gradient.transform * Point::new(f64::from(start_x), f64::from(start_y)),
             cur_ranges: vec![],
-            stored_t_vals: vec![0.0; 16],
-            c0: vec![0.0; 64],
-            x0: vec![0.0; 64],
-            factors: vec![0.0; 64],
+            stored_t_vals,
+            c0,
+            x0,
+            factors,
             idx: 0,
             gradient,
             x_advances: (gradient.x_advance.x as f32, gradient.x_advance.y as f32),
@@ -78,11 +85,12 @@ impl<'a, S: Type> GradientFiller<'a, S> {
                 self.cur_pos += self.gradient.x_advance * 4.0;
             });
         } else {
-            target.chunks_exact_mut(64).for_each(|column| {
-                self.run_integer(column);
-
-                self.cur_pos += self.gradient.x_advance * 4.0;
-            });
+            unimplemented!();
+            // target.chunks_exact_mut(64).for_each(|column| {
+            //     self.run_integer(column);
+            // 
+            //     self.cur_pos += self.gradient.x_advance * 4.0;
+            // });
         }
     }
 
@@ -95,7 +103,7 @@ impl<'a, S: Type> GradientFiller<'a, S> {
         );
 
         let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
-        t_vals.store(&mut self.stored_t_vals);
+        t_vals.store(self.stored_t_vals);
 
         for ((((target_pos, (idx, range)), c0), x0), factors) in self
             .stored_t_vals
@@ -136,60 +144,60 @@ impl<'a, S: Type> GradientFiller<'a, S> {
         }
     }
 
-    fn run_integer(&mut self, target: &mut [S::Scalar]) {
-        let pad = self.gradient.pad;
-        let (x_pos, y_pos) = S::Float::splat_col_pos(
-            (self.cur_pos.x as f32, self.cur_pos.y as f32),
-            self.x_advances,
-            self.y_advances,
-        );
-
-        let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
-        t_vals.store(&mut self.stored_t_vals);
-
-        for ((((target_pos, (idx, range)), c0), x0), factors) in self
-            .stored_t_vals
-            .iter()
-            .zip(self.cur_ranges.iter_mut())
-            .zip(self.c0.chunks_exact_mut(4))
-            .zip(self.x0.chunks_exact_mut(4))
-            .zip(self.factors.chunks_exact_mut(4))
-        {
-            advance(
-                *target_pos,
-                idx,
-                range,
-                c0,
-                x0,
-                factors,
-                &self.gradient.ranges,
-            );
-        }
-
-        let mut result_store = vec![0.0f32; S::LENGTH];
-
-        for (((((t, store), c0), x0), factors)) in self
-            .stored_t_vals
-            .chunks_exact(4)
-            .zip(result_store.chunks_exact_mut(S::Float::LENGTH))
-            .zip(self.c0.chunks_exact(S::Float::LENGTH))
-            .zip(self.x0.chunks_exact(S::Float::LENGTH))
-            .zip(self.factors.chunks_exact(S::Float::LENGTH))
-        {
-            let x0 = S::Float::load(x0);
-            let c0 = S::Float::load(c0);
-            let factors = S::Float::load(factors);
-            let t = S::Float::load_alphas_f32(t);
-
-            let factor = factors * (t - x0);
-            let added = c0 + factor;
-
-            added.store(store);
-        }
-
-        let res = S::load_f32_many(&result_store);
-        res.store(target);
-    }
+    // fn run_integer(&mut self, target: &mut [S::Scalar]) {
+    //     let pad = self.gradient.pad;
+    //     let (x_pos, y_pos) = S::Float::splat_col_pos(
+    //         (self.cur_pos.x as f32, self.cur_pos.y as f32),
+    //         self.x_advances,
+    //         self.y_advances,
+    //     );
+    // 
+    //     let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
+    //     t_vals.store(&mut self.stored_t_vals);
+    // 
+    //     for ((((target_pos, (idx, range)), c0), x0), factors) in self
+    //         .stored_t_vals
+    //         .iter()
+    //         .zip(self.cur_ranges.iter_mut())
+    //         .zip(self.c0.chunks_exact_mut(4))
+    //         .zip(self.x0.chunks_exact_mut(4))
+    //         .zip(self.factors.chunks_exact_mut(4))
+    //     {
+    //         advance(
+    //             *target_pos,
+    //             idx,
+    //             range,
+    //             c0,
+    //             x0,
+    //             factors,
+    //             &self.gradient.ranges,
+    //         );
+    //     }
+    // 
+    //     let mut result_store = vec![0.0f32; S::LENGTH];
+    // 
+    //     for (((((t, store), c0), x0), factors)) in self
+    //         .stored_t_vals
+    //         .chunks_exact(4)
+    //         .zip(result_store.chunks_exact_mut(S::Float::LENGTH))
+    //         .zip(self.c0.chunks_exact(S::Float::LENGTH))
+    //         .zip(self.x0.chunks_exact(S::Float::LENGTH))
+    //         .zip(self.factors.chunks_exact(S::Float::LENGTH))
+    //     {
+    //         let x0 = S::Float::load(x0);
+    //         let c0 = S::Float::load(c0);
+    //         let factors = S::Float::load(factors);
+    //         let t = S::Float::load_alphas_f32(t);
+    // 
+    //         let factor = factors * (t - x0);
+    //         let added = c0 + factor;
+    // 
+    //         added.store(store);
+    //     }
+    // 
+    //     let res = S::load_f32_many(&result_store);
+    //     res.store(target);
+    // }
 }
 
 #[inline]
