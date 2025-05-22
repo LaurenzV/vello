@@ -182,16 +182,7 @@ impl Type for u8x16 {
     fn from_float(f: &[Self::Float]) -> Self {
         let f: &[f32x4; 1] = f.try_into().unwrap();
         let f = f[0].0;
-        let mut storage = [0u8; 16];
-
-        for (s, f) in storage.chunks_exact_mut(4).zip(f) {
-            s[0] = (f * 255.0 + 0.5) as u8;
-            s[1] = (f * 255.0 + 0.5) as u8;
-            s[2] = (f * 255.0 + 0.5) as u8;
-            s[3] = (f * 255.0 + 0.5) as u8;
-        }
-
-        Self(storage)
+        Self::load_alphas_f32(&f)
     }
 }
 
