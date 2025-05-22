@@ -148,10 +148,11 @@ impl<'a, S: Type> GradientFiller<'a, S> {
         {
             advance(*target_pos, idx, range, c0, x0, factors, &self.gradient.ranges);
         }
-        
-        let mut converted = vec![];
 
-        for ((((t, c0), x0), factors)) in self.stored_t_vals.chunks_exact(4)
+        let mut result_store= vec![0.0f32; S::LENGTH];
+
+        for (((((t, store), c0), x0), factors)) in self.stored_t_vals.chunks_exact(4)
+            .zip(result_store.chunks_exact_mut(S::Float::LENGTH))
             .zip(self.c0.chunks_exact(S::Float::LENGTH))
             .zip(self.x0.chunks_exact(S::Float::LENGTH))
             .zip(self.factors.chunks_exact(S::Float::LENGTH)) {
@@ -162,10 +163,11 @@ impl<'a, S: Type> GradientFiller<'a, S> {
 
             let factor = factors * (t - x0);
             let added = c0 + factor;
-            converted.push(added);
+            
+            added.store(store);
         }
         
-        let res = S::from_float(&converted);
+        let res = S::load_f32_many(&result_store);
         res.store(target);
     }
 }
