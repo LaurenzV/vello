@@ -5,7 +5,7 @@
 
 use crate::blurred_rounded_rect::BlurredRoundedRectangle;
 use crate::color::palette::css::BLACK;
-use crate::color::{ColorSpaceTag, HueDirection, Srgb, gradient};
+use crate::color::{ColorSpaceTag, HueDirection, Srgb, gradient, AlphaColor};
 use crate::kurbo::{Affine, Point, Vec2};
 use crate::math::compute_erf7;
 use crate::paint::{Image, IndexedPaint, Paint, PremulColor};
@@ -17,6 +17,7 @@ use alloc::vec::Vec;
 use core::f32::consts::PI;
 use core::iter;
 use smallvec::SmallVec;
+use crate::peniko;
 
 const DEGENERATE_THRESHOLD: f32 = 1.0e-6;
 const NUDGE_VAL: f32 = 1.0e-7;
@@ -399,7 +400,7 @@ fn encode_stops(
         GradientRange {
             x0,
             x1,
-            c0: PremulColor::from_premul_color(left_stop.color),
+            c0: PremulColor::from_premul_color(peniko::color::PremulColor::<Srgb>::new(c0)),
             factors_f32,
         }
     };
