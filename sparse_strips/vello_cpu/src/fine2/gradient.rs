@@ -29,7 +29,7 @@ trait SimdGradientKind<T: Float> {
 
 impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
     fn cur_pos(&self, x_pos: T, y_pos: T) -> T {
-        (x_pos * self.y2_minus_y1 - y_pos * self.x2_minus_x1) * self.inv_distance
+        ( y_pos.mul_sub(self.x2_minus_x1, x_pos * self.y2_minus_y1)) * self.inv_distance
     }
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
