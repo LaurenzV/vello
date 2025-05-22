@@ -29,6 +29,10 @@ impl NumberKind for f32 {
             (src[3] * 255.0 + 0.5) as u8,
         ]
     }
+
+    fn from_normalized_f32(val: f32) -> Self {
+        val
+    }
 }
 
 impl NumberKind for u8 {
@@ -39,6 +43,10 @@ impl NumberKind for u8 {
     #[inline(always)]
     fn to_rgba8(src: &[Self]) -> [u8; 4] {
         [src[0], src[1], src[2], src[3]]
+    }
+
+    fn from_normalized_f32(val: f32) -> Self {
+        (val * 255.0 + 0.5) as u8
     }
 }
 

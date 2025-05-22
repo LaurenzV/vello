@@ -121,6 +121,7 @@ pub trait NumberKind: Base {
     const ONE: Self;
 
     fn to_rgba8(src: &[Self]) -> [u8; 4];
+    fn from_normalized_f32(val: f32) -> Self;
 }
 
 pub trait Widened<N: Type>: Base {
