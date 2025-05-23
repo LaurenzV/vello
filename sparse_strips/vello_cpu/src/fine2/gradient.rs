@@ -239,6 +239,7 @@ struct InnerRange {
 }
 
 impl InnerRange {
+    #[inline]
     pub fn new(idx: usize, ranges: &[GradientRange]) -> Self {
         let range = &ranges[idx];
 
