@@ -1,5 +1,5 @@
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
-use vello_common::encode::{EncodedGradient, GradientLike, GradientRange, LinearKind};
+use vello_common::encode::{EncodedGradient, GradientLike, GradientRange, LinearKind, SweepKind};
 use vello_common::kurbo::Point;
 use vello_simd::{ColorLike, Float, NumberKind, Type};
 
@@ -11,12 +11,29 @@ pub struct SimdLinearKind<T: Float> {
     kind: LinearKind
 }
 
+#[derive(Debug)]
+pub struct SimdSweepKind<T: Float> {
+    start_angle: T,
+    angle_delta: T,
+    kind: SweepKind
+}
+
 impl<T: Float> From<LinearKind> for SimdLinearKind<T> {
     fn from(value: LinearKind) -> Self {
         Self {
             inv_distance: T::splat(value.inv_distance),
             y2_minus_y1: T::splat(value.y2_minus_y1),
             x2_minus_x1: T::splat(value.x2_minus_x1),
+            kind: value
+        }
+    }
+}
+
+impl<T: Float> From<SweepKind> for SimdSweepKind<T> {
+    fn from(value: SweepKind) -> Self {
+        Self {
+            start_angle: T::splat(value.start_angle),
+            angle_delta: T::splat(value.angle_delta),
             kind: value
         }
     }
@@ -38,11 +55,11 @@ impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
 }
 
 #[derive(Debug)]
-pub(crate) struct GradientFiller<'a, S: Type> {
+pub(crate) struct GradientFiller<'a, S: Type, U: SimdGradientKind<S::Float>> {
     cur_pos: Point,
     idx: usize,
     gradient: &'a EncodedGradient,
-    kind: SimdLinearKind<S::Float>,
+    kind: U,
     x_advances: (f32, f32),
     y_advances: (f32, f32),
     cur_ranges: Vec<(usize, &'a GradientRange)>,
@@ -52,10 +69,10 @@ pub(crate) struct GradientFiller<'a, S: Type> {
     factors: &'a mut [f32; 64],
 }
 
-impl<'a, S: Type> GradientFiller<'a, S> {
+impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
     pub(crate) fn new(
         gradient: &'a EncodedGradient,
-        kind: &'a LinearKind,
+        kind: &'a impl Into<U> + Copy,
         temp_buf: &'a mut [f32],
         start_x: u16,
         start_y: u16,

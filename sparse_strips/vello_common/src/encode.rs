@@ -596,8 +596,8 @@ impl RadialKind {
 /// Computed properties of a sweep gradient.
 #[derive(Debug)]
 pub struct SweepKind {
-    start_angle: f32,
-    angle_delta: f32,
+    pub start_angle: f32,
+    pub angle_delta: f32,
 }
 
 /// A kind of encoded gradient.
