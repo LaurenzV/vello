@@ -594,7 +594,7 @@ impl RadialKind {
 }
 
 /// Computed properties of a sweep gradient.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct SweepKind {
     pub start_angle: f32,
     pub angle_delta: f32,
@@ -685,11 +685,8 @@ fn x_y_to_unit_angle(x: f32, y: f32) -> f32 {
                     + s * (-7.0547382347285747528076171875e-3))));
 
     phi = if x_abs < y_abs { 1.0 / 4.0 - phi } else { phi };
-
     phi = if x < 0.0 { 1.0 / 2.0 - phi } else { phi };
-
     phi = if y < 0.0 { 1.0 - phi } else { phi };
-
     phi = if phi != phi { 0.0 } else { phi };
 
     phi

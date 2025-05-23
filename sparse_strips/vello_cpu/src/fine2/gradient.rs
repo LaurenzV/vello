@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use std::marker::PhantomData;
 use vello_common::encode::{EncodedGradient, GradientLike, GradientRange, LinearKind, SweepKind};
@@ -48,6 +49,18 @@ trait SimdGradientKind<T: Float> {
 impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
     fn cur_pos(&self, x_pos: T, y_pos: T) -> T {
         (y_pos.mul_sub(self.x2_minus_x1, x_pos * self.y2_minus_y1)) * self.inv_distance
+    }
+
+    fn cur_pos_scalar(&self, point: Point) -> f32 {
+        self.kind.cur_pos(point)
+    }
+}
+
+impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
+    fn cur_pos(&self, x_pos: T, y_pos: T) -> T {
+        let angle = x_y_to_unit_angle(x_pos, y_pos * T::splat(-1.0)) * T::splat(2.0 * PI);
+
+        (angle - self.start_angle) / self.angle_delta
     }
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
@@ -293,4 +306,30 @@ pub(crate) fn extend_f32(mut val: f32, pad: bool) -> f32 {
     } else {
         (val - val.floor()).fract()
     }
+}
+
+fn x_y_to_unit_angle<T: Float>(x: T, y: T) -> T {
+    let c0 = T::splat(0.0);
+    let c1 = T::splat(1.0);
+    let c2 = T::splat(1.0 / 4.0);
+    let c3 = T::splat(1.0 / 2.0);
+    
+    let x_abs = x.abs();
+    let y_abs = y.abs();
+
+    let slope = x_abs.min(y_abs) / x_abs.max(y_abs);
+    let s = slope * slope;
+
+    let mut phi = slope
+        * (T::splat(0.15912117063999176025390625)
+        + s * (T::splat(-5.185396969318389892578125e-2)
+        + s * (T::splat(2.476101927459239959716796875e-2)
+        + s * (T::splat(-7.0547382347285747528076171875e-3)))));
+
+    phi = x_abs.lt(y_abs, c2 - phi, phi);
+    phi = x.lt(c0, c3 - phi, phi);
+    phi = y.lt(c0, c1 - phi, phi);
+    phi = phi.ne(phi, c0, phi);
+
+    phi
 }
