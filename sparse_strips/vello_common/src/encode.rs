@@ -586,28 +586,28 @@ impl RadialKind {
         let dx = self.c1.0;
         let dy = self.c1.1;
         let dr = self.dr;
-
+        
         let px = pos.x as f32;
         let py = pos.y as f32;
-
+        
         let a = self.a;
         let b = -2.0 * (px * dx + py * dy + r0 * dr);
         let c = px * px + py * py - r0 * r0;
-
+        
         let discriminant = b * b - 4.0 * a * c;
-
+        
         // No solution available.
         if discriminant < 0.0 {
             return None;
         }
-
+        
         let sqrt_d = discriminant.sqrt();
         let t1 = (-b - sqrt_d) / (2.0 * a);
         let t2 = (-b + sqrt_d) / (2.0 * a);
-
+        
         let max = t1.max(t2);
         let min = t1.min(t2);
-
+        
         // We only want values for `t` where the interpolated radius is actually positive.
         if self.r0 + dr * max < 0.0 {
             if self.r0 + dr * min < 0.0 {
