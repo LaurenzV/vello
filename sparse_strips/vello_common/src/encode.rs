@@ -170,11 +170,20 @@ impl EncodeExt for Gradient {
                 // can deform into a cone-like structure where some areas of the shape are not defined.
                 // Because of this, we might need opacities and source-over compositing in that case.
                 has_opacities |= cone_like;
+                
+                let c1 = (end_point.x as f32, end_point.y as f32);
+                
+                let dx = c1.0;
+                let dy = c1.1;
+                let dr =  r1 - r0;
+                let a = dx * dx + dy * dy - dr * dr;
 
                 EncodedKind::Radial(RadialKind {
-                    c1: (end_point.x as f32, end_point.y as f32),
+                    c1,
                     r0,
                     r1,
+                    a,
+                    dr,
                     cone_like,
                 })
             }
@@ -554,6 +563,8 @@ pub struct RadialKind {
     c1: (f32, f32),
     r0: f32,
     r1: f32,
+    dr: f32,
+    a: f32,
     cone_like: bool,
 }
 
@@ -574,12 +585,12 @@ impl RadialKind {
         let r0 = self.r0;
         let dx = self.c1.0;
         let dy = self.c1.1;
-        let dr = self.r1 - self.r0;
+        let dr = self.dr;
 
         let px = pos.x as f32;
         let py = pos.y as f32;
 
-        let a = dx * dx + dy * dy - dr * dr;
+        let a = self.a;
         let b = -2.0 * (px * dx + py * dy + r0 * dr);
         let c = px * px + py * py - r0 * r0;
 
