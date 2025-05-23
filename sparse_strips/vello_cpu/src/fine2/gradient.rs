@@ -1,5 +1,5 @@
-use std::f32::consts::PI;
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
+use std::f32::consts::PI;
 use std::marker::PhantomData;
 use vello_common::encode::{EncodedGradient, GradientLike, GradientRange, LinearKind, SweepKind};
 use vello_common::kurbo::Point;
@@ -313,18 +313,21 @@ fn x_y_to_unit_angle<T: Float>(x: T, y: T) -> T {
     let c1 = T::splat(1.0);
     let c2 = T::splat(1.0 / 4.0);
     let c3 = T::splat(1.0 / 2.0);
-    
+
     let x_abs = x.abs();
     let y_abs = y.abs();
 
     let slope = x_abs.min(y_abs) / x_abs.max(y_abs);
     let s = slope * slope;
 
-    let mut phi = slope
-        * (T::splat(0.15912117063999176025390625)
-        + s * (T::splat(-5.185396969318389892578125e-2)
-        + s * (T::splat(2.476101927459239959716796875e-2)
-        + s * (T::splat(-7.0547382347285747528076171875e-3)))));
+    let a = s.mul_add(
+        T::splat(-7.0547382347285747528076171875e-3),
+        T::splat(2.476101927459239959716796875e-2),
+    );
+    let b = s.mul_add(a, T::splat(-5.185396969318389892578125e-2));
+    let c = s.mul_add(b, T::splat(0.15912117063999176025390625));
+
+    let mut phi = slope * c;
 
     phi = x_abs.lt(y_abs, c2 - phi, phi);
     phi = x.lt(c0, c3 - phi, phi);
