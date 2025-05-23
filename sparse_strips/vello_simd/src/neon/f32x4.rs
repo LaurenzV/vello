@@ -120,4 +120,20 @@ impl f32x4 {
             Self(z1)
         }
     }
+
+    #[inline(always)]
+    pub(crate) fn lt(self, other: Self, then: Self, else_: Self) -> Self {
+        unsafe {
+            let mask = vcltq_f32(self.0, other.0);
+            Self(vbslq_f32(mask, then.0, else_.0))
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn ne(self, other: Self, then: Self, else_: Self) -> Self {
+        unsafe {
+            let mask = vcltq_f32(self.0, other.0);
+            Self(vbslq_f32(mask, then.0, else_.0))
+        }
+    }
 }

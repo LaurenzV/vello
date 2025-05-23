@@ -140,6 +140,8 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     fn abs(self) -> Self;
     fn floor(self) -> Self;
     fn fract(self) -> Self;
+    fn lt(self, other: Self, then: Self, else_: Self) -> Self;
+    fn ne(self, other: Self, then: Self, else_: Self) -> Self;
 
     #[inline(always)]
     fn mul_add(self, other1: Self, other2: Self) -> Self {

@@ -7,7 +7,7 @@
 mod gradient;
 mod rounded_blurred_rect;
 
-use crate::fine2::gradient::GradientFiller;
+use crate::fine2::gradient::{GradientFiller, SimdLinearKind};
 use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::scalar::div_255;
 use alloc::vec;
@@ -191,7 +191,8 @@ impl<N: Type> Fine<N> {
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
                         EncodedKind::Linear(l) => {
-                            let filler = GradientFiller::new(g, l, &mut self.temp_buf, start_x, start_y);
+                            let filler: GradientFiller<N, SimdLinearKind<N::Float>> =
+                                GradientFiller::new(g, l, &mut self.temp_buf, start_x, start_y);
                             fill_complex_paint::<N>(color_buf, blend_buf, g.has_opacities, filler);
                         }
                         _ => unimplemented!(),
@@ -256,7 +257,8 @@ impl<N: Type> Fine<N> {
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
                         EncodedKind::Linear(l) => {
-                            let filler = GradientFiller::new(g, l, &mut self.temp_buf, start_x, start_y);
+                            let filler: GradientFiller<N, SimdLinearKind<N::Float>> =
+                                GradientFiller::new(g, l, &mut self.temp_buf, start_x, start_y);
                             strip_complex_paint::<N>(color_buf, blend_buf, filler, alphas);
                         }
                         _ => unimplemented!(),

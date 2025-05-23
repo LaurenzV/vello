@@ -233,10 +233,9 @@ impl Type for u8x64 {
             let loaded4 = vld1q_f32_x4(casted[48..].as_ptr());
 
             let floats = [
-                loaded1.0, loaded1.1, loaded1.2, loaded1.3,
-                loaded2.0, loaded2.1, loaded2.2, loaded2.3,
-                loaded3.0, loaded3.1, loaded3.2, loaded3.3,
-                loaded4.0, loaded4.1, loaded4.2, loaded4.3,
+                loaded1.0, loaded1.1, loaded1.2, loaded1.3, loaded2.0, loaded2.1, loaded2.2,
+                loaded2.3, loaded3.0, loaded3.1, loaded3.2, loaded3.3, loaded4.0, loaded4.1,
+                loaded4.2, loaded4.3,
             ];
             let mut u16_storage: [uint16x8_t; 8] = [vdupq_n_u16(0); 8];
             let mut u8_storage: [uint8x16_t; 4] = [vdupq_n_u8(0); 4];
@@ -253,12 +252,15 @@ impl Type for u8x64 {
 
             for (f, s) in u16_storage.chunks_exact(2).zip(u8_storage.iter_mut()) {
                 let f_moved = vmovn_u16(f[0]);
-                let s_moved =  vmovn_u16(f[1]);
+                let s_moved = vmovn_u16(f[1]);
 
                 *s = vcombine_u8(f_moved, s_moved)
             }
-            
-            u8x64(u8x32(u8x16(u8_storage[0]), u8x16(u8_storage[1])), u8x32(u8x16(u8_storage[2]), u8x16(u8_storage[3])))
+
+            u8x64(
+                u8x32(u8x16(u8_storage[0]), u8x16(u8_storage[1])),
+                u8x32(u8x16(u8_storage[2]), u8x16(u8_storage[3])),
+            )
         }
     }
 

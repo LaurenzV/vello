@@ -5,10 +5,11 @@
 
 use crate::blurred_rounded_rect::BlurredRoundedRectangle;
 use crate::color::palette::css::BLACK;
-use crate::color::{ColorSpaceTag, HueDirection, Srgb, gradient, AlphaColor};
+use crate::color::{AlphaColor, ColorSpaceTag, HueDirection, Srgb, gradient};
 use crate::kurbo::{Affine, Point, Vec2};
 use crate::math::compute_erf7;
 use crate::paint::{Image, IndexedPaint, Paint, PremulColor};
+use crate::peniko;
 use crate::peniko::{ColorStop, Extend, Gradient, GradientKind, ImageQuality};
 use crate::pixmap::Pixmap;
 use alloc::borrow::Cow;
@@ -17,7 +18,6 @@ use alloc::vec::Vec;
 use core::f32::consts::PI;
 use core::iter;
 use smallvec::SmallVec;
-use crate::peniko;
 
 const DEGENERATE_THRESHOLD: f32 = 1.0e-6;
 const NUDGE_VAL: f32 = 1.0e-7;
@@ -656,16 +656,9 @@ pub trait GradientLike {
 
 impl GradientLike for SweepKind {
     fn cur_pos(&self, pos: Point) -> f32 {
-        // The position in a sweep gradient is simply determined by its angle from the origin.
-        let angle = (-pos.y as f32).atan2(pos.x as f32);
+        let angle = x_y_to_unit_angle(pos.x as f32, -pos.y as f32) * 2.0 * PI;
 
-        let adjusted_angle = if angle >= 0.0 {
-            angle
-        } else {
-            angle + 2.0 * PI
-        };
-
-        (adjusted_angle - self.start_angle) / self.angle_delta
+        (angle - self.start_angle) / self.angle_delta
     }
 
     fn has_undefined(&self) -> bool {
@@ -675,6 +668,31 @@ impl GradientLike for SweepKind {
     fn is_defined(&self, _: Point) -> bool {
         true
     }
+}
+
+// See <https://github.com/google/skia/blob/30bba741989865c157c7a997a0caebe94921276b/src/opts/SkRasterPipeline_opts.h#L5859-L5881>
+fn x_y_to_unit_angle(x: f32, y: f32) -> f32 {
+    let x_abs = x.abs();
+    let y_abs = y.abs();
+
+    let slope = x_abs.min(y_abs) / x_abs.max(y_abs);
+    let s = slope * slope;
+
+    let mut phi = slope
+        * (0.15912117063999176025390625
+            + s * (-5.185396969318389892578125e-2
+                + s * (2.476101927459239959716796875e-2
+                    + s * (-7.0547382347285747528076171875e-3))));
+
+    phi = if x_abs < y_abs { 1.0 / 4.0 - phi } else { phi };
+
+    phi = if x < 0.0 { 1.0 / 2.0 - phi } else { phi };
+
+    phi = if y < 0.0 { 1.0 - phi } else { phi };
+
+    phi = if phi != phi { 0.0 } else { phi };
+
+    phi
 }
 
 impl GradientLike for LinearKind {

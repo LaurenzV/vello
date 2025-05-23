@@ -238,6 +238,26 @@ impl Float for f32x4 {
     }
 
     #[inline(always)]
+    fn lt(self, other: Self, then: Self, else_: Self) -> Self {
+        f32x4([
+            select(self.0[0] < other.0[0], then.0[0], else_.0[0]),
+            select(self.0[1] < other.0[1], then.0[1], else_.0[1]),
+            select(self.0[2] < other.0[2], then.0[2], else_.0[2]),
+            select(self.0[3] < other.0[3], then.0[3], else_.0[3]),
+        ])
+    }
+
+    #[inline(always)]
+    fn ne(self, other: Self, then: Self, else_: Self) -> Self {
+        f32x4([
+            select(self.0[0] != other.0[0], then.0[0], else_.0[0]),
+            select(self.0[1] != other.0[1], then.0[1], else_.0[1]),
+            select(self.0[2] != other.0[2], then.0[2], else_.0[2]),
+            select(self.0[3] != other.0[3], then.0[3], else_.0[3]),
+        ])
+    }
+
+    #[inline(always)]
     fn splat_col_pos(pos: (f32, f32), _: (f32, f32), y_advance: (f32, f32)) -> (Self, Self) {
         let x_pos = f32x4([
             pos.0,
@@ -255,4 +275,9 @@ impl Float for f32x4 {
 
         (x_pos, y_pos)
     }
+}
+
+#[inline(always)]
+fn select(cond: bool, left: f32, right: f32) -> f32 {
+    if cond { left } else { right }
 }

@@ -229,6 +229,22 @@ impl Float for f32x16 {
     }
 
     #[inline(always)]
+    fn lt(mut self, other: Self, then: Self, else_: Self) -> Self {
+        self.0 = self.0.lt(other.0, then.0, else_.0);
+        self.1 = self.1.lt(other.1, then.1, else_.1);
+
+        self
+    }
+
+    #[inline(always)]
+    fn ne(mut self, other: Self, then: Self, else_: Self) -> Self {
+        self.0 = self.0.ne(other.0, then.0, else_.0);
+        self.1 = self.1.ne(other.1, then.1, else_.1);
+
+        self
+    }
+
+    #[inline(always)]
     fn splat_col_pos(
         pos: (f32, f32),
         x_advance: (f32, f32),
