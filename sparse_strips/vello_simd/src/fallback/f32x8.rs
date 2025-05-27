@@ -188,7 +188,7 @@ impl Widened<f32x8> for f32x8 {
 
     #[inline(always)]
     fn clamp(self) -> Self {
-        self
+        Self(self.0.clamp(), self.1.clamp())
     }
 }
 

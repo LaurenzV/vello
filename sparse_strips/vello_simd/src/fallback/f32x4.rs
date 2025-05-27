@@ -186,7 +186,11 @@ impl Widened<f32x4> for f32x4 {
     }
 
     #[inline(always)]
-    fn clamp(self) -> Self {
+    fn clamp(mut self) -> Self {
+        for i in 0..4 {
+            self.0[i] = self.0[i].clamp(0.0, 1.0);
+        }
+
         self
     }
 }

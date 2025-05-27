@@ -136,4 +136,14 @@ impl f32x4 {
             Self(vbslq_f32(mask, then.0, else_.0))
         }
     }
+
+    #[inline(always)]
+    pub(crate) fn clamp(self) -> Self {
+        unsafe {
+            let min = vdupq_n_f32(0.0);
+            let max = vdupq_n_f32(1.0);
+
+            Self(vmaxq_f32(vminq_f32(self.0, max), min))
+        }
+    }
 }
