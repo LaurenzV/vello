@@ -24,7 +24,7 @@ pub(crate) mod strip {
     use vello_common::peniko::BlendMode;
     use vello_simd::Type;
 
-    pub(crate) fn alpha_composite<N: Type, T: Iterator<Item = N>>(
+    pub(crate) fn blend<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],
         src_c: T,
         alphas: &[u8],
