@@ -12,9 +12,6 @@ impl Add for u8x16 {
     #[inline(always)]
     fn add(mut self, rhs: Self) -> Self::Output {
         for i in 0..16 {
-            if (self.0[i] as u16 + rhs.0[i] as u16 > u8::MAX as u16) {
-                panic!("oh no!");
-            }
             self.0[i] = self.0[i] + rhs.0[i];
         }
 

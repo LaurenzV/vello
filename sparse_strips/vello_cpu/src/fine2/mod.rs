@@ -359,6 +359,7 @@ pub(crate) mod fill {
     use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_simd::{NumberKind, Type};
 
+    #[inline(always)]
     pub(crate) fn blend_solid<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
@@ -374,6 +375,7 @@ pub(crate) mod fill {
         }
     }
 
+    #[inline(always)]
     fn alpha_composite_solid<N: Type>(target: &mut [N::Scalar], src_c: &PremulColor) {
         let one_minus_alpha = N::splat_alpha(*src_c).one_minus();
         let src_c = N::splat_color(*src_c);
@@ -383,6 +385,7 @@ pub(crate) mod fill {
         }
     }
 
+    #[inline(always)]
     pub(crate) fn blend<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],
         src_c: T,
@@ -394,6 +397,7 @@ pub(crate) mod fill {
         }
     }
 
+    #[inline(always)]
     fn alpha_composite<N: Type, T: Iterator<Item = N>>(target: &mut [N::Scalar], src_c: T) {
         for (part, src_c) in target.chunks_exact_mut(N::LENGTH).zip(src_c) {
             let one_minus_alpha = src_c.splat_4th_element().one_minus();
@@ -415,7 +419,8 @@ pub(crate) mod strip {
     use vello_common::paint::PremulColor;
     use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_simd::Type;
-
+    
+    #[inline(always)]
     pub(crate) fn blend_solid<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
@@ -431,7 +436,8 @@ pub(crate) mod strip {
             }
         }
     }
-
+    
+    #[inline(always)]
     fn alpha_composite_solid<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
@@ -449,7 +455,8 @@ pub(crate) mod strip {
             alpha_composite_inner(bg_part, masks, src_c, src_a, one);
         }
     }
-
+    
+    #[inline(always)]
     pub(crate) fn blend<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],
         src_c: T,
@@ -461,7 +468,8 @@ pub(crate) mod strip {
             _ => blend::strip::blend(target, src_c, alphas, blend_mode),
         }
     }
-
+    
+    #[inline(always)]
     fn alpha_composite<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],
         src_c: T,
