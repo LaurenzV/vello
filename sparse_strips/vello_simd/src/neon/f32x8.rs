@@ -172,6 +172,11 @@ impl Widened<f32x8> for f32x8 {
     fn normalize(self) -> Self {
         self
     }
+
+    #[inline(always)]
+    fn clamp(self) -> Self {
+        self
+    }
 }
 
 impl Float for f32x8 {

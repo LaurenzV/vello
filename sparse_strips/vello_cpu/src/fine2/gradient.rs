@@ -8,7 +8,7 @@ use vello_simd::{ColorLike, Float, NumberKind, Type};
 #[derive(Debug)]
 pub struct SimdLinearKind<T: Float> {
     kind: LinearKind,
-    phantom_data: PhantomData<T>
+    phantom_data: PhantomData<T>,
 }
 
 #[derive(Debug)]

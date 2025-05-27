@@ -204,4 +204,12 @@ impl Widened<u8x64> for u16x64 {
 
         self
     }
+
+    #[inline(always)]
+    fn clamp(mut self) -> Self {
+        self.0 = self.0.clamp();
+        self.1 = self.1.clamp();
+
+        self
+    }
 }

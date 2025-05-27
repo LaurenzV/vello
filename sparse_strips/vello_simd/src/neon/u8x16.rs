@@ -180,4 +180,17 @@ impl u16x16 {
     pub(crate) fn normalize(self) -> Self {
         Self(uint16x8x2_t(div_255(self.0.0), div_255(self.0.1)))
     }
+
+    #[inline(always)]
+    pub(crate) fn clamp(self) -> Self {
+        unsafe {
+            let zero = vdupq_n_u16(0);
+            let one = vdupq_n_u16(255);
+
+            Self(uint16x8x2_t(
+                vmaxq_u16(vminq_u16(self.0.0, one), zero),
+                vmaxq_u16(vminq_u16(self.0.1, one), zero),
+            ))
+        }
+    }
 }

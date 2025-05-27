@@ -250,4 +250,13 @@ impl Widened<u8x16> for u16x16 {
 
         self
     }
+
+    #[inline(always)]
+    fn clamp(mut self) -> Self {
+        for i in 0..16 {
+            self.0[i] = self.0[i].min(255).max(0);
+        }
+
+        self
+    }
 }

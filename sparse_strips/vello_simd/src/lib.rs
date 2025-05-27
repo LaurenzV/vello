@@ -127,6 +127,7 @@ pub trait NumberKind: Base {
 pub trait Widened<N: Type>: Base {
     fn narrow(self) -> N;
     fn normalize(self) -> Self;
+    fn clamp(self) -> Self;
 }
 
 pub trait ColorLike: Copy + Debug {

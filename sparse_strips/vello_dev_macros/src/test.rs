@@ -1,4 +1,7 @@
-use crate::{Attribute, AttributeInput, DEFAULT_CPU_F32_TOLERANCE, DEFAULT_CPU_U8_TOLERANCE, DEFAULT_HYBRID_TOLERANCE, parse_int_lit, parse_string_lit, DEFAULT_CPU_F32_SIMD_TOLERANCE};
+use crate::{
+    Attribute, AttributeInput, DEFAULT_CPU_F32_SIMD_TOLERANCE, DEFAULT_CPU_F32_TOLERANCE,
+    DEFAULT_CPU_U8_TOLERANCE, DEFAULT_HYBRID_TOLERANCE, parse_int_lit, parse_string_lit,
+};
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
@@ -107,8 +110,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     };
 
     skip_cpu |= {
-        input_fn_name_str.contains("compose")
-            || input_fn_name_str.contains("radial")
+        input_fn_name_str.contains("radial")
             || input_fn_name_str.contains("colr")
             || input_fn_name_str.contains("bitmap")
             || input_fn_name_str.contains("image")

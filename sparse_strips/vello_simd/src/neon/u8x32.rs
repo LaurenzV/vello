@@ -104,4 +104,12 @@ impl u16x32 {
 
         self
     }
+
+    #[inline(always)]
+    pub(crate) fn clamp(mut self) -> Self {
+        self.0 = self.0.clamp();
+        self.1 = self.1.clamp();
+
+        self
+    }
 }

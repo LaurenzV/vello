@@ -4,6 +4,7 @@
 //! Fine rasterization runs the commands in each wide tile to determine the final RGBA value
 //! of each pixel and pack it into the pixmap.
 
+mod blend;
 mod gradient;
 mod rounded_blurred_rect;
 
@@ -143,13 +144,15 @@ impl<N: Type> Fine<N> {
             color_buf: &mut [T::Scalar],
             blend_buf: &mut [T::Scalar],
             has_opacities: bool,
+            blend_mode: BlendMode,
             filler: impl Painter<T>,
         ) {
             if has_opacities {
                 filler.paint(color_buf);
-                fill::alpha_composite(
+                fill::blend(
                     blend_buf,
                     color_buf.chunks_exact(T::LENGTH).map(|e| T::load(e)),
+                    blend_mode,
                 );
             } else {
                 // Similarly to solid colors we can just override the previous values
@@ -173,7 +176,7 @@ impl<N: Type> Fine<N> {
                     return;
                 }
 
-                fill::alpha_composite_solid::<N>(blend_buf, color);
+                fill::blend_solid::<N>(blend_buf, color, blend_mode);
             }
             Paint::Indexed(paint) => {
                 let color_buf = &mut self.color_buf[x * TILE_HEIGHT_COMPONENTS..]
@@ -187,18 +190,30 @@ impl<N: Type> Fine<N> {
                 match encoded_paint {
                     EncodedPaint::BlurredRoundedRect(b) => {
                         let filler = BlurredRoundedRectFiller::new(b, start_x, start_y);
-                        fill_complex_paint::<N>(color_buf, blend_buf, true, filler);
+                        fill_complex_paint::<N>(color_buf, blend_buf, true, blend_mode, filler);
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
                         EncodedKind::Linear(l) => {
                             let filler: GradientFiller<N, SimdLinearKind<N::Float>> =
                                 GradientFiller::new(g, l, &mut self.temp_buf, start_x, start_y);
-                            fill_complex_paint::<N>(color_buf, blend_buf, g.has_opacities, filler);
+                            fill_complex_paint::<N>(
+                                color_buf,
+                                blend_buf,
+                                g.has_opacities,
+                                blend_mode,
+                                filler,
+                            );
                         }
                         EncodedKind::Sweep(s) => {
                             let filler: GradientFiller<N, SimdSweepKind<N::Float>> =
                                 GradientFiller::new(g, s, &mut self.temp_buf, start_x, start_y);
-                            fill_complex_paint::<N>(color_buf, blend_buf, g.has_opacities, filler);
+                            fill_complex_paint::<N>(
+                                color_buf,
+                                blend_buf,
+                                g.has_opacities,
+                                blend_mode,
+                                filler,
+                            );
                         }
                         _ => unimplemented!(),
                     },
@@ -288,6 +303,17 @@ impl<N: Type> Fine<N> {
         N::pack(out_buf, blend_buf, x, y, width, height);
     }
 
+    fn apply_blend(&mut self, blend_mode: BlendMode) {
+        let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
+        let target_buffer = rest.last_mut().unwrap();
+
+        fill::blend(
+            target_buffer,
+            source_buffer.chunks_exact(N::LENGTH).map(|e| N::load(e)),
+            blend_mode,
+        );
+    }
+
     fn clip_fill(&mut self, x: usize, width: usize) {
         let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
         let target_buffer = rest.last_mut().unwrap();
@@ -297,9 +323,10 @@ impl<N: Type> Fine<N> {
         let target_buffer =
             &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
-        fill::alpha_composite(
+        fill::blend(
             target_buffer,
             source_buffer.chunks_exact(N::LENGTH).map(|e| N::load(e)),
+            BlendMode::new(Mix::Normal, Compose::SrcOver),
         );
     }
 
@@ -321,10 +348,28 @@ impl<N: Type> Fine<N> {
 }
 
 pub(crate) mod fill {
+    use crate::fine2::blend;
+    use std::iter;
     use vello_common::paint::PremulColor;
+    use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_simd::{NumberKind, Type};
 
-    pub(crate) fn alpha_composite_solid<N: Type>(target: &mut [N::Scalar], src_c: &PremulColor) {
+    pub(crate) fn blend_solid<N: Type>(
+        target: &mut [N::Scalar],
+        src_c: &PremulColor,
+        blend_mode: BlendMode,
+    ) {
+        match (blend_mode.mix, blend_mode.compose) {
+            (Mix::Normal, Compose::SrcOver) => alpha_composite_solid::<N>(target, src_c),
+            _ => {
+                let src_c = N::splat_color(*src_c);
+
+                blend::fill::blend(target, iter::repeat(src_c), blend_mode)
+            }
+        }
+    }
+
+    fn alpha_composite_solid<N: Type>(target: &mut [N::Scalar], src_c: &PremulColor) {
         let one_minus_alpha = N::splat_alpha(*src_c).one_minus();
         let src_c = N::splat_color(*src_c);
 
@@ -333,10 +378,18 @@ pub(crate) mod fill {
         }
     }
 
-    pub(crate) fn alpha_composite<N: Type, T: Iterator<Item = N>>(
+    pub(crate) fn blend<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],
         src_c: T,
+        blend_mode: BlendMode,
     ) {
+        match (blend_mode.mix, blend_mode.compose) {
+            (Mix::Normal, Compose::SrcOver) => alpha_composite(target, src_c),
+            _ => blend::fill::blend(target, src_c, blend_mode),
+        }
+    }
+
+    fn alpha_composite<N: Type, T: Iterator<Item = N>>(target: &mut [N::Scalar], src_c: T) {
         for (part, src_c) in target.chunks_exact_mut(N::LENGTH).zip(src_c) {
             let one_minus_alpha = src_c.splat_4th_element().one_minus();
             alpha_composite_inner(part, src_c, one_minus_alpha)
@@ -352,7 +405,10 @@ pub(crate) mod fill {
 }
 
 pub(crate) mod strip {
+    use crate::fine::{COLOR_COMPONENTS, FineType};
     use vello_common::paint::PremulColor;
+    use vello_common::peniko::{BlendMode, Compose, Mix};
+    use vello_common::tile::Tile;
     use vello_simd::Type;
 
     pub(crate) fn alpha_composite_solid<N: Type>(
