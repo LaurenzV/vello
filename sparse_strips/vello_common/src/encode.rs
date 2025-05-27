@@ -40,35 +40,15 @@ impl EncodeExt for Gradient {
         let mut has_opacities = self.stops.iter().any(|s| s.color.components[3] != 1.0);
         let pad = self.extend == Extend::Pad;
 
+        let mut base_transform;
+
         let mut stops = Cow::Borrowed(&self.stops.0);
-        // For each gradient type, before doing anything we first translate it such that
-        // one of the points of the gradient lands on the origin (0, 0). We do this because
-        // it makes things simpler and allows for some optimizations for certain calculations.
-        let (x_offset, y_offset);
 
         let kind = match self.kind {
-            GradientKind::Linear { start, end } => {
-                // For linear gradients, we want to interpolate the color along the line that is
-                // formed by `start` and `end`.
-                let mut p0 = start;
-                let mut p1 = end;
-
-                // For simplicity, ensure that the gradient line always goes from left to right.
-                if p0.x >= p1.x {
-                    core::mem::swap(&mut p0, &mut p1);
-
-                    stops = Cow::Owned(
-                        stops
-                            .iter()
-                            .rev()
-                            .map(|s| ColorStop {
-                                offset: 1.0 - s.offset,
-                                color: s.color,
-                            })
-                            .collect::<SmallVec<[ColorStop; 4]>>(),
-                    );
-                }
-
+            GradientKind::Linear {
+                start: p0,
+                end: mut p1,
+            } => {
                 // Double the length of the iterator, and append stops in reverse order in case
                 // we have the extend `Reflect`.
                 // Then we can treat it the same as a repeated gradient.
@@ -78,90 +58,20 @@ impl EncodeExt for Gradient {
                     stops = Cow::Owned(apply_reflect(&stops));
                 }
 
-                // To translate p0 to the origin of the coordinate system, we need to apply
-                // the negative.
-                x_offset = -p0.x as f32;
-                y_offset = -p0.y as f32;
+                // We update the transform currently in-place, such that the gradient line always
+                // starts at the point (0, 0) and ends at the point (1, 0). This simplifies the
+                // calculation for the current position along the gradient line a lot.
+                base_transform = ts_from_poly_to_poly(p0, p1, Point::ZERO, Point::new(1.0, 0.0));
 
-                let dx = p1.x as f32 + x_offset;
-                let dy = p1.y as f32 + y_offset;
-                // In order to calculate where a pixel lies along the gradient line (the line made up
-                // by the two points of the linear gradient), we need to calculate its position
-                // on the gradient line. Remember that our gradient line always start at the origin
-                // (0, 0). Therefore, we can simply calculate the normal vector of the line,
-                // and then, for each pixel that we render, we calculate the distance to the line.
-                // That distance then corresponds to our position on the gradient line, and allows
-                // us to resolve which color stops we need to load and how to interpolate them.
-                let norm = (-dy, dx);
-
-                // We precalculate some values so that we can more easily calculate the distance
-                // from the position of the pixel to the line of the normal vector. See
-                // here for the formula: https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
-
-                // The denominator, i.e. sqrt((y_2 - y_1)^2 + (x_2 - x_1)^2). Since x_1 and y_1
-                // are always 0, this shortens to sqrt(y_2^2 + x_2^2).
-                let distance = (norm.1 * norm.1 + norm.0 * norm.0).sqrt();
-                // This corresponds to (y_2 - y_1) in the formula, but because of the above reasons
-                // shortens to y_2.
-                let y2_minus_y1 = norm.1;
-                // This corresponds to (x_2 - x_1) in the formula, but because of the above reasons
-                // shortens to x_2.
-                let x2_minus_x1 = norm.0;
-                // Note that we can completely disregard the x_2 * y_1 - y_2 * x_1 factor, since
-                // y_1 and x_1 are both 0.
-
-                let end_val = (dx * dx + dy * dy).sqrt();
-
-                EncodedKind::Linear(LinearKind {
-                    // We store the inverse distance, so that in the function that evaluates the
-                    // position, we can do a multiplication instead of having to do a division.
-                    inv_distance: 1.0 / (distance * end_val),
-                    y2_minus_y1,
-                    x2_minus_x1,
-                })
+                EncodedKind::Linear(LinearKind)
             }
             GradientKind::Radial {
-                start_center,
-                start_radius,
-                end_center,
-                end_radius,
+                start_center: c0,
+                start_radius: r0,
+                end_center: mut c1,
+                end_radius: mut r1,
             } => {
-                // For radial gradients, we conceptually interpolate a circle from c0 with radius
-                // r0 to the circle at c1 with radius r1.
-                let c0 = start_center;
-                let mut c1 = end_center;
-                let r0 = start_radius;
-                let mut r1 = end_radius;
-
-                // Same story as for linear gradients, mutate stops so that reflect and repeat
-                // can be treated the same.
-                if self.extend == Extend::Reflect {
-                    c1 += c1 - c0;
-                    r1 += r1 - r0;
-                    stops = Cow::Owned(apply_reflect(&stops));
-                }
-
-                // Similarly to linear gradients, ensure that c0 lands on the origin (0, 0).
-                x_offset = -c0.x as f32;
-                y_offset = -c0.y as f32;
-
-                let end_point = c1 - c0;
-
-                let dist = (end_point.x * end_point.x + end_point.y * end_point.y).sqrt() as f32;
-                let c0_in_c1 = r1 >= r0 + dist;
-                let c1_in_c0 = r0 >= r1 + dist;
-                let cone_like = !(c0_in_c1 || c1_in_c0);
-                // If the inner circle is not completely contained within the outer circle, the gradient
-                // can deform into a cone-like structure where some areas of the shape are not defined.
-                // Because of this, we might need opacities and source-over compositing in that case.
-                has_opacities |= cone_like;
-
-                EncodedKind::Radial(RadialKind {
-                    c1: (end_point.x as f32, end_point.y as f32),
-                    r0,
-                    r1,
-                    cone_like,
-                })
+                unimplemented!()
             }
             GradientKind::Sweep {
                 center,
@@ -179,13 +89,16 @@ impl EncodeExt for Gradient {
                     stops = Cow::Owned(apply_reflect(&stops));
                 }
 
-                // Make sure the center of the gradient falls on the origin (0, 0).
-                x_offset = -center.x as f32;
-                y_offset = -center.y as f32;
+                // Make sure the center of the gradient falls on the origin (0, 0), to make
+                // angle calculation easier.
+                let x_offset = -center.x as f32;
+                let y_offset = -center.y as f32;
+                base_transform = Affine::translate((x_offset as f64, y_offset as f64));
 
                 EncodedKind::Sweep(SweepKind {
                     start_angle,
-                    angle_delta: end_angle - start_angle,
+                    // Save the inverse so that we can use a multiplication in the shader instead.
+                    inv_angle_delta: 1.0 / (end_angle - start_angle),
                 })
             }
         };
@@ -194,19 +107,18 @@ impl EncodeExt for Gradient {
 
         // This represents the transform that needs to be applied to the starting point of a
         // command before starting with the rendering.
-        // First we need to account for a potential offset of the gradient (x_offset/y_offset), then
+        // First we need to account for the base transform of the shader, then
         // we account for the fact that we sample in the center of a pixel and not in the corner by
         // adding 0.5.
-        // Finally, we need to apply the _inverse_ transform to the point so that we can account
-        // for the transform on the gradient.
-        let transform = Affine::translate((f64::from(x_offset) + 0.5, f64::from(y_offset) + 0.5))
-            * transform.inverse();
+        // Finally, we need to apply the _inverse_ paint transform to the point so that we can account
+        // for the paint transform of the render context.
+        let transform = base_transform * Affine::translate((0.5, 0.5)) * transform.inverse();
 
         // One possible approach of calculating the positions would be to apply the above
         // transform to _each_ pixel that we render in the wide tile. However, a much better
-        // approach is to apply the transform once for the first pixel,
+        // approach is to apply the transform once for the first pixel in each wide tile,
         // and from then on only apply incremental updates to the current x/y position
-        // that we calculated in the beginning.
+        // that we calculate based on the transform.
         //
         // Remember that we render wide tiles in column major order (i.e. we first calculate the
         // values for a specific x for all Tile::HEIGHT y by incrementing y by 1, and then finally
@@ -525,11 +437,7 @@ pub struct EncodedImage {
 
 /// Computed properties of a linear gradient.
 #[derive(Debug, Copy, Clone)]
-pub struct LinearKind {
-    pub inv_distance: f32,
-    pub y2_minus_y1: f32,
-    pub x2_minus_x1: f32,
-}
+pub struct LinearKind;
 
 /// Computed properties of a radial gradient.
 #[derive(Debug)]
@@ -597,7 +505,7 @@ impl RadialKind {
 #[derive(Debug, Copy, Clone)]
 pub struct SweepKind {
     pub start_angle: f32,
-    pub angle_delta: f32,
+    pub inv_angle_delta: f32,
 }
 
 /// A kind of encoded gradient.
@@ -656,9 +564,16 @@ pub trait GradientLike {
 
 impl GradientLike for SweepKind {
     fn cur_pos(&self, pos: Point) -> f32 {
-        let angle = x_y_to_unit_angle(pos.x as f32, -pos.y as f32) * 2.0 * PI;
+        // The position in a sweep gradient is simply determined by its angle from the origin.
+        let angle = (-pos.y as f32).atan2(pos.x as f32);
 
-        (angle - self.start_angle) / self.angle_delta
+        let adjusted_angle = if angle >= 0.0 {
+            angle
+        } else {
+            angle + 2.0 * PI
+        };
+
+        (adjusted_angle - self.start_angle) * self.inv_angle_delta
     }
 
     fn has_undefined(&self) -> bool {
@@ -694,7 +609,11 @@ fn x_y_to_unit_angle(x: f32, y: f32) -> f32 {
 
 impl GradientLike for LinearKind {
     fn cur_pos(&self, pos: Point) -> f32 {
-        (pos.x as f32 * self.y2_minus_y1 - pos.y as f32 * self.x2_minus_x1) * self.inv_distance
+        // The position along a linear gradient is determined by where we are along the
+        // gradient line. Since during encoding, we have applied a transformation such that
+        // the gradient line always goes from (0, 0) to (1, 0), the position along the
+        // gradient line is simply determined by the current x coordinate!
+        pos.x as f32
     }
 
     fn has_undefined(&self) -> bool {
@@ -825,6 +744,26 @@ impl EncodeExt for BlurredRoundedRectangle {
 
         Paint::Indexed(IndexedPaint::new(idx))
     }
+}
+
+/// Calculates the transform necessary to map the points src1, src2 to dst1, dst2.
+/// Copied from <https://github.com/linebender/tiny-skia/blob/68b198a7210a6bbf752b43d6bc4db62445730313/src/shaders/radial_gradient.rs#L182>
+fn ts_from_poly_to_poly(src1: Point, src2: Point, dst1: Point, dst2: Point) -> Affine {
+    let tmp1 = from_poly2(src1, src2);
+    let res = tmp1.inverse();
+    let tmp2 = from_poly2(dst1, dst2);
+    tmp2 * res
+}
+
+fn from_poly2(p0: Point, p1: Point) -> Affine {
+    Affine::new([
+        p1.y - p0.y,
+        p0.x - p1.x,
+        p1.x - p0.x,
+        p1.y - p0.y,
+        p0.x,
+        p0.y,
+    ])
 }
 
 mod private {

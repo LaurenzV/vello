@@ -1,7 +1,4 @@
-use crate::{
-    Attribute, AttributeInput, DEFAULT_CPU_F32_TOLERANCE, DEFAULT_CPU_U8_TOLERANCE,
-    DEFAULT_HYBRID_TOLERANCE, parse_int_lit, parse_string_lit,
-};
+use crate::{Attribute, AttributeInput, DEFAULT_CPU_F32_TOLERANCE, DEFAULT_CPU_U8_TOLERANCE, DEFAULT_HYBRID_TOLERANCE, parse_int_lit, parse_string_lit, DEFAULT_CPU_F32_SIMD_TOLERANCE};
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
@@ -93,6 +90,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     let cpu_u8_tolerance = cpu_u8_tolerance + DEFAULT_CPU_U8_TOLERANCE;
     // Since f32 is our gold standard, we always require exact matches for this one.
     let cpu_f32_tolerance = DEFAULT_CPU_F32_TOLERANCE;
+    let cpu_f32_simd_tolerance = DEFAULT_CPU_F32_SIMD_TOLERANCE;
     hybrid_tolerance += DEFAULT_HYBRID_TOLERANCE;
 
     // These tests currently don't work with `vello_hybrid`.
@@ -194,8 +192,8 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     let f32_neon_snippet = cpu_snippet(
         f32_neon_fn_name,
         f32_neon_name_str,
-        cpu_f32_tolerance,
-        true,
+        cpu_f32_simd_tolerance,
+        false,
         quote! { RenderMode::OptimizeQuality },
         quote! { Simd::Neon },
     );

@@ -7,25 +7,21 @@ use vello_simd::{ColorLike, Float, NumberKind, Type};
 
 #[derive(Debug)]
 pub struct SimdLinearKind<T: Float> {
-    inv_distance: T,
-    y2_minus_y1: T,
-    x2_minus_x1: T,
     kind: LinearKind,
+    phantom_data: PhantomData<T>
 }
 
 #[derive(Debug)]
 pub struct SimdSweepKind<T: Float> {
     start_angle: T,
-    angle_delta: T,
+    inv_angle_delta: T,
     kind: SweepKind,
 }
 
 impl<T: Float> From<LinearKind> for SimdLinearKind<T> {
     fn from(value: LinearKind) -> Self {
         Self {
-            inv_distance: T::splat(value.inv_distance),
-            y2_minus_y1: T::splat(value.y2_minus_y1),
-            x2_minus_x1: T::splat(value.x2_minus_x1),
+            phantom_data: PhantomData::default(),
             kind: value,
         }
     }
@@ -35,7 +31,7 @@ impl<T: Float> From<SweepKind> for SimdSweepKind<T> {
     fn from(value: SweepKind) -> Self {
         Self {
             start_angle: T::splat(value.start_angle),
-            angle_delta: T::splat(value.angle_delta),
+            inv_angle_delta: T::splat(value.inv_angle_delta),
             kind: value,
         }
     }
@@ -47,8 +43,8 @@ trait SimdGradientKind<T: Float> {
 }
 
 impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
-    fn cur_pos(&self, x_pos: T, y_pos: T) -> T {
-        (y_pos.mul_sub(self.x2_minus_x1, x_pos * self.y2_minus_y1)) * self.inv_distance
+    fn cur_pos(&self, x_pos: T, _: T) -> T {
+        x_pos
     }
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
@@ -60,7 +56,7 @@ impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
     fn cur_pos(&self, x_pos: T, y_pos: T) -> T {
         let angle = x_y_to_unit_angle(x_pos, y_pos * T::splat(-1.0)) * T::splat(2.0 * PI);
 
-        (angle - self.start_angle) / self.angle_delta
+        (angle - self.start_angle) * self.inv_angle_delta
     }
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
