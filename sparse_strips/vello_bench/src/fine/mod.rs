@@ -10,6 +10,7 @@ use criterion::Bencher;
 use vello_cpu::fine2::{Fine, SCRATCH_BUF_SIZE};
 use vello_dev_macros::vello_bench;
 
+pub use blend::*;
 pub use clear::*;
 pub use fill::*;
 pub use gradient::*;
