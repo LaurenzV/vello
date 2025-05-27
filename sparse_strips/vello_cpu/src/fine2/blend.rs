@@ -98,20 +98,17 @@ macro_rules! compose {
                 let al_b = bg_c.splat_4th_element();
                 let al_s = src_c.splat_4th_element().normalized_mul(mask);
 
-                for i in 0..4 {
-                    let fa = $fa(al_s, al_b);
-                    let fb = $fb(al_s, al_b);
+                let fa = $fa(al_s, al_b);
+                let fb = $fb(al_s, al_b);
 
-                    let src_c = src_c.normalized_mul(mask);
+                let src_c = src_c.normalized_mul(mask);
 
-                    if $sat {
-                        *bg_c = (src_c.normalized_mul(fa).widen()
-                            + fb.normalized_mul(*bg_c).widen())
+                if $sat {
+                    *bg_c = (src_c.normalized_mul(fa).widen() + fb.normalized_mul(*bg_c).widen())
                         .clamp()
                         .narrow();
-                    } else {
-                        *bg_c = src_c.normalized_mul(fa).add(fb.normalized_mul(*bg_c));
-                    }
+                } else {
+                    *bg_c = src_c.normalized_mul(fa).add(fb.normalized_mul(*bg_c));
                 }
             }
         }
