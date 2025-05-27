@@ -359,7 +359,8 @@ pub(crate) mod fill {
     use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_simd::{NumberKind, Type};
 
-    #[inline(always)]
+    // Not having this tanks performance for some benchmarks.
+    #[inline(never)]
     pub(crate) fn blend_solid<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
@@ -419,8 +420,9 @@ pub(crate) mod strip {
     use vello_common::paint::PremulColor;
     use vello_common::peniko::{BlendMode, Compose, Mix};
     use vello_simd::Type;
-    
-    #[inline(always)]
+
+    // Not having this tanks performance for some benchmarks.
+    #[inline(never)]
     pub(crate) fn blend_solid<N: Type>(
         target: &mut [N::Scalar],
         src_c: &PremulColor,
