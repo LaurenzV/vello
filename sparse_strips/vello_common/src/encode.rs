@@ -365,7 +365,12 @@ fn encode_stops(
             bias[i] = c0[i] - x0 * scale[i];
         }
 
-        GradientRange { x0, x1, bias, scale }
+        GradientRange {
+            x0,
+            x1,
+            bias,
+            scale,
+        }
     };
 
     // Note: this could use `Iterator::map_windows` once stabilized, meaning `interpolated_stops`
@@ -654,8 +659,8 @@ pub trait GradientLike {
     fn has_undefined(&self) -> bool;
     /// Whether the current position is defined in the gradient. If `has_undefined` returns `false`,
     /// this will return false for all possible points.
-    fn cur_pos_mask(&self, _: Point) -> f32 {
-        1.0
+    fn cur_pos_masked(&self, pos: Point) -> f32 {
+        self.cur_pos(pos)
     }
 }
 
@@ -725,7 +730,11 @@ impl GradientLike for RadialKind {
             Self::Strip { scaled_r0_squared } => {
                 let p1 = scaled_r0_squared - pos.y as f32 * pos.y as f32;
 
-                pos.x as f32 + p1.sqrt()
+                if p1 < 0.0 {
+                    f32::NAN
+                } else {
+                    pos.x as f32 + p1.sqrt()
+                }
             }
             Self::Focal {
                 focal_data,
@@ -748,6 +757,15 @@ impl GradientLike for RadialKind {
                     // xy_to_2pt_conical_greater
                     (x * x - y * y).sqrt() - x * fp0
                 };
+
+                if !focal_data.is_well_behaved() {
+                    // Radii < 0 should be masked out, too.
+                    let is_degenerate = t <= 0.0;
+
+                    if is_degenerate {
+                        t = f32::NAN;
+                    }
+                }
 
                 if 1.0 - focal_data.f_focal_x < 0.0 {
                     // negate_x
@@ -774,14 +792,6 @@ impl GradientLike for RadialKind {
             Self::Radial { .. } => false,
             Self::Strip { .. } => true,
             Self::Focal { focal_data, .. } => !focal_data.is_well_behaved(),
-        }
-    }
-
-    fn cur_pos_mask(&self, pos: Point) -> f32 {
-        if self.cur_pos(pos).is_nan() {
-            0.0
-        }   else {
-            1.0
         }
     }
 }

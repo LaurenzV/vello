@@ -45,7 +45,7 @@ pub enum SimdRadialKindInner<T: Float> {
 
 pub struct SimdRadialKind<T: Float> {
     inner: SimdRadialKindInner<T>,
-    kind: RadialKind
+    kind: RadialKind,
 }
 
 impl<T: Float> From<LinearKind> for SimdLinearKind<T> {
@@ -92,21 +92,14 @@ impl<T: Float> From<RadialKind> for SimdRadialKind<T> {
                 },
             },
         };
-        
-        SimdRadialKind {
-            inner,
-            kind: value,
-        }
+
+        SimdRadialKind { inner, kind: value }
     }
 }
 
 trait SimdGradientKind<T: Float> {
     fn cur_pos(&self, x_pos: T, y_pos: T) -> T;
-    fn cur_pos_mask(&self, _: T, _: T) -> T {
-        T::splat(1.0)
-    }
     fn cur_pos_scalar(&self, point: Point) -> f32;
-    fn cur_pos_mask_scalar(&self, point: Point) -> f32;
     fn has_undefined(&self) -> bool {
         false
     }
@@ -120,10 +113,6 @@ impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
     fn cur_pos_scalar(&self, point: Point) -> f32 {
         self.kind.cur_pos(point)
     }
-
-    fn cur_pos_mask_scalar(&self, point: Point) -> f32 {
-        self.kind.cur_pos_mask(point)
-    }
 }
 
 impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
@@ -135,10 +124,6 @@ impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
         self.kind.cur_pos(point)
-    }
-
-    fn cur_pos_mask_scalar(&self, point: Point) -> f32 {
-        self.kind.cur_pos_mask(point)
     }
 }
 
@@ -164,7 +149,9 @@ impl<T: Float> SimdGradientKind<T> for SimdRadialKind<T> {
                     x_pos + y_pos * y_pos / x_pos
                 } else if focal_data.focal_data.is_well_behaved() {
                     (x_pos * x_pos + y_pos * y_pos).sqrt() - x_pos * *fp0
-                } else if focal_data.focal_data.is_swapped() || (1.0 - focal_data.focal_data.f_focal_x < 0.0) {
+                } else if focal_data.focal_data.is_swapped()
+                    || (1.0 - focal_data.focal_data.f_focal_x < 0.0)
+                {
                     T::splat(-1.0) * (x_pos * x_pos - y_pos * y_pos).sqrt() - x_pos * *fp0
                 } else {
                     (x_pos * x_pos - y_pos * y_pos).sqrt() - x_pos * *fp0
@@ -191,16 +178,8 @@ impl<T: Float> SimdGradientKind<T> for SimdRadialKind<T> {
         self.kind.cur_pos(point)
     }
 
-    fn cur_pos_mask(&self, x_pos: T, y_pos: T) -> T {
-        todo!()
-    }
-
     fn has_undefined(&self) -> bool {
         self.kind.has_undefined()
-    }
-
-    fn cur_pos_mask_scalar(&self, point: Point) -> f32 {
-        1.0
     }
 }
 
@@ -251,7 +230,7 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
 
     pub(super) fn run(mut self, target: &mut [S::Scalar]) {
         let original_pos = self.cur_pos;
-        
+
         let pad = self.gradient.pad;
 
         let bl = self.gradient.y_advance * 4.0;
@@ -303,26 +282,29 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
 
             self.cur_pos += self.gradient.x_advance * 4.0;
         });
-        
-        // if self.kind.has_undefined() {
-        //     let mut cur_pos = original_pos;
-        // 
-        //     for col in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
-        //         let mut temp_pos = cur_pos;
-        // 
-        //         for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
-        //             let mask = S::Scalar::from_normalized_f32(self.kind.cur_pos_scalar(temp_pos));
-        //             
-        //             for c in pixel {
-        //                 *c = c.normalized_mul(mask);
-        //             }
-        // 
-        //             temp_pos += self.gradient.y_advance;
-        //         }
-        // 
-        //         cur_pos += self.gradient.x_advance;
-        //     }
-        // }
+
+        if self.kind.has_undefined() {
+            let mut cur_pos = original_pos;
+
+            for col in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
+                let mut temp_pos = cur_pos;
+
+                for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
+                    let mask = self.kind.cur_pos_scalar(temp_pos);
+                    let is_nan = mask != mask;
+
+                    for c in pixel {
+                        if is_nan {
+                            *c = S::Scalar::ZERO
+                        }
+                    }
+
+                    temp_pos += self.gradient.y_advance;
+                }
+
+                cur_pos += self.gradient.x_advance;
+            }
+        }
     }
 
     fn run_float_range(&mut self, target: &mut [S::Scalar], range: &InnerRange) {
@@ -367,7 +349,8 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
                 let scale = inner.range.scale;
 
                 for (comp_idx, comp) in pixel.iter_mut().enumerate() {
-                    *comp = S::Scalar::from_normalized_f32(bias[comp_idx] + scale[comp_idx] * t_val);
+                    *comp =
+                        S::Scalar::from_normalized_f32(bias[comp_idx] + scale[comp_idx] * t_val);
                 }
 
                 temp_pos += self.gradient.y_advance;
@@ -381,7 +364,7 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
 #[derive(Copy, Clone)]
 struct InnerRange {
     idx: usize,
-    range: GradientRange
+    range: GradientRange,
 }
 
 impl InnerRange {
@@ -389,10 +372,7 @@ impl InnerRange {
     pub fn new(idx: usize, ranges: &[GradientRange]) -> Self {
         let range = ranges[idx].clone();
 
-        Self {
-            idx,
-            range
-        }
+        Self { idx, range }
     }
 
     pub fn bias<S: Float>(&self) -> S {
