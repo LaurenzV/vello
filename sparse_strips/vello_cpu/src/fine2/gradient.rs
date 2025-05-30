@@ -225,7 +225,11 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
             );
 
             if S::IS_FLOAT {
-                self.run_float_range_scalar(column, cur_range);
+                if tlbr_advance || bltr_advance {
+                    self.run_float_range_scalar(column, cur_range);
+                } else {
+                    self.run_float_range(column, &cur_range);
+                }
             } else {
                 self.run_float_range_scalar(column, cur_range);
             }
