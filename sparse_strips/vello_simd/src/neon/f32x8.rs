@@ -180,6 +180,8 @@ impl Widened<f32x8> for f32x8 {
 }
 
 impl Float for f32x8 {
+    type Mask = uint32x4x2_t;
+
     #[inline(always)]
     fn sqrt(mut self) -> Self {
         unsafe {
@@ -237,19 +239,29 @@ impl Float for f32x8 {
     }
 
     #[inline(always)]
-    fn lt(mut self, other: Self, then: Self, else_: Self) -> Self {
-        self.0 = self.0.lt(other.0, then.0, else_.0);
-        self.1 = self.1.lt(other.1, then.1, else_.1);
+    fn lt(mut self, other: Self) -> Self::Mask {
+        let a = self.0.lt(other.0);
+        let b = self.1.lt(other.1);
 
-        self
+        uint32x4x2_t(a, b)
     }
 
     #[inline(always)]
-    fn ne(mut self, other: Self, then: Self, else_: Self) -> Self {
-        self.0 = self.0.ne(other.0, then.0, else_.0);
-        self.1 = self.1.ne(other.1, then.1, else_.1);
+    fn ne(mut self, other: Self) -> Self::Mask {
+        let a = self.0.ne(other.0);
+        let b = self.1.ne(other.1);
 
-        self
+        uint32x4x2_t(a, b)
+    }
+
+    #[inline(always)]
+    fn if_then_else(mask: uint32x4x2_t, if_: Self, else_: Self) -> Self {
+        unsafe {
+            let a = vbslq_f32(mask.0, if_.0.0, else_.0.0);
+            let b = vbslq_f32(mask.1, if_.1.0, else_.1.0);
+            
+            Self(f32x4(a), f32x4(b))
+        }
     }
 
     #[inline(always)]

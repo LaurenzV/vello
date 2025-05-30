@@ -136,13 +136,17 @@ pub trait ColorLike: Copy + Debug {
 }
 
 pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
+    type Mask: Sized;
+    
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;
     fn abs(self) -> Self;
     fn floor(self) -> Self;
     fn fract(self) -> Self;
-    fn lt(self, other: Self, then: Self, else_: Self) -> Self;
-    fn ne(self, other: Self, then: Self, else_: Self) -> Self;
+    fn lt(self, other: Self) -> Self::Mask;
+    fn ne(self, other: Self) -> Self::Mask;
+
+    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self;
 
     #[inline(always)]
     fn mul_add(self, other1: Self, other2: Self) -> Self {

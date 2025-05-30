@@ -193,6 +193,8 @@ impl Widened<f32x8> for f32x8 {
 }
 
 impl Float for f32x8 {
+    type Mask = [<f32x4 as Float>::Mask; 2];
+
     #[inline(always)]
     fn sqrt(mut self) -> Self {
         self.0 = self.0.sqrt();
@@ -234,19 +236,21 @@ impl Float for f32x8 {
     }
 
     #[inline(always)]
-    fn lt(mut self, other: Self, then: Self, else_: Self) -> Self {
-        self.0 = self.0.lt(other.0, then.0, else_.0);
-        self.1 = self.1.lt(other.1, then.1, else_.1);
-
-        self
+    fn lt(mut self, other: Self) -> Self::Mask {
+        [self.0.lt(other.0), self.1.lt(other.1)]
     }
 
     #[inline(always)]
-    fn ne(mut self, other: Self, then: Self, else_: Self) -> Self {
-        self.0 = self.0.ne(other.0, then.0, else_.0);
-        self.1 = self.1.ne(other.1, then.1, else_.1);
+    fn ne(mut self, other: Self) -> Self::Mask {
+        [self.0.ne(other.0), self.1.ne(other.1)]
+    }
 
-        self
+    #[inline(always)]
+    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self {
+        f32x8(
+            f32x4::if_then_else(cond[0], if_.0, else_.0),
+            f32x4::if_then_else(cond[1], if_.1, else_.1),
+        )
     }
 
     #[inline(always)]

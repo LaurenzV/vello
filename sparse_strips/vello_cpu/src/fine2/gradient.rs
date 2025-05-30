@@ -326,10 +326,10 @@ fn x_y_to_unit_angle<T: Float>(x: T, y: T) -> T {
 
     let mut phi = slope * c;
 
-    phi = x_abs.lt(y_abs, c2 - phi, phi);
-    phi = x.lt(c0, c3 - phi, phi);
-    phi = y.lt(c0, c1 - phi, phi);
-    phi = phi.ne(phi, c0, phi);
+    phi = T::if_then_else(x_abs.lt(y_abs) , c2 - phi, phi);
+    phi = T::if_then_else(x.lt(c0), c3 - phi, phi);
+    phi = T::if_then_else(y.lt(c0), c1 - phi, phi);
+    phi = T::if_then_else(phi.ne(phi), c0, phi);
 
     phi
 }

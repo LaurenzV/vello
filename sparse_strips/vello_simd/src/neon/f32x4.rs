@@ -122,18 +122,23 @@ impl f32x4 {
     }
 
     #[inline(always)]
-    pub(crate) fn lt(self, other: Self, then: Self, else_: Self) -> Self {
+    pub(crate) fn lt(self, other: Self) -> uint32x4_t {
         unsafe {
-            let mask = vcltq_f32(self.0, other.0);
-            Self(vbslq_f32(mask, then.0, else_.0))
+            vcltq_f32(self.0, other.0)
         }
     }
 
     #[inline(always)]
-    pub(crate) fn ne(self, other: Self, then: Self, else_: Self) -> Self {
+    pub(crate) fn ne(self, other: Self) -> uint32x4_t {
         unsafe {
-            let mask = vcltq_f32(self.0, other.0);
-            Self(vbslq_f32(mask, then.0, else_.0))
+            vmvnq_u32(vceqq_f32(self.0, other.0))
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn if_then_else(mask: uint32x4_t, a: Self, b: Self) -> Self {
+        unsafe {
+            Self(vbslq_f32(mask, a.0, b.0))
         }
     }
 
