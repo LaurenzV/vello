@@ -208,7 +208,7 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
                 let delta = end_pos - cur_pos;
                 let to_check = cur_pos_extended + delta;
 
-                to_check < cur_range.x0 || to_check >= cur_range.x1
+                to_check < cur_range.range.x0 || to_check >= cur_range.range.x1
             }
 
             let tlbr_advance = check_advance(
@@ -246,9 +246,8 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
             self.y_advances,
         );
 
-        let x0 = range.x0::<S::Float>();
-        let c0 = range.c0::<S::Float>();
-        let factors = range.factors::<S::Float>();
+        let bias = range.bias::<S::Float>();
+        let scale = range.scale::<S::Float>();
 
         let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
         t_vals.store(self.stored_t_vals);
@@ -260,8 +259,8 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
         {
             let t_vals = S::Float::load_alphas_f32(t);
 
-            let added = factors.mul_add(t_vals - x0, c0);
-            let converted = S::from_float(&[added]);
+            let res = t_vals.mul_add(scale, bias);
+            let converted = S::from_float(&[res]);
             converted.store(target);
         }
     }
@@ -277,15 +276,11 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
                 let t_val = extend_f32(self.kind.cur_pos_scalar(temp_pos), pad);
                 advance(t_val, &mut inner, &self.gradient.ranges);
 
-                let x0 = inner.x0;
-                let c0 = inner.c0;
-                let factors = inner.factors;
+                let bias = inner.range.bias;
+                let scale = inner.range.scale;
 
-                for (idx, c) in pixel.iter_mut().enumerate() {
-                    let factor = factors[idx] * (t_val - x0);
-                    let added = c0[idx] + factor;
-
-                    *c = S::Scalar::from_normalized_f32(added)
+                for (comp_idx, comp) in pixel.iter_mut().enumerate() {
+                    *comp = S::Scalar::from_normalized_f32(bias[comp_idx] + scale[comp_idx] * t_val);
                 }
 
                 temp_pos += self.gradient.y_advance;
@@ -299,41 +294,31 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
 #[derive(Copy, Clone)]
 struct InnerRange {
     idx: usize,
-    x0: f32,
-    x1: f32,
-    c0: [f32; 4],
-    factors: [f32; 4],
+    range: GradientRange
 }
 
 impl InnerRange {
     #[inline]
     pub fn new(idx: usize, ranges: &[GradientRange]) -> Self {
-        let range = &ranges[idx];
+        let range = ranges[idx].clone();
 
         Self {
             idx,
-            x0: range.x0,
-            x1: range.x1,
-            c0: range.c0.to_rgbf32(),
-            factors: range.factors_f32,
+            range
         }
     }
 
-    pub fn x0<S: Float>(&self) -> S {
-        S::splat(self.x0)
+    pub fn bias<S: Float>(&self) -> S {
+        S::splat_4(self.range.bias)
     }
 
-    pub fn c0<S: Float>(&self) -> S {
-        S::splat_4(self.c0)
-    }
-
-    pub fn factors<S: Float>(&self) -> S {
-        S::splat_4(self.factors)
+    pub fn scale<S: Float>(&self) -> S {
+        S::splat_4(self.range.scale)
     }
 }
 
 #[inline]
-fn advance(target_pos: f32, inner: &mut InnerRange, ranges: &[GradientRange]) {
+fn advance<'a>(target_pos: f32, inner: &mut InnerRange, ranges: &[GradientRange]) {
     let mut range_idx = inner.idx;
     let mut cur_range = &ranges[range_idx];
 

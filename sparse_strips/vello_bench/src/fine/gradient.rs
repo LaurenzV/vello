@@ -18,7 +18,7 @@ use vello_simd::Type;
 pub fn gradient(c: &mut Criterion) {
     linear::opaque(c);
     // radial::opaque(c);
-    sweep::opaque(c);
+    // sweep::opaque(c);
 
     // extend::pad(c);
     // extend::repeat(c);
