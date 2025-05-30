@@ -106,6 +106,7 @@ trait SimdGradientKind<T: Float> {
         T::splat(1.0)
     }
     fn cur_pos_scalar(&self, point: Point) -> f32;
+    fn cur_pos_mask_scalar(&self, point: Point) -> f32;
     fn has_undefined(&self) -> bool {
         false
     }
@@ -119,6 +120,10 @@ impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
     fn cur_pos_scalar(&self, point: Point) -> f32 {
         self.kind.cur_pos(point)
     }
+
+    fn cur_pos_mask_scalar(&self, point: Point) -> f32 {
+        self.kind.cur_pos_mask(point)
+    }
 }
 
 impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
@@ -130,6 +135,10 @@ impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
         self.kind.cur_pos(point)
+    }
+
+    fn cur_pos_mask_scalar(&self, point: Point) -> f32 {
+        self.kind.cur_pos_mask(point)
     }
 }
 
@@ -189,6 +198,10 @@ impl<T: Float> SimdGradientKind<T> for SimdRadialKind<T> {
     fn has_undefined(&self) -> bool {
         self.kind.has_undefined()
     }
+
+    fn cur_pos_mask_scalar(&self, point: Point) -> f32 {
+        1.0
+    }
 }
 
 #[derive(Debug)]
@@ -237,6 +250,8 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
     }
 
     pub(super) fn run(mut self, target: &mut [S::Scalar]) {
+        let original_pos = self.cur_pos;
+        
         let pad = self.gradient.pad;
 
         let bl = self.gradient.y_advance * 4.0;
@@ -281,17 +296,33 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
             );
 
             if S::IS_FLOAT {
-                if tlbr_advance || bltr_advance {
-                    self.run_float_range_scalar(column, cur_range);
-                } else {
-                    self.run_float_range(column, &cur_range);
-                }
+                self.run_float_range_scalar(column, cur_range);
             } else {
                 self.run_float_range_scalar(column, cur_range);
             }
 
             self.cur_pos += self.gradient.x_advance * 4.0;
         });
+        
+        // if self.kind.has_undefined() {
+        //     let mut cur_pos = original_pos;
+        // 
+        //     for col in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
+        //         let mut temp_pos = cur_pos;
+        // 
+        //         for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
+        //             let mask = S::Scalar::from_normalized_f32(self.kind.cur_pos_scalar(temp_pos));
+        //             
+        //             for c in pixel {
+        //                 *c = c.normalized_mul(mask);
+        //             }
+        // 
+        //             temp_pos += self.gradient.y_advance;
+        //         }
+        // 
+        //         cur_pos += self.gradient.x_advance;
+        //     }
+        // }
     }
 
     fn run_float_range(&mut self, target: &mut [S::Scalar], range: &InnerRange) {

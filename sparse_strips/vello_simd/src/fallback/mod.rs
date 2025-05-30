@@ -33,6 +33,10 @@ impl NumberKind for f32 {
     fn from_normalized_f32(val: f32) -> Self {
         val
     }
+
+    fn normalized_mul(&self, other: Self) -> Self {
+        self * other
+    }
 }
 
 impl NumberKind for u8 {
@@ -47,6 +51,10 @@ impl NumberKind for u8 {
 
     fn from_normalized_f32(val: f32) -> Self {
         (val * 255.0 + 0.5) as u8
+    }
+
+    fn normalized_mul(&self, other: Self) -> Self {
+        div_255(*self as u16 * other as u16) as u8
     }
 }
 

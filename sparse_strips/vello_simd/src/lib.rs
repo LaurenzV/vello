@@ -122,6 +122,7 @@ pub trait NumberKind: Base {
 
     fn to_rgba8(src: &[Self]) -> [u8; 4];
     fn from_normalized_f32(val: f32) -> Self;
+    fn normalized_mul(&self, other: Self) -> Self;
 }
 
 pub trait Widened<N: Type>: Base {
