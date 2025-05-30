@@ -7,7 +7,7 @@ use crate::blurred_rounded_rect::BlurredRoundedRectangle;
 use crate::color::palette::css::BLACK;
 use crate::color::{AlphaColor, ColorSpaceTag, HueDirection, Srgb, gradient};
 use crate::kurbo::{Affine, Point, Vec2};
-use crate::math::compute_erf7;
+use crate::math::{compute_erf7, FloatExt};
 use crate::paint::{Image, IndexedPaint, Paint, PremulColor};
 use crate::peniko;
 use crate::peniko::{ColorStop, Extend, Gradient, GradientKind, ImageQuality};
@@ -61,7 +61,7 @@ impl EncodeExt for Gradient {
                 // We update the transform currently in-place, such that the gradient line always
                 // starts at the point (0, 0) and ends at the point (1, 0). This simplifies the
                 // calculation for the current position along the gradient line a lot.
-                base_transform = ts_from_poly_to_poly(p0, p1, Point::ZERO, Point::new(1.0, 0.0));
+                base_transform = ts_from_line_to_line(p0, p1, Point::ZERO, Point::new(1.0, 0.0));
 
                 EncodedKind::Linear(LinearKind)
             }
@@ -435,71 +435,182 @@ pub struct EncodedImage {
     pub y_advance: Vec2,
 }
 
-/// Computed properties of a linear gradient.
-#[derive(Debug, Copy, Clone)]
-pub struct LinearKind;
+/// Focal data for a radial gradient.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct FocalData {
+    fr1: f32,
+    f_focal_x: f32,
+    f_is_swapped: bool,
+}
 
-/// Computed properties of a radial gradient.
-#[derive(Debug)]
-pub struct RadialKind {
-    c1: (f32, f32),
-    r0: f32,
-    r1: f32,
-    cone_like: bool,
+impl FocalData {
+    /// Create a new `FocalData` with the given radii and update the matrix.
+    pub fn create(mut r0: f32, mut r1: f32, matrix: &mut Affine) -> Self {
+        let mut swapped = false;
+        let mut f_focal_x = r0 / (r0 - r1);
+
+        if (f_focal_x - 1.0).is_nearly_zero() {
+            *matrix = matrix.then_translate(Vec2::new(-1.0, 0.0));
+            *matrix = matrix.then_scale_non_uniform(-1.0, 1.0);
+            core::mem::swap(&mut r0, &mut r1);
+            f_focal_x = 0.0;
+            swapped = true;
+        }
+
+        let focal_matrix = ts_from_line_to_line(
+            Point::new(f_focal_x as f64, 0.0),
+            Point::new(1.0, 0.0),
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+        );
+        *matrix = focal_matrix * *matrix;
+
+        let fr1 = r1 / (1.0 - f_focal_x).abs();
+
+        let data = Self {
+            fr1,
+            f_focal_x,
+            f_is_swapped: swapped,
+        };
+
+        if data.is_focal_on_circle() {
+            *matrix = matrix.then_scale(0.5);
+        } else {
+            *matrix = matrix.then_scale_non_uniform(
+                (fr1 / (fr1 * fr1 - 1.0)) as f64,
+                1.0 / (fr1 * fr1 - 1.0).abs().sqrt() as f64,
+            );
+        }
+
+        *matrix = matrix.then_scale((1.0 - f_focal_x).abs() as f64);
+
+        data
+    }
+
+    /// Whether the focal is on the circle.
+    pub fn is_focal_on_circle(&self) -> bool {
+        (1.0 - self.fr1).is_nearly_zero()
+    }
+
+    /// Whether the focal points have been swapped.
+    pub fn is_swapped(&self) -> bool {
+        self.f_is_swapped
+    }
+
+    /// Whether the gradient is well-behaved.
+    pub fn is_well_behaved(&self) -> bool {
+        !self.is_focal_on_circle() && self.fr1 > 1.0
+    }
+
+    /// Whether the gradient is natively focal.
+    pub fn is_natively_focal(&self) -> bool {
+        self.f_focal_x.is_nearly_zero()
+    }
+}
+
+/// A radial gradient.
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum RadialKind {
+    /// A radial gradient, i.e. the start and end center points are the same.
+    Radial {
+        /// The `bias` value (from the Skia implementation).
+        ///
+        /// It is a correction factor that accounts for the fact that the focal center might not
+        /// lie on the inner circle (if r0 > 0).
+        bias: f32,
+        /// The `scale` value (from the Skia implementation).
+        ///
+        /// It is a scaling factor that maps from r0 to r1.
+        scale: f32,
+    },
+    /// A strip gradient, i.e. the start and end radius are the same.
+    Strip {
+        /// The squared value of `scaled_r0` (from the Skia implementation).
+        scaled_r0_squared: f32,
+    },
+    /// A general, two-point conical gradient.
+    Focal {
+        /// The focal data  (from the Skia implementation).
+        focal_data: FocalData,
+        /// The `fp0` value (from the Skia implementation).
+        fp0: f32,
+        /// The `fp1` value (from the Skia implementation).
+        fp1: f32,
+    },
 }
 
 impl RadialKind {
     fn pos_inner(&self, pos: Point) -> Option<f32> {
-        // The values for a radial gradient can be calculated for any t as follow:
-        // Let x(t) = (x_1 - x_0)*t + x_0 (since x_0 is always 0, this shortens to x_1 * t)
-        // Let y(t) = (y_1 - y_0)*t + y_0 (since y_0 is always 0, this shortens to y_1 * t)
-        // Let r(t) = (r_1 - r_0)*t + r_0
-        // Given a pixel at a position (x_2, y_2), we need to find the largest t such that
-        // (x_2 - x(t))^2 + (y - y_(t))^2 = r_t()^2, i.e. the circle with the interpolated
-        // radius and center position needs to intersect the pixel we are processing.
-        //
-        // You can reformulate this problem to a quadratic equation (TODO: add derivation. Since
-        // I'm not sure if that code will stay the same after performance optimizations I haven't
-        // written this down yet), to which we then simply need to find the solutions.
-
-        let r0 = self.r0;
-        let dx = self.c1.0;
-        let dy = self.c1.1;
-        let dr = self.r1 - self.r0;
-
-        let px = pos.x as f32;
-        let py = pos.y as f32;
-
-        let a = dx * dx + dy * dy - dr * dr;
-        let b = -2.0 * (px * dx + py * dy + r0 * dr);
-        let c = px * px + py * py - r0 * r0;
-
-        let discriminant = b * b - 4.0 * a * c;
-
-        // No solution available.
-        if discriminant < 0.0 {
-            return None;
-        }
-
-        let sqrt_d = discriminant.sqrt();
-        let t1 = (-b - sqrt_d) / (2.0 * a);
-        let t2 = (-b + sqrt_d) / (2.0 * a);
-
-        let max = t1.max(t2);
-        let min = t1.min(t2);
-
-        // We only want values for `t` where the interpolated radius is actually positive.
-        if self.r0 + dr * max < 0.0 {
-            if self.r0 + dr * min < 0.0 {
-                None
-            } else {
-                Some(min)
+        match self {
+            Self::Radial { bias, scale } => {
+                let mut radius = pos.to_vec2().length() as f32;
+                radius = bias + radius * scale;
+                Some(radius)
             }
-        } else {
-            Some(max)
+            Self::Strip { scaled_r0_squared } => {
+                let p1 = scaled_r0_squared - pos.y as f32 * pos.y as f32;
+
+                if p1 < 0.0 {
+                    None
+                } else {
+                    Some(pos.x as f32 + p1.sqrt())
+                }
+            }
+            Self::Focal {
+                focal_data,
+                fp0,
+                fp1,
+            } => {
+                let x = pos.x as f32;
+                let y = pos.y as f32;
+
+                let mut t = if focal_data.is_focal_on_circle() {
+                    // xy_to_2pt_conical_focal_on_circle
+                    x + y * y / x
+                } else if focal_data.is_well_behaved() {
+                    // xy_to_2pt_conical_well_behaved
+                    (x * x + y * y).sqrt() - x * fp0
+                } else if focal_data.is_swapped() || (1.0 - focal_data.f_focal_x < 0.0) {
+                    // xy_to_2pt_conical_smaller
+                    -(x * x - y * y).sqrt() - x * fp0
+                } else {
+                    // xy_to_2pt_conical_greater
+                    (x * x - y * y).sqrt() - x * fp0
+                };
+
+                if !focal_data.is_well_behaved() {
+                    // mask_2pt_conical_degenerates
+                    let is_degenerate = t <= 0.0 || t.is_nan();
+
+                    if is_degenerate {
+                        return None;
+                    }
+                }
+
+                if 1.0 - focal_data.f_focal_x < 0.0 {
+                    // negate_x
+                    t = -t;
+                }
+
+                if !focal_data.is_natively_focal() {
+                    // alter_2pt_conical_compensate_focal
+                    t += fp1;
+                }
+
+                if focal_data.is_swapped() {
+                    // alter_2pt_conical_unswap
+                    t = 1.0 - t;
+                }
+
+                Some(t)
+            }
         }
     }
 }
+
+/// Computed properties of a linear gradient.
+#[derive(Debug, Copy, Clone)]
+pub struct LinearKind;
 
 /// Computed properties of a sweep gradient.
 #[derive(Debug, Copy, Clone)]
@@ -631,7 +742,11 @@ impl GradientLike for RadialKind {
     }
 
     fn has_undefined(&self) -> bool {
-        self.cone_like
+        match self {
+            Self::Radial { .. } => false,
+            Self::Strip { .. } => true,
+            Self::Focal { focal_data, .. } => !focal_data.is_well_behaved(),
+        }
     }
 
     fn is_defined(&self, pos: Point) -> bool {
@@ -746,16 +861,26 @@ impl EncodeExt for BlurredRoundedRectangle {
     }
 }
 
-/// Calculates the transform necessary to map the points src1, src2 to dst1, dst2.
+/// Calculates the transform necessary to map the line spanned by points src1, src2 to
+/// the line spanned by dst1, dst2.
+///
+/// This creates a transformation that maps any line segment to any other line segment.
+/// For gradients, we use this to transform the gradient line to a standard form (0,0) → (1,0).
+///
 /// Copied from <https://github.com/linebender/tiny-skia/blob/68b198a7210a6bbf752b43d6bc4db62445730313/src/shaders/radial_gradient.rs#L182>
-fn ts_from_poly_to_poly(src1: Point, src2: Point, dst1: Point, dst2: Point) -> Affine {
-    let tmp1 = from_poly2(src1, src2);
-    let res = tmp1.inverse();
-    let tmp2 = from_poly2(dst1, dst2);
-    tmp2 * res
+fn ts_from_line_to_line(src1: Point, src2: Point, dst1: Point, dst2: Point) -> Affine {
+    let unit_to_line1 = unit_to_line(src1, src2);
+    // Calculate the transform necessary to map line1 to the unit vector.
+    let line1_to_unit = unit_to_line1.inverse();
+    // Then map the unit vector to line2.
+    let unit_to_line2 = unit_to_line(dst1, dst2);
+
+    unit_to_line2 * line1_to_unit
 }
 
-fn from_poly2(p0: Point, p1: Point) -> Affine {
+/// Calculate the transform necessary to map the unit vector to the line spanned by the points
+/// `p1` and `p2`.
+fn unit_to_line(p0: Point, p1: Point) -> Affine {
     Affine::new([
         p1.y - p0.y,
         p0.x - p1.x,
