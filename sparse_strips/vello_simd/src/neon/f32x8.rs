@@ -1,6 +1,6 @@
 use crate::neon::f32x4::f32x4;
 use crate::neon::splat_col_pos;
-use crate::{Base, ColorLike, Float, Type, Widened, arith_ops};
+use crate::{Base, ColorLike, Float, Mask, Type, Widened, arith_ops};
 use std::arch::aarch64::*;
 use std::ops::Div;
 
@@ -259,7 +259,7 @@ impl Float for f32x8 {
         unsafe {
             let a = vbslq_f32(mask.0, if_.0.0, else_.0.0);
             let b = vbslq_f32(mask.1, if_.1.0, else_.1.0);
-            
+
             Self(f32x4(a), f32x4(b))
         }
     }
@@ -277,5 +277,13 @@ impl Float for f32x8 {
         let y_pos = f32x8(f32x4(first_col.1), f32x4(second_col.1));
 
         (x_pos, y_pos)
+    }
+}
+
+impl Mask for uint32x4x2_t {
+    #[inline(always)]
+    fn splat(value: bool) -> Self {
+        let val = uint32x4_t::splat(value);
+        uint32x4x2_t(val, val)
     }
 }

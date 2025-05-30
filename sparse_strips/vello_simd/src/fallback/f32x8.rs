@@ -1,5 +1,5 @@
 use crate::fallback::f32x4::f32x4;
-use crate::{Base, ColorLike, Float, Type, Widened};
+use crate::{Base, ColorLike, Float, Mask, Type, Widened};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
@@ -270,5 +270,12 @@ impl Float for f32x8 {
         let y_pos = f32x8(first_col.1, second_col.1);
 
         (x_pos, y_pos)
+    }
+}
+
+impl Mask for [[bool; 4]; 2] {
+    #[inline(always)]
+    fn splat(value: bool) -> Self {
+        [[value, value, value, value], [value, value, value, value]]
     }
 }

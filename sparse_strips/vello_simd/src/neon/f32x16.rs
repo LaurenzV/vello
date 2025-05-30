@@ -1,7 +1,7 @@
 use crate::neon::f32x4::f32x4;
 use crate::neon::f32x8::f32x8;
 use crate::neon::splat_col_pos;
-use crate::{Base, ColorLike, Float, Type, Widened, arith_ops};
+use crate::{Base, ColorLike, Float, Mask, Type, Widened, arith_ops};
 use std::arch::aarch64::*;
 use std::ops::Div;
 
@@ -270,5 +270,13 @@ impl Float for f32x16 {
         );
 
         (Self(f_x, s_x), Self(f_y, s_y))
+    }
+}
+
+impl Mask for uint32x4x4_t {
+    #[inline(always)]
+    fn splat(value: bool) -> Self {
+        let val = uint32x4_t::splat(value);
+        uint32x4x4_t(val, val, val, val)
     }
 }

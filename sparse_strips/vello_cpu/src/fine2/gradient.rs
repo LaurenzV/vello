@@ -1,9 +1,11 @@
 use crate::fine2::{COLOR_COMPONENTS, Painter, TILE_HEIGHT_COMPONENTS};
 use std::f32::consts::PI;
 use std::marker::PhantomData;
-use vello_common::encode::{EncodedGradient, GradientLike, GradientRange, LinearKind, SweepKind};
+use vello_common::encode::{
+    EncodedGradient, FocalData, GradientLike, GradientRange, LinearKind, RadialKind, SweepKind,
+};
 use vello_common::kurbo::Point;
-use vello_simd::{ColorLike, Float, NumberKind, Type};
+use vello_simd::{ColorLike, Float, Mask, NumberKind, Type};
 
 #[derive(Debug)]
 pub struct SimdLinearKind<T: Float> {
@@ -16,6 +18,28 @@ pub struct SimdSweepKind<T: Float> {
     start_angle: T,
     inv_angle_delta: T,
     kind: SweepKind,
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct SimdFocalData<T: Float> {
+    fr1: T,
+    f_focal_x: T,
+    f_is_swapped: T::Mask,
+}
+
+pub enum SimdRadialKind<T: Float> {
+    Radial {
+        bias: T,
+        scale: T,
+    },
+    Strip {
+        scaled_r0_squared: T,
+    },
+    Focal {
+        focal_data: SimdFocalData<T>,
+        fp0: T,
+        fp1: T,
+    },
 }
 
 impl<T: Float> From<LinearKind> for SimdLinearKind<T> {
@@ -33,6 +57,33 @@ impl<T: Float> From<SweepKind> for SimdSweepKind<T> {
             start_angle: T::splat(value.start_angle),
             inv_angle_delta: T::splat(value.inv_angle_delta),
             kind: value,
+        }
+    }
+}
+
+impl<T: Float> From<RadialKind> for SimdRadialKind<T> {
+    fn from(value: RadialKind) -> Self {
+        match value {
+            RadialKind::Radial { bias, scale } => SimdRadialKind::Radial {
+                bias: T::splat(bias),
+                scale: T::splat(scale),
+            },
+            RadialKind::Strip { scaled_r0_squared } => SimdRadialKind::Strip {
+                scaled_r0_squared: T::splat(scaled_r0_squared),
+            },
+            RadialKind::Focal {
+                focal_data,
+                fp0,
+                fp1,
+            } => SimdRadialKind::Focal {
+                fp0: T::splat(fp0),
+                fp1: T::splat(fp1),
+                focal_data: SimdFocalData {
+                    fr1: T::splat(focal_data.fr1),
+                    f_focal_x: T::splat(focal_data.f_focal_x),
+                    f_is_swapped: T::Mask::splat(focal_data.f_is_swapped),
+                },
+            },
         }
     }
 }
@@ -326,7 +377,7 @@ fn x_y_to_unit_angle<T: Float>(x: T, y: T) -> T {
 
     let mut phi = slope * c;
 
-    phi = T::if_then_else(x_abs.lt(y_abs) , c2 - phi, phi);
+    phi = T::if_then_else(x_abs.lt(y_abs), c2 - phi, phi);
     phi = T::if_then_else(x.lt(c0), c3 - phi, phi);
     phi = T::if_then_else(y.lt(c0), c1 - phi, phi);
     phi = T::if_then_else(phi.ne(phi), c0, phi);

@@ -1,3 +1,4 @@
+use crate::Mask;
 use std::arch::aarch64::*;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -123,23 +124,17 @@ impl f32x4 {
 
     #[inline(always)]
     pub(crate) fn lt(self, other: Self) -> uint32x4_t {
-        unsafe {
-            vcltq_f32(self.0, other.0)
-        }
+        unsafe { vcltq_f32(self.0, other.0) }
     }
 
     #[inline(always)]
     pub(crate) fn ne(self, other: Self) -> uint32x4_t {
-        unsafe {
-            vmvnq_u32(vceqq_f32(self.0, other.0))
-        }
+        unsafe { vmvnq_u32(vceqq_f32(self.0, other.0)) }
     }
 
     #[inline(always)]
     pub(crate) fn if_then_else(mask: uint32x4_t, a: Self, b: Self) -> Self {
-        unsafe {
-            Self(vbslq_f32(mask, a.0, b.0))
-        }
+        unsafe { Self(vbslq_f32(mask, a.0, b.0)) }
     }
 
     #[inline(always)]
@@ -150,5 +145,12 @@ impl f32x4 {
 
             Self(vmaxq_f32(vminq_f32(self.0, max), min))
         }
+    }
+}
+
+impl Mask for uint32x4_t {
+    #[inline(always)]
+    fn splat(value: bool) -> Self {
+        unsafe { vdupq_n_u32(value as u32 * u32::MAX) }
     }
 }

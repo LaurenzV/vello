@@ -7,7 +7,7 @@ use crate::blurred_rounded_rect::BlurredRoundedRectangle;
 use crate::color::palette::css::BLACK;
 use crate::color::{AlphaColor, ColorSpaceTag, HueDirection, Srgb, gradient};
 use crate::kurbo::{Affine, Point, Vec2};
-use crate::math::{compute_erf7, FloatExt};
+use crate::math::{FloatExt, compute_erf7};
 use crate::paint::{Image, IndexedPaint, Paint, PremulColor};
 use crate::peniko;
 use crate::peniko::{ColorStop, Extend, Gradient, GradientKind, ImageQuality};
@@ -438,9 +438,9 @@ pub struct EncodedImage {
 /// Focal data for a radial gradient.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FocalData {
-    fr1: f32,
-    f_focal_x: f32,
-    f_is_swapped: bool,
+    pub fr1: f32,
+    pub f_focal_x: f32,
+    pub f_is_swapped: bool,
 }
 
 impl FocalData {

@@ -1,4 +1,4 @@
-use crate::{Base, ColorLike, Float, Type, Widened};
+use crate::{Base, ColorLike, Float, Mask, Type, Widened};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
@@ -270,11 +270,11 @@ impl Float for f32x4 {
 
     #[inline(always)]
     fn if_then_else(cond: Self::Mask, mut f_: Self, else_: Self) -> Self {
-        f_.0[0] = if cond[0] { f_.0[0] } else {else_.0[0]};
-        f_.0[1] = if cond[1] { f_.0[1] } else {else_.0[1]};
-        f_.0[2] = if cond[2] { f_.0[2] } else {else_.0[2]};
-        f_.0[3] = if cond[3] { f_.0[3] } else {else_.0[3]};
-        
+        f_.0[0] = if cond[0] { f_.0[0] } else { else_.0[0] };
+        f_.0[1] = if cond[1] { f_.0[1] } else { else_.0[1] };
+        f_.0[2] = if cond[2] { f_.0[2] } else { else_.0[2] };
+        f_.0[3] = if cond[3] { f_.0[3] } else { else_.0[3] };
+
         f_
     }
 
@@ -301,4 +301,11 @@ impl Float for f32x4 {
 #[inline(always)]
 fn select(cond: bool, left: f32, right: f32) -> f32 {
     if cond { left } else { right }
+}
+
+impl Mask for [bool; 4] {
+    #[inline(always)]
+    fn splat(value: bool) -> Self {
+        [value, value, value, value]
+    }
 }

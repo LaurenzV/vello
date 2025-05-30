@@ -4,7 +4,7 @@ use peniko::{BlendMode, Compose, Mix};
 use vello_common::coarse::WideTile;
 use vello_common::color::palette::css::ROYAL_BLUE;
 use vello_common::paint::{Paint, PremulColor};
-use vello_cpu::fine2::{Fine};
+use vello_cpu::fine2::Fine;
 use vello_dev_macros::vello_bench;
 use vello_simd::Type;
 

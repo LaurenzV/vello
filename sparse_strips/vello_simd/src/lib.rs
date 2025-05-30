@@ -136,8 +136,8 @@ pub trait ColorLike: Copy + Debug {
 }
 
 pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
-    type Mask: Sized;
-    
+    type Mask: Mask;
+
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;
     fn abs(self) -> Self;
@@ -178,6 +178,10 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
         x_advance: (f32, f32),
         y_advance: (f32, f32),
     ) -> (Self, Self);
+}
+
+pub trait Mask: Sized {
+    fn splat(value: bool) -> Self;
 }
 
 pub(crate) const TILE_HEIGHT: usize = 4;

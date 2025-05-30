@@ -438,7 +438,7 @@ pub(crate) mod strip {
             }
         }
     }
-    
+
     #[inline(always)]
     fn alpha_composite_solid<N: Type>(
         target: &mut [N::Scalar],
@@ -457,7 +457,7 @@ pub(crate) mod strip {
             alpha_composite_inner(bg_part, masks, src_c, src_a, one);
         }
     }
-    
+
     #[inline(always)]
     pub(crate) fn blend<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],
@@ -470,7 +470,7 @@ pub(crate) mod strip {
             _ => blend::strip::blend(target, src_c, alphas, blend_mode),
         }
     }
-    
+
     #[inline(always)]
     fn alpha_composite<N: Type, T: Iterator<Item = N>>(
         target: &mut [N::Scalar],

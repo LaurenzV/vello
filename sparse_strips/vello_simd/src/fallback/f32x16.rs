@@ -1,7 +1,7 @@
-use crate::fallback::f32x8::f32x8;
-use crate::{fallback, Base, ColorLike, Float, Type, Widened};
-use std::ops::{Add, Div, Mul, Sub};
 use crate::fallback::f32x4::f32x4;
+use crate::fallback::f32x8::f32x8;
+use crate::{Base, ColorLike, Float, Mask, Type, Widened, fallback};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x16(pub(crate) f32x8, pub(crate) f32x8);
@@ -268,5 +268,15 @@ impl Float for f32x16 {
         );
 
         (Self(f_x, s_x), Self(f_y, s_y))
+    }
+}
+
+impl Mask for [[[bool; 4]; 2]; 2] {
+    #[inline(always)]
+    fn splat(value: bool) -> Self {
+        [
+            [[value, value, value, value], [value, value, value, value]],
+            [[value, value, value, value], [value, value, value, value]],
+        ]
     }
 }
