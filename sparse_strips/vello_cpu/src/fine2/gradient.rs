@@ -27,7 +27,7 @@ pub struct SimdFocalData<T: Float> {
     f_is_swapped: T::Mask,
 }
 
-pub enum SimdRadialKind<T: Float> {
+pub enum SimdRadialKindInner<T: Float> {
     Radial {
         bias: T,
         scale: T,
@@ -40,6 +40,11 @@ pub enum SimdRadialKind<T: Float> {
         fp0: T,
         fp1: T,
     },
+}
+
+pub struct SimdRadialKind<T: Float> {
+    inner: SimdRadialKindInner<T>,
+    kind: RadialKind
 }
 
 impl<T: Float> From<LinearKind> for SimdLinearKind<T> {
@@ -63,19 +68,19 @@ impl<T: Float> From<SweepKind> for SimdSweepKind<T> {
 
 impl<T: Float> From<RadialKind> for SimdRadialKind<T> {
     fn from(value: RadialKind) -> Self {
-        match value {
-            RadialKind::Radial { bias, scale } => SimdRadialKind::Radial {
+        let inner = match value {
+            RadialKind::Radial { bias, scale } => SimdRadialKindInner::Radial {
                 bias: T::splat(bias),
                 scale: T::splat(scale),
             },
-            RadialKind::Strip { scaled_r0_squared } => SimdRadialKind::Strip {
+            RadialKind::Strip { scaled_r0_squared } => SimdRadialKindInner::Strip {
                 scaled_r0_squared: T::splat(scaled_r0_squared),
             },
             RadialKind::Focal {
                 focal_data,
                 fp0,
                 fp1,
-            } => SimdRadialKind::Focal {
+            } => SimdRadialKindInner::Focal {
                 fp0: T::splat(fp0),
                 fp1: T::splat(fp1),
                 focal_data: SimdFocalData {
@@ -84,6 +89,11 @@ impl<T: Float> From<RadialKind> for SimdRadialKind<T> {
                     f_is_swapped: T::Mask::splat(focal_data.f_is_swapped),
                 },
             },
+        };
+        
+        SimdRadialKind {
+            inner,
+            kind: value,
         }
     }
 }
@@ -108,6 +118,16 @@ impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
         let angle = x_y_to_unit_angle(x_pos, y_pos * T::splat(-1.0)) * T::splat(2.0 * PI);
 
         (angle - self.start_angle) * self.inv_angle_delta
+    }
+
+    fn cur_pos_scalar(&self, point: Point) -> f32 {
+        self.kind.cur_pos(point)
+    }
+}
+
+impl<T: Float> SimdGradientKind<T> for SimdRadialKind<T> {
+    fn cur_pos(&self, x_pos: T, y_pos: T) -> T {
+        todo!()
     }
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
@@ -205,11 +225,7 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
             );
 
             if S::IS_FLOAT {
-                if tlbr_advance || bltr_advance {
-                    self.run_float_range_scalar(column, cur_range);
-                } else {
-                    self.run_float_range(column, &cur_range);
-                }
+                self.run_float_range_scalar(column, cur_range);
             } else {
                 self.run_float_range_scalar(column, cur_range);
             }
