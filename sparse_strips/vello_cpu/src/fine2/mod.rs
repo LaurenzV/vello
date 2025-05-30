@@ -8,7 +8,7 @@ mod blend;
 mod gradient;
 mod rounded_blurred_rect;
 
-use crate::fine2::gradient::{GradientFiller, SimdLinearKind, SimdSweepKind};
+use crate::fine2::gradient::{GradientFiller, SimdLinearKind, SimdRadialKind, SimdSweepKind};
 use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::scalar::div_255;
 use alloc::vec;
@@ -213,7 +213,17 @@ impl<N: Type> Fine<N> {
                                 filler,
                             );
                         }
-                        _ => unimplemented!(),
+                        EncodedKind::Radial(r) => {
+                            let filler: GradientFiller<N, SimdRadialKind<N::Float>> =
+                                GradientFiller::new(g, r, &mut self.temp_buf, start_x, start_y);
+                            fill_complex_paint::<N>(
+                                color_buf,
+                                blend_buf,
+                                g.has_opacities,
+                                blend_mode,
+                                filler,
+                            );
+                        }
                     },
                     _ => unimplemented!(),
                 }
@@ -290,7 +300,13 @@ impl<N: Type> Fine<N> {
                                 color_buf, blend_buf, filler, blend_mode, alphas,
                             );
                         }
-                        _ => unimplemented!(),
+                        EncodedKind::Radial(r) => {
+                            let filler: GradientFiller<N, SimdRadialKind<N::Float>> =
+                                GradientFiller::new(g, r, &mut self.temp_buf, start_x, start_y);
+                            strip_complex_paint::<N>(
+                                color_buf, blend_buf, filler, blend_mode, alphas,
+                            );
+                        }
                     },
                     _ => unimplemented!(),
                 }

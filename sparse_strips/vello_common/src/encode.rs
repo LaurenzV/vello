@@ -71,7 +71,64 @@ impl EncodeExt for Gradient {
                 end_center: mut c1,
                 end_radius: mut r1,
             } => {
-                unimplemented!()
+                // The implementation of radial gradients is translated from Skia.
+                // See:
+                // - <https://skia.org/docs/dev/design/conical/>
+                // - <https://github.com/google/skia/blob/main/src/shaders/gradients/SkConicalGradient.h>
+                // - <https://github.com/google/skia/blob/main/src/shaders/gradients/SkConicalGradient.cpp>
+
+                // Same story as for linear gradients, mutate stops so that reflect and repeat
+                // can be treated the same.
+                if self.extend == Extend::Reflect {
+                    c1 += c1 - c0;
+                    r1 += r1 - r0;
+                    stops = Cow::Owned(apply_reflect(&stops));
+                }
+
+                let d_radius = r1 - r0;
+
+                // <https://github.com/google/skia/blob/1e07a4b16973cf716cb40b72dd969e961f4dd950/src/shaders/gradients/SkConicalGradient.cpp#L83-L112>
+                let radial_kind = if ((c1 - c0).length() as f32).is_nearly_zero() {
+                    base_transform = Affine::translate((-c1.x, -c1.y));
+                    base_transform = base_transform.then_scale(1.0 / r0.max(r1) as f64);
+
+                    let scale = r1.max(r0) / d_radius;
+                    let bias = -r0 / d_radius;
+
+                    RadialKind::Radial { bias, scale }
+                } else {
+                    base_transform =
+                        ts_from_line_to_line(c0, c1, Point::ZERO, Point::new(1.0, 0.0));
+
+                    if (r1 - r0).is_nearly_zero() {
+                        let scaled_r0 = r1 / (c1 - c0).length() as f32;
+                        RadialKind::Strip {
+                            scaled_r0_squared: scaled_r0 * scaled_r0,
+                        }
+                    } else {
+                        let d_center = (c0 - c1).length() as f32;
+
+                        let focal_data =
+                            FocalData::create(r0 / d_center, r1 / d_center, &mut base_transform);
+
+                        let fp0 = 1.0 / focal_data.fr1;
+                        let fp1 = focal_data.f_focal_x;
+
+                        RadialKind::Focal {
+                            focal_data,
+                            fp0,
+                            fp1,
+                        }
+                    }
+                };
+
+                // Even if the gradient has no stops with transparency, we might have to force
+                // alpha-compositing in case the radial gradient is undefined in certain positions,
+                // in which case the resulting color will be transparent and thus the gradient overall
+                // must be treated as non-opaque.
+                has_opacities |= radial_kind.has_undefined();
+
+                EncodedKind::Radial(radial_kind)
             }
             GradientKind::Sweep {
                 center,
