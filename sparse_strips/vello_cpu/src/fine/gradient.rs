@@ -100,9 +100,10 @@ impl<'a, T: GradientLike> GradientFiller<'a, T> {
 
                 for pixel in column.chunks_exact_mut(COLOR_COMPONENTS) {
                     let actual_pos = pos;
+                    let mask = F::from_normalized_f32(self.kind.cur_pos_mask(actual_pos));
 
-                    if !self.kind.is_defined(actual_pos) {
-                        pixel.copy_from_slice(&[F::ZERO, F::ZERO, F::ZERO, F::ZERO]);
+                    for e in pixel {
+                        *e = *e * mask;
                     }
 
                     pos += self.gradient.y_advance;
