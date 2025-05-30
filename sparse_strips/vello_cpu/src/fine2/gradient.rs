@@ -22,6 +22,7 @@ pub struct SimdSweepKind<T: Float> {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct SimdFocalData<T: Float> {
+    focal_data: FocalData,
     fr1: T,
     f_focal_x: T,
     f_is_swapped: T::Mask,
@@ -84,6 +85,7 @@ impl<T: Float> From<RadialKind> for SimdRadialKind<T> {
                 fp0: T::splat(fp0),
                 fp1: T::splat(fp1),
                 focal_data: SimdFocalData {
+                    focal_data,
                     fr1: T::splat(focal_data.fr1),
                     f_focal_x: T::splat(focal_data.f_focal_x),
                     f_is_swapped: T::Mask::splat(focal_data.f_is_swapped),
@@ -100,7 +102,13 @@ impl<T: Float> From<RadialKind> for SimdRadialKind<T> {
 
 trait SimdGradientKind<T: Float> {
     fn cur_pos(&self, x_pos: T, y_pos: T) -> T;
+    fn cur_pos_mask(&self, _: T, _: T) -> T {
+        T::splat(1.0)
+    }
     fn cur_pos_scalar(&self, point: Point) -> f32;
+    fn has_undefined(&self) -> bool {
+        false
+    }
 }
 
 impl<T: Float> SimdGradientKind<T> for SimdLinearKind<T> {
@@ -127,11 +135,59 @@ impl<T: Float> SimdGradientKind<T> for SimdSweepKind<T> {
 
 impl<T: Float> SimdGradientKind<T> for SimdRadialKind<T> {
     fn cur_pos(&self, x_pos: T, y_pos: T) -> T {
-        todo!()
+        match &self.inner {
+            SimdRadialKindInner::Radial { bias, scale } => {
+                let mut radius = (x_pos * x_pos + y_pos * y_pos).sqrt();
+
+                *bias + radius * *scale
+            }
+            SimdRadialKindInner::Strip { scaled_r0_squared } => {
+                let p1 = *scaled_r0_squared - y_pos * y_pos;
+
+                x_pos + p1.sqrt()
+            }
+            SimdRadialKindInner::Focal {
+                focal_data,
+                fp0,
+                fp1,
+            } => {
+                let mut t = if focal_data.focal_data.is_focal_on_circle() {
+                    x_pos + y_pos * y_pos / x_pos
+                } else if focal_data.focal_data.is_well_behaved() {
+                    (x_pos * x_pos + y_pos * y_pos).sqrt() - x_pos * *fp0
+                } else if focal_data.focal_data.is_swapped() || (1.0 - focal_data.focal_data.f_focal_x < 0.0) {
+                    T::splat(-1.0) * (x_pos * x_pos - y_pos * y_pos).sqrt() - x_pos * *fp0
+                } else {
+                    (x_pos * x_pos - y_pos * y_pos).sqrt() - x_pos * *fp0
+                };
+
+                if 1.0 - focal_data.focal_data.f_focal_x < 0.0 {
+                    t = T::splat(-1.0) * t;
+                }
+
+                if !focal_data.focal_data.is_natively_focal() {
+                    t = t + *fp1;
+                }
+
+                if focal_data.focal_data.is_swapped() {
+                    t = T::splat(1.0) - t;
+                }
+
+                t
+            }
+        }
     }
 
     fn cur_pos_scalar(&self, point: Point) -> f32 {
         self.kind.cur_pos(point)
+    }
+
+    fn cur_pos_mask(&self, x_pos: T, y_pos: T) -> T {
+        todo!()
+    }
+
+    fn has_undefined(&self) -> bool {
+        self.kind.has_undefined()
     }
 }
 
@@ -225,7 +281,11 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
             );
 
             if S::IS_FLOAT {
-                self.run_float_range_scalar(column, cur_range);
+                if tlbr_advance || bltr_advance {
+                    self.run_float_range_scalar(column, cur_range);
+                } else {
+                    self.run_float_range(column, &cur_range);
+                }
             } else {
                 self.run_float_range_scalar(column, cur_range);
             }
