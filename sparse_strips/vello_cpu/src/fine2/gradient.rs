@@ -241,7 +241,7 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
 
         target.chunks_exact_mut(64).for_each(|column| {
             if S::IS_FLOAT {
-                self.run_float_range_scalar(column);
+                self.run_float_range(column);
             } else {
                 self.run_float_range_scalar(column);
             }
@@ -273,7 +273,7 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
         }
     }
 
-    fn run_float_range(&mut self, target: &mut [S::Scalar], range: &InnerRange) {
+    fn run_float_range(&mut self, target: &mut [S::Scalar]) {
         let pad = self.gradient.pad;
         let (x_pos, y_pos) = S::Float::splat_col_pos(
             (self.cur_pos.x as f32, self.cur_pos.y as f32),
@@ -281,18 +281,33 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
             self.y_advances,
         );
 
-        let bias = range.bias::<S::Float>();
-        let scale = range.scale::<S::Float>();
-
         let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
+        
+        let indices = advance_simd(t_vals, &self.gradient.ranges);
+        let mut stored_indices: [u32; 16] = [0; 16];
+        indices.store(&mut stored_indices);
+        
+        let mut scales = [0.0f32; 64];
+        let mut biases = [0.0f32; 64];
+        
+        for ((scale, bias), idx) in scales.chunks_exact_mut(4).zip(biases.chunks_exact_mut(4)).zip(stored_indices.iter()) {
+            let range = &self.gradient.ranges[*idx as usize];
+            scale.copy_from_slice(&range.scale);
+            bias.copy_from_slice(&range.bias);
+        }
+        
         t_vals.store(self.stored_t_vals);
 
-        for (t, target) in self
+        for (((t, target), scales), biases) in self
             .stored_t_vals
             .chunks_exact(4)
             .zip(target.chunks_exact_mut(S::LENGTH))
+            .zip(scales.chunks_exact(S::LENGTH))
+            .zip(biases.chunks_exact(S::LENGTH))
         {
             let t_vals = S::Float::load_alphas_f32(t);
+            let scale = S::Float::load(scales);
+            let bias = S::Float::load(biases);
 
             let res = t_vals.mul_add(scale, bias);
             let converted = S::from_float(&[res]);
@@ -357,6 +372,17 @@ fn advance(target_pos: f32, ranges: &[GradientRange]) -> usize {
 
     for i in 0..(ranges.len() - 1) {
         idx += (target_pos >= ranges[i].x1) as usize;
+    }
+
+    idx
+}
+
+#[inline]
+fn advance_simd<T: Float>(target_pos: T, ranges: &[GradientRange]) -> T::Integer {
+    let mut idx = T::Integer::splat(0);
+
+    for i in 0..(ranges.len() - 1) {
+        idx = idx + T::Integer::if_then_else(T::splat(ranges[i].x1).leq(target_pos), T::Integer::splat(1), T::Integer::splat(0));
     }
 
     idx
