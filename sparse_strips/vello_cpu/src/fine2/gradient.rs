@@ -138,7 +138,8 @@ impl<T: Float> SimdGradientKind<T> for SimdRadialKind<T> {
             SimdRadialKindInner::Strip { scaled_r0_squared } => {
                 let p1 = *scaled_r0_squared - y_pos * y_pos;
 
-                x_pos + p1.sqrt()
+                let mask = p1.lt(T::splat(0.0));
+                T::if_then_else(mask, T::splat(f32::NAN), x_pos + p1.sqrt())
             }
             SimdRadialKindInner::Focal {
                 focal_data,
@@ -156,6 +157,13 @@ impl<T: Float> SimdGradientKind<T> for SimdRadialKind<T> {
                 } else {
                     (x_pos * x_pos - y_pos * y_pos).sqrt() - x_pos * *fp0
                 };
+
+                if !focal_data.focal_data.is_well_behaved() {
+                    // Radii < 0 should be masked out, too.
+                    let is_degenerate = t.leq(T::splat(0.0));
+
+                    t = T::if_then_else(is_degenerate, T::splat(f32::NAN), t);
+                }
 
                 if 1.0 - focal_data.focal_data.f_focal_x < 0.0 {
                     t = T::splat(-1.0) * t;

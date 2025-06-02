@@ -239,6 +239,14 @@ impl Float for f32x16 {
     }
 
     #[inline(always)]
+    fn leq(self, other: Self) -> Self::Mask {
+        let a = self.0.leq(other.0);
+        let b = self.1.leq(other.1);
+
+        uint32x4x4_t(a.0, a.1, b.0, b.1)
+    }
+
+    #[inline(always)]
     fn ne(mut self, other: Self) -> Self::Mask {
         let a = self.0.ne(other.0);
         let b = self.1.ne(other.1);

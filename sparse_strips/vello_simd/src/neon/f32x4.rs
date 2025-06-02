@@ -128,6 +128,11 @@ impl f32x4 {
     }
 
     #[inline(always)]
+    pub(crate) fn leq(self, other: Self) -> uint32x4_t {
+        unsafe { vcleq_f32(self.0, other.0) }
+    }
+
+    #[inline(always)]
     pub(crate) fn ne(self, other: Self) -> uint32x4_t {
         unsafe { vmvnq_u32(vceqq_f32(self.0, other.0)) }
     }

@@ -145,6 +145,7 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     fn floor(self) -> Self;
     fn fract(self) -> Self;
     fn lt(self, other: Self) -> Self::Mask;
+    fn leq(self, other: Self) -> Self::Mask;
     fn ne(self, other: Self) -> Self::Mask;
 
     fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self;

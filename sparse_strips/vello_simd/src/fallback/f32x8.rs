@@ -241,6 +241,11 @@ impl Float for f32x8 {
     }
 
     #[inline(always)]
+    fn leq(self, other: Self) -> Self::Mask {
+        [self.0.leq(other.0), self.1.leq(other.1)]
+    }
+
+    #[inline(always)]
     fn ne(mut self, other: Self) -> Self::Mask {
         [self.0.ne(other.0), self.1.ne(other.1)]
     }
