@@ -916,7 +916,7 @@ mod sweep {
     fn gradient_sweep_with_transform_rotate_1(ctx: &mut impl Renderer) {
         gradient_with_transform(
             ctx,
-            Affine::rotate_about(PI / 4.0, Point::new(50.0, 50.0)),
+            Affine::rotate_about(50.0_f64.to_radians(), Point::new(50.0, 50.0)),
             25.0,
             25.0,
             75.0,
@@ -928,7 +928,7 @@ mod sweep {
     fn gradient_sweep_with_transform_rotate_2(ctx: &mut impl Renderer) {
         gradient_with_transform(
             ctx,
-            Affine::rotate_about(-PI / 4.0, Point::new(50.0, 50.0)),
+            Affine::rotate_about((-50.0_f64).to_radians(), Point::new(50.0, 50.0)),
             25.0,
             25.0,
             75.0,
