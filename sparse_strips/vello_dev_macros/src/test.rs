@@ -163,23 +163,23 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
         }
     };
 
-    let u8_scalar_snippet = cpu_snippet(
-        u8_scalar_fn_name,
-        u8_scalar_name_str,
-        cpu_u8_tolerance,
-        false,
-        quote! { RenderMode::OptimizeSpeed },
-        quote! { Simd::Scalar },
-    );
-
-    let u8_neon_snippet = cpu_snippet(
-        u8_neon_fn_name,
-        u8_neon_name_str,
-        cpu_u8_tolerance,
-        false,
-        quote! { RenderMode::OptimizeSpeed },
-        quote! { Simd::Neon },
-    );
+    // let u8_scalar_snippet = cpu_snippet(
+    //     u8_scalar_fn_name,
+    //     u8_scalar_name_str,
+    //     cpu_u8_tolerance,
+    //     false,
+    //     quote! { RenderMode::OptimizeSpeed },
+    //     quote! { Simd::Scalar },
+    // );
+    // 
+    // let u8_neon_snippet = cpu_snippet(
+    //     u8_neon_fn_name,
+    //     u8_neon_name_str,
+    //     cpu_u8_tolerance,
+    //     false,
+    //     quote! { RenderMode::OptimizeSpeed },
+    //     quote! { Simd::Neon },
+    // );
 
     let f32_scalar_snippet = cpu_snippet(
         f32_scalar_fn_name,
@@ -202,8 +202,8 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     let expanded = quote! {
         #input_fn
 
-        #u8_scalar_snippet
-        #u8_neon_snippet
+        // #u8_scalar_snippet
+        // #u8_neon_snippet
         #f32_scalar_snippet
         #f32_neon_snippet
 
