@@ -40,6 +40,22 @@ impl Index<f32x8> for u32x8 {
     }
 
     #[inline(always)]
+    fn wrapping_sub(self, other: Self) -> Self {
+        let a = self.0.wrapping_sub(other.0);
+        let b = self.1.wrapping_sub(other.1);
+
+        Self(a, b)
+    }
+
+    #[inline(always)]
+    fn reinterpret(self) -> f32x8 {
+        let a = self.0.reinterpret();
+        let b = self.1.reinterpret();
+
+        f32x8(a, b)
+    }
+
+    #[inline(always)]
     fn if_then_else(cond: Self, if_: Self, else_: Self) -> Self {
         let a = u32x4::if_then_else(cond.0, if_.0, else_.0);
         let b = u32x4::if_then_else(cond.1, if_.1, else_.1);

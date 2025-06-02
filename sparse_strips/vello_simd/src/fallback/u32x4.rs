@@ -1,3 +1,4 @@
+use std::arch::aarch64::vreinterpretq_f32_u32;
 use crate::Index;
 use crate::fallback::f32x4::f32x4;
 use std::ops::Add;
@@ -37,6 +38,26 @@ impl Index<f32x4> for u32x4 {
             (self.0[1] >= other.0[1]) as u32,
             (self.0[2] >= other.0[2]) as u32,
             (self.0[3] >= other.0[3]) as u32,
+        ])
+    }
+
+    #[inline(always)]
+    fn wrapping_sub(self, other: Self) -> Self {
+        u32x4([
+            self.0[0].wrapping_sub(other.0[0]),
+            self.0[1].wrapping_sub(other.0[1]),
+            self.0[2].wrapping_sub(other.0[2]),
+            self.0[3].wrapping_sub(other.0[3]),
+        ])
+    }
+
+    #[inline(always)]
+    fn reinterpret(self) -> f32x4 {
+        f32x4([
+            f32::from_bits(self.0[0]),
+            f32::from_bits(self.0[1]),
+            f32::from_bits(self.0[2]),
+            f32::from_bits(self.0[3]),
         ])
     }
 

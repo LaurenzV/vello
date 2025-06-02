@@ -4,6 +4,7 @@ use crate::neon::u32x4::u32x4;
 use crate::neon::u32x8::u32x8;
 use std::arch::aarch64::*;
 use std::ops::Add;
+use crate::neon::f32x8::f32x8;
 
 #[derive(Copy, Clone, Debug)]
 pub struct u32x16(pub(crate) u32x8, pub(crate) u32x8);
@@ -53,5 +54,21 @@ impl Index<f32x16> for u32x16 {
         let b = u32x8::if_then_else(cond.1, if_.1, else_.1);
 
         Self(a, b)
+    }
+
+    #[inline(always)]
+    fn wrapping_sub(self, other: Self) -> Self {
+        let a = self.0.wrapping_sub(other.0);
+        let b = self.1.wrapping_sub(other.1);
+
+        Self(a, b)
+    }
+
+    #[inline(always)]
+    fn reinterpret(self) -> f32x16 {
+        let a = self.0.reinterpret();
+        let b = self.1.reinterpret();
+
+        f32x16(a, b)
     }
 }

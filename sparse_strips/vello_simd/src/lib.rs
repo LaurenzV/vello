@@ -189,6 +189,9 @@ pub trait Index<T: Float<Integer = Self>>: Add<Self, Output = Self> + Copy + Deb
     fn splat_bool(value: bool) -> Self {
         Self::splat(value as u32 * u32::MAX)
     }
+    
+    fn wrapping_sub(self, other: Self) -> Self;
+    fn reinterpret(self) -> T;
 
     fn if_then_else(cond: Self, if_: Self, else_: Self) -> Self;
 }
