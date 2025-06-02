@@ -43,18 +43,18 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
                 #inner_fn_name(b, &mut fine);
             }
 
-            c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_scalar"), |b| {
-                run_integer(b, fallback::Fallback);
-            });
+            // c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_scalar"), |b| {
+            //     run_integer(b, fallback::Fallback);
+            // });
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "f32_scalar"), |b| {
                 run_float(b, fallback::Fallback);
             });
 
-            c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_neon"), |b| {
-                let neon = neon::Neon::new().unwrap().get();
-                run_integer(b, neon);
-            });
+            // c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_neon"), |b| {
+            //     let neon = neon::Neon::new().unwrap().get();
+            //     run_integer(b, neon);
+            // });
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "f32_neon"), |b| {
                 let neon = neon::Neon::new().unwrap().get();
