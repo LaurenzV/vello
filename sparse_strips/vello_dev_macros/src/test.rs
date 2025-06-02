@@ -171,7 +171,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     //     quote! { RenderMode::OptimizeSpeed },
     //     quote! { Simd::Scalar },
     // );
-    // 
+    //
     // let u8_neon_snippet = cpu_snippet(
     //     u8_neon_fn_name,
     //     u8_neon_name_str,

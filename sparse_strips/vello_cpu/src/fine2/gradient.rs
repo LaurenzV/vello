@@ -282,64 +282,54 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
         );
 
         let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
-        
+
         let indices = advance_simd(t_vals, &self.gradient.ranges);
         let mut stored_indices: [u32; 16] = [0; 16];
         indices.store(&mut stored_indices);
         t_vals.store(self.stored_t_vals);
-        
-       for ((t_vals, idx), target) in self.stored_t_vals.chunks_exact(4)
-           .zip(stored_indices.chunks_exact(4))
-           .zip(target.chunks_exact_mut(S::LENGTH)) {
-           let r0 = &self.gradient.ranges[idx[0] as usize];
-           let r1 = &self.gradient.ranges[idx[1] as usize];
-           let r2 = &self.gradient.ranges[idx[2] as usize];
-           let r3 = &self.gradient.ranges[idx[3] as usize];
-           
-           let scales = S::Float::load(&[
-               r0.scale[0],
-               r0.scale[1],
-               r0.scale[2],
-               r0.scale[3],
-               r1.scale[0],
-               r1.scale[1],
-               r1.scale[2],
-               r1.scale[3],
-               r2.scale[0],
-               r2.scale[1],
-               r2.scale[2],
-               r2.scale[3],
-               r3.scale[0],
-               r3.scale[1],
-               r3.scale[2],
-               r3.scale[3],
-           ]);
 
-           let biases = S::Float::load(&[
-               r0.bias[0],
-               r0.bias[1],
-               r0.bias[2],
-               r0.bias[3],
-               r1.bias[0],
-               r1.bias[1],
-               r1.bias[2],
-               r1.bias[3],
-               r2.bias[0],
-               r2.bias[1],
-               r2.bias[2],
-               r2.bias[3],
-               r3.bias[0],
-               r3.bias[1],
-               r3.bias[2],
-               r3.bias[3],
-           ]);
+        for ((t_vals, idx), target) in self
+            .stored_t_vals
+            .chunks_exact(4)
+            .zip(stored_indices.chunks_exact(4))
+            .zip(target.chunks_exact_mut(S::LENGTH))
+        {
+            let r0 = &self.gradient.ranges[idx[0] as usize];
+            let r1 = &self.gradient.ranges[idx[1] as usize];
+            let r2 = &self.gradient.ranges[idx[2] as usize];
+            let r3 = &self.gradient.ranges[idx[3] as usize];
 
-           let t_vals = S::Float::load_alphas_f32(t_vals);
+            let scales = S::Float::load(&[
+                r0.scale[0],
+                r0.scale[1],
+                r0.scale[2],
+                r0.scale[3],
+                r1.scale[0],
+                r1.scale[1],
+                r1.scale[2],
+                r1.scale[3],
+                r2.scale[0],
+                r2.scale[1],
+                r2.scale[2],
+                r2.scale[3],
+                r3.scale[0],
+                r3.scale[1],
+                r3.scale[2],
+                r3.scale[3],
+            ]);
 
-           let res = t_vals.mul_add(scales, biases);
-           let converted = S::from_float(&[res]);
-           converted.store(target);
-       }
+            let biases = S::Float::load(&[
+                r0.bias[0], r0.bias[1], r0.bias[2], r0.bias[3], r1.bias[0], r1.bias[1], r1.bias[2],
+                r1.bias[3], r2.bias[0], r2.bias[1], r2.bias[2], r2.bias[3], r3.bias[0], r3.bias[1],
+                r3.bias[2], r3.bias[3],
+            ]);
+
+            let t_vals = S::Float::load_alphas_f32(t_vals);
+
+            let res = t_vals.mul_add(scales, biases);
+            let converted = S::from_float(&[res]);
+            converted.store(target);
+        }
     }
 
     fn run_float_range_scalar(&mut self, target: &mut [S::Scalar]) {
@@ -407,11 +397,16 @@ fn advance(target_pos: f32, ranges: &[GradientRange]) -> usize {
 #[inline]
 fn advance_simd<T: Float>(target_pos: T, ranges: &[GradientRange]) -> T::Integer {
     let mut idx = T::Integer::splat(0);
-    
+
     for i in 0..(ranges.len() - 1) {
-        idx = idx + T::Integer::if_then_else(T::splat(ranges[i].x1).leq(target_pos), T::Integer::splat(1), T::Integer::splat(0));
+        idx = idx
+            + T::Integer::if_then_else(
+                T::splat(ranges[i].x1).leq(target_pos),
+                T::Integer::splat(1),
+                T::Integer::splat(0),
+            );
     }
-    
+
     idx
 }
 

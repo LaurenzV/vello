@@ -1,4 +1,5 @@
 use crate::Index;
+use crate::fallback::f32x8::f32x8;
 use crate::fallback::u32x4::u32x4;
 use std::ops::Add;
 
@@ -17,7 +18,7 @@ impl Add for u32x8 {
     }
 }
 
-impl Index for u32x8 {
+impl Index<f32x8> for u32x8 {
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         self.0.store(&mut storage[..4]);

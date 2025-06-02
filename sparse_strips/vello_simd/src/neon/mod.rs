@@ -47,15 +47,3 @@ fn div_255(input: uint16x8_t) -> uint16x8_t {
         vshrq_n_u16::<8>(p2)
     }
 }
-
-#[inline(always)]
-fn splat_col_pos(pos: (f32, f32), advance: (f32, f32)) -> (float32x4_t, float32x4_t) {
-    unsafe {
-        let column_mask = vld1q_f32([0.0, 1.0, 2.0, 3.0].as_ptr());
-
-        let x_positions = vfmaq_f32(vdupq_n_f32(pos.0), column_mask, vdupq_n_f32(advance.0));
-        let y_positions = vfmaq_f32(vdupq_n_f32(pos.1), column_mask, vdupq_n_f32(advance.1));
-
-        (x_positions, y_positions)
-    }
-}

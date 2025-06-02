@@ -1,5 +1,4 @@
 use crate::neon::f32x4::f32x4;
-use crate::neon::splat_col_pos;
 use crate::neon::u32x8::u32x8;
 use crate::{Base, ColorLike, Float, Type, Widened, arith_ops};
 use std::arch::aarch64::*;
@@ -33,7 +32,7 @@ impl Type for f32x8 {
 
     #[inline(always)]
     fn load(src: &[f32]) -> Self {
-        let src: &[f32; Self::LENGTH] = src.try_into().unwrap();
+        let src: &[f32; 8] = src.try_into().unwrap();
 
         unsafe {
             let loaded = vld1q_f32_x2(src.as_ptr());
@@ -45,26 +44,26 @@ impl Type for f32x8 {
     #[inline(always)]
     fn load_alphas(src: &[u8]) -> Self {
         Self(
-            f32x4::from_normalized_u8(src[0]),
-            f32x4::from_normalized_u8(src[1]),
+            f32x4::load_alphas(&src[0..1]),
+            f32x4::load_alphas(&src[1..2]),
         )
     }
 
     #[inline(always)]
     fn splat_4(src: [f32; 4]) -> Self {
         unsafe {
-            let v = vld1q_f32(src.as_ptr());
+            let v = f32x4::splat_4(src);
 
-            Self(f32x4(v), f32x4(v))
+            Self(v, v)
         }
     }
 
     #[inline(always)]
     fn splat(value: f32) -> Self {
         unsafe {
-            let v = vdupq_n_f32(value);
+            let v = f32x4::splat(value);
 
-            Self(f32x4(v), f32x4(v))
+            Self(v, v)
         }
     }
 
@@ -75,9 +74,10 @@ impl Type for f32x8 {
 
     #[inline(always)]
     fn store(self, dest: &mut [f32]) {
-        let dest: &mut [f32; Self::LENGTH] = dest.try_into().unwrap();
+        let dest: &mut [f32; 8] = dest.try_into().unwrap();
 
         let stored = float32x4x2_t(self.0.0, self.1.0);
+
         unsafe { vst1q_f32_x2(dest.as_mut_ptr(), stored) }
     }
 
@@ -153,7 +153,10 @@ impl Type for f32x8 {
 
     #[inline(always)]
     fn load_alphas_f32(src: &[f32]) -> Self {
-        Self(f32x4::splat(src[0]), f32x4::splat(src[1]))
+        Self(
+            f32x4::load_alphas_f32(&src[0..1]),
+            f32x4::load_alphas_f32(&src[1..2]),
+        )
     }
 
     fn load_f32_many(src: &[f32]) -> Self {
@@ -185,34 +188,18 @@ impl Float for f32x8 {
 
     #[inline(always)]
     fn sqrt(mut self) -> Self {
-        unsafe {
-            self.0.0 = vsqrtq_f32(self.0.0);
-            self.1.0 = vsqrtq_f32(self.1.0);
-        }
+        self.0 = self.0.sqrt();
+        self.1 = self.1.sqrt();
 
         self
     }
 
     #[inline(always)]
     fn powf(mut self, exponent: f32) -> Self {
-        // TODO: SIMDify
-        let mut storage = [0.0; 8];
-        unsafe {
-            vst1q_f32_x2(storage.as_mut_ptr(), float32x4x2_t(self.0.0, self.1.0));
+        self.0 = self.0.powf(exponent);
+        self.1 = self.1.powf(exponent);
 
-            storage[0] = storage[0].powf(exponent);
-            storage[1] = storage[1].powf(exponent);
-            storage[2] = storage[2].powf(exponent);
-            storage[3] = storage[3].powf(exponent);
-            storage[4] = storage[4].powf(exponent);
-            storage[5] = storage[5].powf(exponent);
-            storage[6] = storage[6].powf(exponent);
-            storage[7] = storage[7].powf(exponent);
-
-            let loaded = vld1q_f32_x2(storage.as_ptr());
-
-            Self(f32x4(loaded.0), f32x4(loaded.1))
-        }
+        self
     }
 
     #[inline(always)]
@@ -279,12 +266,13 @@ impl Float for f32x8 {
         x_advance: (f32, f32),
         y_advance: (f32, f32),
     ) -> (Self, Self) {
-        let first_col = splat_col_pos(pos, y_advance);
-        let second_col = splat_col_pos((pos.0 + x_advance.0, pos.1 + x_advance.1), y_advance);
+        let (f_x, f_y) = f32x4::splat_col_pos(pos, x_advance, y_advance);
+        let (s_x, s_y) = f32x4::splat_col_pos(
+            (pos.0 + x_advance.0, pos.1 + x_advance.1),
+            x_advance,
+            y_advance,
+        );
 
-        let x_pos = f32x8(f32x4(first_col.0), f32x4(second_col.0));
-        let y_pos = f32x8(f32x4(first_col.1), f32x4(second_col.1));
-
-        (x_pos, y_pos)
+        (Self(f_x, s_x), Self(f_y, s_y))
     }
 }

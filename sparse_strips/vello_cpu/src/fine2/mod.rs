@@ -6,8 +6,8 @@
 
 mod blend;
 mod gradient;
-mod rounded_blurred_rect;
 mod image;
+mod rounded_blurred_rect;
 
 use crate::fine2::gradient::{GradientFiller, SimdLinearKind, SimdRadialKind, SimdSweepKind};
 use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;

@@ -1,3 +1,4 @@
+use crate::fallback::f32x16::f32x16;
 use crate::fallback::u32x4::u32x4;
 use crate::fallback::u32x8::u32x8;
 use crate::{Float, Index};
@@ -18,7 +19,7 @@ impl Add for u32x16 {
     }
 }
 
-impl Index for u32x16 {
+impl Index<f32x16> for u32x16 {
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         self.0.store(&mut storage[..8]);

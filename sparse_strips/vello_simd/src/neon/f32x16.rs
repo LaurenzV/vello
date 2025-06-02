@@ -1,6 +1,5 @@
 use crate::neon::f32x4::f32x4;
 use crate::neon::f32x8::f32x8;
-use crate::neon::splat_col_pos;
 use crate::neon::u32x16::u32x16;
 use crate::{Base, ColorLike, Float, Type, Widened, arith_ops};
 use std::arch::aarch64::*;

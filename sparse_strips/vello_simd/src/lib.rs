@@ -137,7 +137,7 @@ pub trait ColorLike: Copy + Debug {
 }
 
 pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
-    type Integer: Index;
+    type Integer: Index<Self>;
 
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;
@@ -182,7 +182,7 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     ) -> (Self, Self);
 }
 
-pub trait Index: Add<Self, Output = Self> + Copy + Debug + Sized {
+pub trait Index<T: Float<Integer = Self>>: Add<Self, Output = Self> + Copy + Debug + Sized {
     fn store(self, storage: &mut [u32]);
     fn splat(value: u32) -> Self;
     fn geq(self, other: Self) -> Self;

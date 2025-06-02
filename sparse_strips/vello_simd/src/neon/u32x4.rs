@@ -1,3 +1,4 @@
+use crate::neon::f32x4::f32x4;
 use crate::{Index, Type};
 use std::arch::aarch64::*;
 use std::ops::Add;
@@ -14,7 +15,7 @@ impl Add for u32x4 {
     }
 }
 
-impl Index for u32x4 {
+impl Index<f32x4> for u32x4 {
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         let storage: &mut [u32; 4] = storage.try_into().unwrap();
