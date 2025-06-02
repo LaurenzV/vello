@@ -37,18 +37,6 @@ impl<'a, T: GradientLike> GradientFiller<'a, T> {
         }
     }
 
-    fn advance(&mut self, target_pos: f32) {
-        while target_pos > self.cur_range.x1 || target_pos < self.cur_range.x0 {
-            if self.range_idx == 0 {
-                self.range_idx = self.gradient.ranges.len() - 1;
-            } else {
-                self.range_idx -= 1;
-            }
-
-            self.cur_range = &self.gradient.ranges[self.range_idx];
-        }
-    }
-
     pub(super) fn run<F: FineType>(mut self, target: &mut [F]) {
         let original_pos = self.cur_pos;
 
@@ -74,22 +62,7 @@ impl<'a, T: GradientLike> GradientFiller<'a, T> {
     }
 
     fn run_column<F: FineType>(&mut self, col: &mut [F]) {
-        let pad = self.gradient.pad;
-        let extend = |val| extend(val, pad);
-        let mut pos = self.cur_pos;
-
-        for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
-            let t = extend(self.kind.cur_pos(pos));
-            self.advance(t);
-            let range = self.cur_range;
-            let bias = range.bias;
-
-            for (comp_idx, comp) in pixel.iter_mut().enumerate() {
-                *comp = F::from_normalized_f32(bias[comp_idx] + range.scale[comp_idx] * t);
-            }
-
-            pos += self.gradient.y_advance;
-        }
+        unimplemented!();
     }
 
     fn run_undefined<F: FineType>(mut self, target: &mut [F]) {

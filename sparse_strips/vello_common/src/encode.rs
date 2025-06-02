@@ -21,6 +21,7 @@ use smallvec::SmallVec;
 
 const DEGENERATE_THRESHOLD: f32 = 1.0e-6;
 const NUDGE_VAL: f32 = 1.0e-7;
+const PIXEL_CENTER_OFFSET: f64 = 0.5;
 
 /// A trait for encoding gradients.
 pub trait EncodeExt: private::Sealed {
@@ -169,7 +170,9 @@ impl EncodeExt for Gradient {
         // adding 0.5.
         // Finally, we need to apply the _inverse_ paint transform to the point so that we can account
         // for the paint transform of the render context.
-        let transform = base_transform * Affine::translate((0.5, 0.5)) * transform.inverse();
+        let transform = base_transform
+            * transform.inverse()
+            * Affine::translate((PIXEL_CENTER_OFFSET, PIXEL_CENTER_OFFSET));
 
         // One possible approach of calculating the positions would be to apply the above
         // transform to _each_ pixel that we render in the wide tile. However, a much better
@@ -365,12 +368,7 @@ fn encode_stops(
             bias[i] = c0[i] - x0 * scale[i];
         }
 
-        GradientRange {
-            x0,
-            x1,
-            bias,
-            scale,
-        }
+        GradientRange { x1, bias, scale }
     };
 
     // Note: this could use `Iterator::map_windows` once stabilized, meaning `interpolated_stops`
@@ -387,9 +385,8 @@ fn encode_stops(
         // range.
         let left_range = iter::once({
             let first_stop = interpolated_stops.first().unwrap();
-            let mut encoded_range = create_range(first_stop, first_stop);
-            encoded_range.x0 = f32::MIN;
-            encoded_range
+
+            create_range(first_stop, first_stop)
         });
 
         let right_range = iter::once({
@@ -639,12 +636,10 @@ pub struct EncodedGradient {
 /// An encoded ange between two color stops.
 #[derive(Debug, Clone, Copy)]
 pub struct GradientRange {
-    /// The start value of the range.
-    pub x0: f32,
     /// The end value of the range.
     pub x1: f32,
+    /// A bias to apply when interpolating the color (in this case just the values of the start
     /// color of the gradient).
-    /// The interpolation factors of the range.
     pub bias: [f32; 4],
     /// The scale factors of the range. By calculating bias + x * factors (where x is
     /// between 0.0 and 1.0), we can interpolate between start and end color of the gradient range.

@@ -239,40 +239,11 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
     pub(super) fn run(mut self, target: &mut [S::Scalar]) {
         let original_pos = self.cur_pos;
 
-        let pad = self.gradient.pad;
-
-        let bl = self.gradient.y_advance * 4.0;
-        let tr = self.gradient.x_advance * 4.0;
-        let br = bl + tr;
-
-        let mut cur_range = InnerRange::new(0, &self.gradient.ranges);
-        let mut bottom_range = InnerRange::new(0, &self.gradient.ranges);
-
         target.chunks_exact_mut(64).for_each(|column| {
-            let cur_pos = self.kind.cur_pos_scalar(self.cur_pos);
-            let cur_pos_extended = extend_f32(cur_pos, pad);
-            advance(cur_pos_extended, &mut cur_range, &self.gradient.ranges);
-
-            let bot_pos = self.kind.cur_pos_scalar(self.cur_pos + bl);
-            let bot_pos_extended = extend_f32(bot_pos, pad);
-            advance(bot_pos_extended, &mut bottom_range, &self.gradient.ranges);
-
-            fn check_advance(
-                cur_pos: f32,
-                cur_pos_extended: f32,
-                end_pos: f32,
-                cur_range: &InnerRange,
-            ) -> bool {
-                let delta = end_pos - cur_pos;
-                let to_check = cur_pos_extended + delta;
-
-                to_check < cur_range.range.x0 || to_check >= cur_range.range.x1
-            }
-
             if S::IS_FLOAT {
-                self.run_float_range_scalar(column, cur_range);
+                self.run_float_range_scalar(column);
             } else {
-                self.run_float_range_scalar(column, cur_range);
+                self.run_float_range_scalar(column);
             }
 
             self.cur_pos += self.gradient.x_advance * 4.0;
@@ -329,7 +300,7 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
         }
     }
 
-    fn run_float_range_scalar(&mut self, target: &mut [S::Scalar], mut inner: InnerRange) {
+    fn run_float_range_scalar(&mut self, target: &mut [S::Scalar]) {
         let pad = self.gradient.pad;
         let mut cur_pos = self.cur_pos;
 
@@ -338,7 +309,8 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
 
             for pixel in col.chunks_exact_mut(COLOR_COMPONENTS) {
                 let t_val = extend_f32(self.kind.cur_pos_scalar(temp_pos), pad);
-                advance(t_val, &mut inner, &self.gradient.ranges);
+                let idx = advance(t_val, &self.gradient.ranges);
+                let inner = InnerRange::new(idx, &self.gradient.ranges);
 
                 let bias = inner.range.bias;
                 let scale = inner.range.scale;
@@ -380,23 +352,14 @@ impl InnerRange {
 }
 
 #[inline]
-fn advance<'a>(target_pos: f32, inner: &mut InnerRange, ranges: &[GradientRange]) {
-    let mut range_idx = inner.idx;
-    let mut cur_range = &ranges[range_idx];
-
-    while target_pos < cur_range.x0 {
-        range_idx -= 1;
-        cur_range = &ranges[range_idx];
+fn advance(target_pos: f32, ranges: &[GradientRange]) -> usize {
+    let mut idx = 0;
+    
+    for i in 0..(ranges.len() - 1) {
+        idx += (target_pos >= ranges[i].x1) as usize;
     }
-
-    while target_pos >= cur_range.x1 {
-        range_idx += 1;
-        cur_range = &ranges[range_idx];
-    }
-
-    if range_idx != inner.idx {
-        *inner = InnerRange::new(range_idx, ranges);
-    }
+    
+    idx
 }
 
 impl<F: Type, U: SimdGradientKind<F::Float>> Painter<F> for GradientFiller<'_, F, U> {
