@@ -1,5 +1,6 @@
 use crate::{Base, ColorLike, Float, Mask, Type, Widened};
 use std::ops::{Add, Div, Mul, Sub};
+use crate::fallback::u32x4::u32x4;
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4(pub(crate) [f32; 4]);
@@ -197,6 +198,7 @@ impl Widened<f32x4> for f32x4 {
 
 impl Float for f32x4 {
     type Mask = [bool; 4];
+    type Index = u32x4;
 
     #[inline(always)]
     fn sqrt(self) -> Self {

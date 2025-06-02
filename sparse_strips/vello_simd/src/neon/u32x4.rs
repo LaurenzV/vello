@@ -3,7 +3,7 @@ use std::arch::aarch64::*;
 use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct u32x4(pub(crate) uint32x4_t);
+pub struct u32x4(pub(crate) uint32x4_t);
 
 impl Add for u32x4 {
     type Output = Self;

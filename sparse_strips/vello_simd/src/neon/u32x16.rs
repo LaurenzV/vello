@@ -5,7 +5,7 @@ use std::arch::aarch64::*;
 use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct u32x16(u32x8, u32x8);
+pub struct u32x16(u32x8, u32x8);
 
 impl Add for u32x16 {
     type Output = Self;

@@ -138,6 +138,7 @@ pub trait ColorLike: Copy + Debug {
 
 pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     type Mask: Mask;
+    type Index: Index;
 
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;

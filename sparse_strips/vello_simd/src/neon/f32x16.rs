@@ -4,6 +4,7 @@ use crate::neon::splat_col_pos;
 use crate::{Base, ColorLike, Float, Mask, Type, Widened, arith_ops};
 use std::arch::aarch64::*;
 use std::ops::Div;
+use crate::neon::u32x16::u32x16;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct f32x16(pub(crate) f32x8, pub(crate) f32x8);
@@ -189,6 +190,7 @@ impl Widened<f32x16> for f32x16 {
 
 impl Float for f32x16 {
     type Mask = uint32x4x4_t;
+    type Index = u32x16;
 
     #[inline(always)]
     fn sqrt(mut self) -> Self {

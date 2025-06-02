@@ -4,7 +4,7 @@ use std::arch::aarch64::{uint32x4_t, vaddq_u32, vbslq_u32, vcgeq_u32, vdupq_n_u3
 use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct u32x8(u32x4, u32x4);
+pub struct u32x8(u32x4, u32x4);
 
 impl Add for u32x8 {
     type Output = Self;
