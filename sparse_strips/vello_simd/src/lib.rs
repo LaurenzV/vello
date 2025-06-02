@@ -182,6 +182,16 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     ) -> (Self, Self);
 }
 
+pub trait Index: Add<Self, Output = Self> + Copy + Debug + Sized {
+    type Mask: Mask;
+    
+    fn store(self, storage: &mut [u32]);
+    fn splat(value: u32) -> Self;
+    fn geq(self, other: Self) -> Self::Mask;
+
+    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self;
+}
+
 pub trait Mask: Sized {
     fn splat(value: bool) -> Self;
 }
