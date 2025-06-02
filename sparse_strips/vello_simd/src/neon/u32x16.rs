@@ -1,8 +1,8 @@
-use std::arch::aarch64::*;
-use std::ops::Add;
 use crate::Index;
 use crate::neon::u32x4::u32x4;
 use crate::neon::u32x8::u32x8;
+use std::arch::aarch64::*;
+use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct u32x16(u32x8, u32x8);
@@ -25,9 +25,12 @@ impl Index for u32x16 {
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         let storage: &mut [u32; 16] = storage.try_into().unwrap();
-        
+
         unsafe {
-            vst1q_u32_x4(storage.as_mut_ptr(), uint32x4x4_t(self.0.0.0, self.0.1.0, self.1.0.0, self.1.1.0))
+            vst1q_u32_x4(
+                storage.as_mut_ptr(),
+                uint32x4x4_t(self.0.0.0, self.0.1.0, self.1.0.0, self.1.1.0),
+            )
         }
     }
 

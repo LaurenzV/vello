@@ -184,7 +184,7 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
 
 pub trait Index: Add<Self, Output = Self> + Copy + Debug + Sized {
     type Mask: Mask;
-    
+
     fn store(self, storage: &mut [u32]);
     fn splat(value: u32) -> Self;
     fn geq(self, other: Self) -> Self::Mask;

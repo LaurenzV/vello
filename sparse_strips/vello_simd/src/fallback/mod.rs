@@ -1,12 +1,12 @@
 mod f32x16;
 mod f32x4;
 mod f32x8;
+mod u32x16;
+mod u32x4;
+mod u32x8;
 mod u8x16;
 mod u8x32;
 mod u8x64;
-mod u32x4;
-mod u32x8;
-mod u32x16;
 
 use crate::{Base, NumberKind, Simd};
 

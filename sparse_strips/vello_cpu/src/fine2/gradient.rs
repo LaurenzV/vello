@@ -354,11 +354,11 @@ impl InnerRange {
 #[inline]
 fn advance(target_pos: f32, ranges: &[GradientRange]) -> usize {
     let mut idx = 0;
-    
+
     for i in 0..(ranges.len() - 1) {
         idx += (target_pos >= ranges[i].x1) as usize;
     }
-    
+
     idx
 }
 
