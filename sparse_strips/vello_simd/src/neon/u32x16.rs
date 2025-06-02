@@ -5,7 +5,7 @@ use std::arch::aarch64::*;
 use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
-pub struct u32x16(u32x8, u32x8);
+pub struct u32x16(pub(crate) u32x8, pub(crate) u32x8);
 
 impl Add for u32x16 {
     type Output = Self;
@@ -20,8 +20,6 @@ impl Add for u32x16 {
 }
 
 impl Index for u32x16 {
-    type Mask = uint32x4x4_t;
-
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         let storage: &mut [u32; 16] = storage.try_into().unwrap();
@@ -41,17 +39,17 @@ impl Index for u32x16 {
     }
 
     #[inline(always)]
-    fn geq(mut self, other: Self) -> Self::Mask {
+    fn geq(mut self, other: Self) -> Self {
         let a = self.0.geq(other.0);
         let b = self.1.geq(other.1);
 
-        uint32x4x4_t(a.0, a.1, b.0, b.1)
+        Self(a, b)
     }
 
     #[inline(always)]
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self {
-        let a = u32x8::if_then_else(uint32x4x2_t(cond.0, cond.1), if_.0, else_.0);
-        let b = u32x8::if_then_else(uint32x4x2_t(cond.2, cond.3), if_.1, else_.1);
+    fn if_then_else(cond: Self, if_: Self, else_: Self) -> Self {
+        let a = u32x8::if_then_else(cond.0, if_.0, else_.0);
+        let b = u32x8::if_then_else(cond.1, if_.1, else_.1);
 
         Self(a, b)
     }

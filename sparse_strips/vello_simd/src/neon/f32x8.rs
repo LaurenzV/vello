@@ -1,10 +1,9 @@
 use crate::neon::f32x4::f32x4;
 use crate::neon::splat_col_pos;
-use crate::{Base, ColorLike, Float, Mask, Type, Widened, arith_ops};
+use crate::neon::u32x8::u32x8;
+use crate::{Base, ColorLike, Float, Type, Widened, arith_ops};
 use std::arch::aarch64::*;
 use std::ops::Div;
-use crate::neon::u32x16::u32x16;
-use crate::neon::u32x8::u32x8;
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct f32x8(pub(crate) f32x4, pub(crate) f32x4);
@@ -182,8 +181,7 @@ impl Widened<f32x8> for f32x8 {
 }
 
 impl Float for f32x8 {
-    type Mask = uint32x4x2_t;
-    type Index = u32x8;
+    type Integer = u32x8;
 
     #[inline(always)]
     fn sqrt(mut self) -> Self {
@@ -242,36 +240,36 @@ impl Float for f32x8 {
     }
 
     #[inline(always)]
-    fn lt(mut self, other: Self) -> Self::Mask {
+    fn lt(mut self, other: Self) -> Self::Integer {
         let a = self.0.lt(other.0);
         let b = self.1.lt(other.1);
 
-        uint32x4x2_t(a, b)
+        u32x8(a, b)
     }
 
     #[inline(always)]
-    fn leq(self, other: Self) -> Self::Mask {
+    fn leq(self, other: Self) -> Self::Integer {
         let a = self.0.leq(other.0);
         let b = self.1.leq(other.1);
 
-        uint32x4x2_t(a, b)
+        u32x8(a, b)
     }
 
     #[inline(always)]
-    fn ne(mut self, other: Self) -> Self::Mask {
+    fn ne(mut self, other: Self) -> Self::Integer {
         let a = self.0.ne(other.0);
         let b = self.1.ne(other.1);
 
-        uint32x4x2_t(a, b)
+        u32x8(a, b)
     }
 
     #[inline(always)]
-    fn if_then_else(mask: uint32x4x2_t, if_: Self, else_: Self) -> Self {
+    fn if_then_else(mask: u32x8, if_: Self, else_: Self) -> Self {
         unsafe {
-            let a = vbslq_f32(mask.0, if_.0.0, else_.0.0);
-            let b = vbslq_f32(mask.1, if_.1.0, else_.1.0);
+            let a = f32x4::if_then_else(mask.0, if_.0, else_.0);
+            let b = f32x4::if_then_else(mask.1, if_.1, else_.1);
 
-            Self(f32x4(a), f32x4(b))
+            Self(a, b)
         }
     }
 
@@ -288,13 +286,5 @@ impl Float for f32x8 {
         let y_pos = f32x8(f32x4(first_col.1), f32x4(second_col.1));
 
         (x_pos, y_pos)
-    }
-}
-
-impl Mask for uint32x4x2_t {
-    #[inline(always)]
-    fn splat(value: bool) -> Self {
-        let val = uint32x4_t::splat(value);
-        uint32x4x2_t(val, val)
     }
 }

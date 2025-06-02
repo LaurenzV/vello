@@ -1,9 +1,8 @@
 use crate::Index;
-use std::arch::aarch64::{uint32x4_t, vaddq_u32, vbslq_u32, vcgeq_u32, vdupq_n_u32, vst1q_u32};
 use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
-pub struct u32x4([u32; 4]);
+pub struct u32x4(pub(crate) [u32; 4]);
 
 impl Add for u32x4 {
     type Output = Self;
@@ -20,8 +19,6 @@ impl Add for u32x4 {
 }
 
 impl Index for u32x4 {
-    type Mask = [bool; 4];
-
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         storage.copy_from_slice(&self.0);
@@ -33,22 +30,22 @@ impl Index for u32x4 {
     }
 
     #[inline(always)]
-    fn geq(self, other: Self) -> Self::Mask {
-        [
-            self.0[0] >= other.0[0],
-            self.0[1] >= other.0[1],
-            self.0[2] >= other.0[2],
-            self.0[3] >= other.0[3],
-        ]
+    fn geq(self, other: Self) -> Self {
+        u32x4([
+            (self.0[0] >= other.0[0]) as u32,
+            (self.0[1] >= other.0[1]) as u32,
+            (self.0[2] >= other.0[2]) as u32,
+            (self.0[3] >= other.0[3]) as u32,
+        ])
     }
 
     #[inline(always)]
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self {
+    fn if_then_else(cond: Self, if_: Self, else_: Self) -> Self {
         Self([
-            if cond[0] { if_.0[0] } else { else_.0[0] },
-            if cond[0] { if_.0[1] } else { else_.0[1] },
-            if cond[0] { if_.0[2] } else { else_.0[2] },
-            if cond[0] { if_.0[3] } else { else_.0[3] },
+            if cond.0[0] > 0 { if_.0[0] } else { else_.0[0] },
+            if cond.0[1] > 0 { if_.0[1] } else { else_.0[1] },
+            if cond.0[2] > 0 { if_.0[2] } else { else_.0[2] },
+            if cond.0[3] > 0 { if_.0[3] } else { else_.0[3] },
         ])
     }
 }

@@ -1,6 +1,6 @@
-use crate::{Base, ColorLike, Float, Mask, Type, Widened};
-use std::ops::{Add, Div, Mul, Sub};
 use crate::fallback::u32x4::u32x4;
+use crate::{Base, ColorLike, Float, Type, Widened};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x4(pub(crate) [f32; 4]);
@@ -197,8 +197,7 @@ impl Widened<f32x4> for f32x4 {
 }
 
 impl Float for f32x4 {
-    type Mask = [bool; 4];
-    type Index = u32x4;
+    type Integer = u32x4;
 
     #[inline(always)]
     fn sqrt(self) -> Self {
@@ -251,41 +250,41 @@ impl Float for f32x4 {
     }
 
     #[inline(always)]
-    fn lt(self, other: Self) -> Self::Mask {
-        [
-            self.0[0] < other.0[0],
-            self.0[1] < other.0[1],
-            self.0[2] < other.0[2],
-            self.0[3] < other.0[3],
-        ]
+    fn lt(self, other: Self) -> Self::Integer {
+        u32x4([
+            (self.0[0] < other.0[0]) as u32,
+            (self.0[1] < other.0[1]) as u32,
+            (self.0[2] < other.0[2]) as u32,
+            (self.0[3] < other.0[3]) as u32,
+        ])
     }
 
     #[inline(always)]
-    fn leq(self, other: Self) -> Self::Mask {
-        [
-            self.0[0] <= other.0[0],
-            self.0[1] <= other.0[1],
-            self.0[2] <= other.0[2],
-            self.0[3] <= other.0[3],
-        ]
+    fn leq(self, other: Self) -> Self::Integer {
+        u32x4([
+            (self.0[0] <= other.0[0]) as u32,
+            (self.0[1] <= other.0[1]) as u32,
+            (self.0[2] <= other.0[2]) as u32,
+            (self.0[3] <= other.0[3]) as u32,
+        ])
     }
 
     #[inline(always)]
-    fn ne(self, other: Self) -> Self::Mask {
-        [
-            self.0[0] != other.0[0],
-            self.0[1] != other.0[1],
-            self.0[2] != other.0[2],
-            self.0[3] != other.0[3],
-        ]
+    fn ne(self, other: Self) -> Self::Integer {
+        u32x4([
+            (self.0[0] != other.0[0]) as u32,
+            (self.0[1] != other.0[1]) as u32,
+            (self.0[2] != other.0[2]) as u32,
+            (self.0[3] != other.0[3]) as u32,
+        ])
     }
 
     #[inline(always)]
-    fn if_then_else(cond: Self::Mask, mut f_: Self, else_: Self) -> Self {
-        f_.0[0] = if cond[0] { f_.0[0] } else { else_.0[0] };
-        f_.0[1] = if cond[1] { f_.0[1] } else { else_.0[1] };
-        f_.0[2] = if cond[2] { f_.0[2] } else { else_.0[2] };
-        f_.0[3] = if cond[3] { f_.0[3] } else { else_.0[3] };
+    fn if_then_else(cond: Self::Integer, mut f_: Self, else_: Self) -> Self {
+        f_.0[0] = if cond.0[0] != 0 { f_.0[0] } else { else_.0[0] };
+        f_.0[1] = if cond.0[1] != 0 { f_.0[1] } else { else_.0[1] };
+        f_.0[2] = if cond.0[2] != 0 { f_.0[2] } else { else_.0[2] };
+        f_.0[3] = if cond.0[3] != 0 { f_.0[3] } else { else_.0[3] };
 
         f_
     }
@@ -307,17 +306,5 @@ impl Float for f32x4 {
         ]);
 
         (x_pos, y_pos)
-    }
-}
-
-#[inline(always)]
-fn select(cond: bool, left: f32, right: f32) -> f32 {
-    if cond { left } else { right }
-}
-
-impl Mask for [bool; 4] {
-    #[inline(always)]
-    fn splat(value: bool) -> Self {
-        [value, value, value, value]
     }
 }

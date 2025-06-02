@@ -1,7 +1,7 @@
 use crate::fallback::f32x4::f32x4;
-use crate::{Base, ColorLike, Float, Mask, Type, Widened};
-use std::ops::{Add, Div, Mul, Sub};
 use crate::fallback::u32x8::u32x8;
+use crate::{Base, ColorLike, Float, Type, Widened};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x8(pub(crate) f32x4, pub(crate) f32x4);
@@ -194,8 +194,7 @@ impl Widened<f32x8> for f32x8 {
 }
 
 impl Float for f32x8 {
-    type Mask = [<f32x4 as Float>::Mask; 2];
-    type Index = u32x8;
+    type Integer = u32x8;
 
     #[inline(always)]
     fn sqrt(mut self) -> Self {
@@ -238,25 +237,25 @@ impl Float for f32x8 {
     }
 
     #[inline(always)]
-    fn lt(mut self, other: Self) -> Self::Mask {
-        [self.0.lt(other.0), self.1.lt(other.1)]
+    fn lt(mut self, other: Self) -> Self::Integer {
+        u32x8(self.0.lt(other.0), self.1.lt(other.1))
     }
 
     #[inline(always)]
-    fn leq(self, other: Self) -> Self::Mask {
-        [self.0.leq(other.0), self.1.leq(other.1)]
+    fn leq(self, other: Self) -> Self::Integer {
+        u32x8(self.0.leq(other.0), self.1.leq(other.1))
     }
 
     #[inline(always)]
-    fn ne(mut self, other: Self) -> Self::Mask {
-        [self.0.ne(other.0), self.1.ne(other.1)]
+    fn ne(mut self, other: Self) -> Self::Integer {
+        u32x8(self.0.ne(other.0), self.1.ne(other.1))
     }
 
     #[inline(always)]
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self {
+    fn if_then_else(cond: Self::Integer, if_: Self, else_: Self) -> Self {
         f32x8(
-            f32x4::if_then_else(cond[0], if_.0, else_.0),
-            f32x4::if_then_else(cond[1], if_.1, else_.1),
+            f32x4::if_then_else(cond.0, if_.0, else_.0),
+            f32x4::if_then_else(cond.1, if_.1, else_.1),
         )
     }
 
@@ -277,12 +276,5 @@ impl Float for f32x8 {
         let y_pos = f32x8(first_col.1, second_col.1);
 
         (x_pos, y_pos)
-    }
-}
-
-impl Mask for [[bool; 4]; 2] {
-    #[inline(always)]
-    fn splat(value: bool) -> Self {
-        [[value, value, value, value], [value, value, value, value]]
     }
 }

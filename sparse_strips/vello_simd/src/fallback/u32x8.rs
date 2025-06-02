@@ -1,10 +1,9 @@
 use crate::Index;
 use crate::fallback::u32x4::u32x4;
-use std::arch::aarch64::{uint32x4_t, vaddq_u32, vbslq_u32, vcgeq_u32, vdupq_n_u32, vst1q_u32};
 use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
-pub struct u32x8(u32x4, u32x4);
+pub struct u32x8(pub(crate) u32x4, pub(crate) u32x4);
 
 impl Add for u32x8 {
     type Output = Self;
@@ -19,8 +18,6 @@ impl Add for u32x8 {
 }
 
 impl Index for u32x8 {
-    type Mask = [[bool; 4]; 2];
-
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         self.0.store(&mut storage[..4]);
@@ -34,17 +31,17 @@ impl Index for u32x8 {
     }
 
     #[inline(always)]
-    fn geq(mut self, other: Self) -> Self::Mask {
+    fn geq(mut self, other: Self) -> Self {
         let a = self.0.geq(other.0);
         let b = self.1.geq(other.1);
 
-        [a, b]
+        Self(a, b)
     }
 
     #[inline(always)]
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self {
-        let a = u32x4::if_then_else(cond[0], if_.0, else_.0);
-        let b = u32x4::if_then_else(cond[1], if_.1, else_.1);
+    fn if_then_else(cond: Self, if_: Self, else_: Self) -> Self {
+        let a = u32x4::if_then_else(cond.0, if_.0, else_.0);
+        let b = u32x4::if_then_else(cond.1, if_.1, else_.1);
 
         Self(a, b)
     }

@@ -5,7 +5,7 @@ use vello_common::encode::{
     EncodedGradient, FocalData, GradientLike, GradientRange, LinearKind, RadialKind, SweepKind,
 };
 use vello_common::kurbo::Point;
-use vello_simd::{ColorLike, Float, Mask, NumberKind, Type};
+use vello_simd::{ColorLike, Float, Index, NumberKind, Type};
 
 #[derive(Debug)]
 pub struct SimdLinearKind<T: Float> {
@@ -25,7 +25,7 @@ pub struct SimdFocalData<T: Float> {
     focal_data: FocalData,
     fr1: T,
     f_focal_x: T,
-    f_is_swapped: T::Mask,
+    f_is_swapped: T::Integer,
 }
 
 pub enum SimdRadialKindInner<T: Float> {
@@ -88,7 +88,7 @@ impl<T: Float> From<RadialKind> for SimdRadialKind<T> {
                     focal_data,
                     fr1: T::splat(focal_data.fr1),
                     f_focal_x: T::splat(focal_data.f_focal_x),
-                    f_is_swapped: T::Mask::splat(focal_data.f_is_swapped),
+                    f_is_swapped: T::Integer::splat_bool(focal_data.f_is_swapped),
                 },
             },
         };

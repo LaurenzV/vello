@@ -137,19 +137,18 @@ pub trait ColorLike: Copy + Debug {
 }
 
 pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
-    type Mask: Mask;
-    type Index: Index;
+    type Integer: Index;
 
     fn sqrt(self) -> Self;
     fn powf(self, exponent: Self::Scalar) -> Self;
     fn abs(self) -> Self;
     fn floor(self) -> Self;
     fn fract(self) -> Self;
-    fn lt(self, other: Self) -> Self::Mask;
-    fn leq(self, other: Self) -> Self::Mask;
-    fn ne(self, other: Self) -> Self::Mask;
+    fn lt(self, other: Self) -> Self::Integer;
+    fn leq(self, other: Self) -> Self::Integer;
+    fn ne(self, other: Self) -> Self::Integer;
 
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self;
+    fn if_then_else(cond: Self::Integer, if_: Self, else_: Self) -> Self;
 
     #[inline(always)]
     fn mul_add(self, other1: Self, other2: Self) -> Self {
@@ -184,17 +183,14 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
 }
 
 pub trait Index: Add<Self, Output = Self> + Copy + Debug + Sized {
-    type Mask: Mask;
-
     fn store(self, storage: &mut [u32]);
     fn splat(value: u32) -> Self;
-    fn geq(self, other: Self) -> Self::Mask;
+    fn geq(self, other: Self) -> Self;
+    fn splat_bool(value: bool) -> Self {
+        Self::splat(value as u32 * u32::MAX)
+    }
 
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self;
-}
-
-pub trait Mask: Sized {
-    fn splat(value: bool) -> Self;
+    fn if_then_else(cond: Self, if_: Self, else_: Self) -> Self;
 }
 
 pub(crate) const TILE_HEIGHT: usize = 4;

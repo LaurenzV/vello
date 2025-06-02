@@ -1,8 +1,7 @@
-use crate::fallback::f32x4::f32x4;
 use crate::fallback::f32x8::f32x8;
-use crate::{Base, ColorLike, Float, Mask, Type, Widened, fallback};
-use std::ops::{Add, Div, Mul, Sub};
 use crate::fallback::u32x16::u32x16;
+use crate::{Base, ColorLike, Float, Type, Widened, fallback};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x16(pub(crate) f32x8, pub(crate) f32x8);
@@ -195,8 +194,7 @@ impl Widened<f32x16> for f32x16 {
 }
 
 impl Float for f32x16 {
-    type Mask = [<f32x8 as Float>::Mask; 2];
-    type Index = u32x16;
+    type Integer = u32x16;
 
     #[inline(always)]
     fn sqrt(mut self) -> Self {
@@ -239,25 +237,25 @@ impl Float for f32x16 {
     }
 
     #[inline(always)]
-    fn lt(mut self, other: Self) -> Self::Mask {
-        [self.0.lt(other.0), self.1.lt(other.1)]
+    fn lt(mut self, other: Self) -> Self::Integer {
+        u32x16(self.0.lt(other.0), self.1.lt(other.1))
     }
 
     #[inline(always)]
-    fn leq(self, other: Self) -> Self::Mask {
-        [self.0.leq(other.0), self.1.leq(other.1)]
+    fn leq(self, other: Self) -> Self::Integer {
+        u32x16(self.0.leq(other.0), self.1.leq(other.1))
     }
 
     #[inline(always)]
-    fn ne(mut self, other: Self) -> Self::Mask {
-        [self.0.ne(other.0), self.1.ne(other.1)]
+    fn ne(mut self, other: Self) -> Self::Integer {
+        u32x16(self.0.ne(other.0), self.1.ne(other.1))
     }
 
     #[inline(always)]
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self {
+    fn if_then_else(cond: Self::Integer, if_: Self, else_: Self) -> Self {
         f32x16(
-            f32x8::if_then_else(cond[0], if_.0, else_.0),
-            f32x8::if_then_else(cond[1], if_.1, else_.1),
+            f32x8::if_then_else(cond.0, if_.0, else_.0),
+            f32x8::if_then_else(cond.1, if_.1, else_.1),
         )
     }
 
@@ -275,15 +273,5 @@ impl Float for f32x16 {
         );
 
         (Self(f_x, s_x), Self(f_y, s_y))
-    }
-}
-
-impl Mask for [[[bool; 4]; 2]; 2] {
-    #[inline(always)]
-    fn splat(value: bool) -> Self {
-        [
-            [[value, value, value, value], [value, value, value, value]],
-            [[value, value, value, value], [value, value, value, value]],
-        ]
     }
 }

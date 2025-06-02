@@ -19,8 +19,6 @@ impl Add for u32x8 {
 }
 
 impl Index for u32x8 {
-    type Mask = uint32x4x2_t;
-
     #[inline(always)]
     fn store(self, storage: &mut [u32]) {
         let storage: &mut [u32; 8] = storage.try_into().unwrap();
@@ -35,15 +33,15 @@ impl Index for u32x8 {
     }
 
     #[inline(always)]
-    fn geq(mut self, other: Self) -> Self::Mask {
+    fn geq(mut self, other: Self) -> Self {
         let a = self.0.geq(other.0);
         let b = self.1.geq(other.1);
 
-        uint32x4x2_t(a, b)
+        Self(a, b)
     }
 
     #[inline(always)]
-    fn if_then_else(cond: Self::Mask, if_: Self, else_: Self) -> Self {
+    fn if_then_else(cond: Self, if_: Self, else_: Self) -> Self {
         let a = u32x4::if_then_else(cond.0, if_.0, else_.0);
         let b = u32x4::if_then_else(cond.1, if_.1, else_.1);
 
