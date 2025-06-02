@@ -269,25 +269,8 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
                 to_check < cur_range.range.x0 || to_check >= cur_range.range.x1
             }
 
-            let tlbr_advance = check_advance(
-                cur_pos,
-                cur_pos_extended,
-                self.kind.cur_pos_scalar(self.cur_pos + br),
-                &cur_range,
-            );
-            let bltr_advance = check_advance(
-                bot_pos,
-                bot_pos_extended,
-                self.kind.cur_pos_scalar(self.cur_pos + tr),
-                &bottom_range,
-            );
-
             if S::IS_FLOAT {
-                if tlbr_advance || bltr_advance {
-                    self.run_float_range_scalar(column, cur_range);
-                } else {
-                    self.run_float_range(column, &cur_range);
-                }
+                self.run_float_range_scalar(column, cur_range);
             } else {
                 self.run_float_range_scalar(column, cur_range);
             }
