@@ -44,6 +44,15 @@ impl<'a> ImageFiller<'a> {
         let mut x_pos_storage: [f32; 16] = [0.0; 16];
         let mut y_pos_storage: [f32; 16] = [0.0; 16];
 
+        let y_pos = F::Float::splat_y_col_pos(self.cur_pos.y as f32, self.x_advances.1, self.y_advances.1);
+        let extended_y_pos = extend_simd(
+            y_pos,
+            self.image.extends.1,
+            F::Float::splat(self.height),
+            F::Float::splat(self.height_inv),
+        );
+        extended_y_pos.store(&mut y_pos_storage);
+
         // We currently have two branches for filling images: The first case is used for
         // nearest neighbor filtering and for images with no skewing-transform (this is checked
         // by the first two conditions), which allows us to take a faster path.
@@ -64,24 +73,15 @@ impl<'a> ImageFiller<'a> {
         } else {
             target.chunks_exact_mut(64).for_each(|column| {
                 let x_pos = F::Float::splat_x_col_pos(self.cur_pos.x as f32, self.x_advances.0, self.y_advances.0);
-                let y_pos = F::Float::splat_y_col_pos(self.cur_pos.y as f32, self.x_advances.1, self.y_advances.1);
-
-
+                
                 let extended_x_pos = extend_simd(
                     x_pos,
                     self.image.extends.0,
                     F::Float::splat(self.width),
                     F::Float::splat(self.width_inv),
                 );
-                let extended_y_pos = extend_simd(
-                    y_pos,
-                    self.image.extends.1,
-                    F::Float::splat(self.height),
-                    F::Float::splat(self.height_inv),
-                );
-
+                
                 extended_x_pos.store(&mut x_pos_storage);
-                extended_y_pos.store(&mut y_pos_storage);
 
                 self.run_simple_column::<F>(column, x_pos_storage, y_pos_storage);
 
