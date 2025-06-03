@@ -333,7 +333,7 @@ impl RenderContext {
     ) {
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                self.do_fine_with_type::<T::Integer>(width, height, buffer)
+                unimplemented!()
             }
             RenderMode::OptimizeQuality => {
                 self.do_fine_with_type::<T::Float>(width, height, buffer)
