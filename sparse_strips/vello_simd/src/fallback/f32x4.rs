@@ -253,9 +253,9 @@ impl Float for f32x4 {
     fn reinterpret(self) -> Self::Integer {
         u32x4([
             self.0[0].to_bits(),
-            self.0[0].to_bits(),
-            self.0[0].to_bits(),
-            self.0[0].to_bits(),
+            self.0[1].to_bits(),
+            self.0[2].to_bits(),
+            self.0[3].to_bits(),
         ])
     }
 
