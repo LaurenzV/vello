@@ -19,9 +19,7 @@ impl Sub for u32x4 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        unsafe {
-            Self(vsubq_u32(self.0, rhs.0))
-        }
+        unsafe { Self(vsubq_u32(self.0, rhs.0)) }
     }
 }
 
@@ -54,8 +52,6 @@ impl Index<f32x4> for u32x4 {
 
     #[inline(always)]
     fn reinterpret(self) -> f32x4 {
-        unsafe {
-            f32x4(vreinterpretq_f32_u32(self.0))
-        }
+        unsafe { f32x4(vreinterpretq_f32_u32(self.0)) }
     }
 }

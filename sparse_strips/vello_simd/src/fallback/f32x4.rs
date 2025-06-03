@@ -327,4 +327,14 @@ impl Float for f32x4 {
 
         (x_pos, y_pos)
     }
+
+    #[inline(always)]
+    fn to_integer(self) -> Self::Integer {
+        u32x4([
+            self.0[0] as u32,
+            self.0[1] as u32,
+            self.0[2] as u32,
+            self.0[3] as u32,
+        ])
+    }
 }

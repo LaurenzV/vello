@@ -121,6 +121,7 @@ pub trait NumberKind: Base {
     const ONE: Self;
 
     fn to_rgba8(src: &[Self]) -> [u8; 4];
+    fn from_rgba8(src: &[u8; 4]) -> [Self; 4];
     fn from_normalized_f32(val: f32) -> Self;
     fn normalized_mul(&self, other: Self) -> Self;
 }
@@ -145,6 +146,7 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
     fn floor(self) -> Self;
     fn fract(self) -> Self;
     fn trunc(self) -> Self;
+    fn to_integer(self) -> Self::Integer;
     fn reinterpret(self) -> Self::Integer;
     fn lt(self, other: Self) -> Self::Integer;
     fn leq(self, other: Self) -> Self::Integer;
@@ -191,7 +193,7 @@ pub trait Index<T: Float<Integer = Self>>: Add<Self, Output = Self> + Copy + Deb
     fn splat_bool(value: bool) -> Self {
         Self::splat(value as u32 * u32::MAX)
     }
-    
+
     fn wrapping_sub(self, other: Self) -> Self;
     fn reinterpret(self) -> T;
 

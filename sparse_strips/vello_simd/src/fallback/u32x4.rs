@@ -1,6 +1,6 @@
-use std::arch::aarch64::vreinterpretq_f32_u32;
 use crate::Index;
 use crate::fallback::f32x4::f32x4;
+use std::arch::aarch64::vreinterpretq_f32_u32;
 use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]

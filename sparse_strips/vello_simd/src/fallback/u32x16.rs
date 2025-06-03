@@ -1,9 +1,9 @@
+use crate::fallback::f32x8::f32x8;
 use crate::fallback::f32x16::f32x16;
 use crate::fallback::u32x4::u32x4;
 use crate::fallback::u32x8::u32x8;
 use crate::{Float, Index};
 use std::ops::Add;
-use crate::fallback::f32x8::f32x8;
 
 #[derive(Copy, Clone, Debug)]
 pub struct u32x16(pub(crate) u32x8, pub(crate) u32x8);
