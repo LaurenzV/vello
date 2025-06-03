@@ -33,6 +33,7 @@ impl NumberKind for f32 {
         ]
     }
 
+    #[inline(always)]
     fn from_rgba8(src: &[u8; 4]) -> [Self; 4] {
         [
             src[0] as f32 * (1.0 / 255.0),
@@ -42,10 +43,12 @@ impl NumberKind for f32 {
         ]
     }
 
+    #[inline(always)]
     fn from_normalized_f32(val: f32) -> Self {
         val
     }
 
+    #[inline(always)]
     fn normalized_mul(&self, other: Self) -> Self {
         self * other
     }
@@ -61,14 +64,17 @@ impl NumberKind for u8 {
         [src[0], src[1], src[2], src[3]]
     }
 
+    #[inline(always)]
     fn from_rgba8(src: &[u8; 4]) -> [Self; 4] {
         *src
     }
 
+    #[inline(always)]
     fn from_normalized_f32(val: f32) -> Self {
         (val * 255.0 + 0.5) as u8
     }
 
+    #[inline(always)]
     fn normalized_mul(&self, other: Self) -> Self {
         div_255(*self as u16 * other as u16) as u8
     }
