@@ -240,6 +240,26 @@ impl Float for f32x4 {
     }
 
     #[inline(always)]
+    fn trunc(self) -> Self {
+        f32x4([
+            self.0[0].trunc(),
+            self.0[1].trunc(),
+            self.0[2].trunc(),
+            self.0[3].trunc(),
+        ])
+    }
+
+    #[inline(always)]
+    fn reinterpret(self) -> Self::Integer {
+        u32x4([
+            self.0[0].to_bits(),
+            self.0[0].to_bits(),
+            self.0[0].to_bits(),
+            self.0[0].to_bits(),
+        ])
+    }
+
+    #[inline(always)]
     fn fract(self) -> Self {
         f32x4([
             self.0[0].fract(),

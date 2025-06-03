@@ -231,6 +231,22 @@ impl Float for f32x16 {
     }
 
     #[inline(always)]
+    fn trunc(mut self) -> Self {
+        self.0 = self.0.trunc();
+        self.1 = self.1.trunc();
+
+        self
+    }
+
+    #[inline(always)]
+    fn reinterpret(mut self) -> Self::Integer {
+        let a  = self.0.reinterpret();
+        let b = self.1.reinterpret();
+
+        u32x16(a, b)
+    }
+
+    #[inline(always)]
     fn lt(mut self, other: Self) -> Self::Integer {
         let a = self.0.lt(other.0);
         let b = self.1.lt(other.1);

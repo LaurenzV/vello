@@ -219,6 +219,16 @@ impl Float for f32x4 {
     fn floor(self) -> Self {
         unsafe { Self(vrndmq_f32(self.0)) }
     }
+    
+    #[inline(always)]
+    fn trunc(self) -> Self {
+        unsafe { Self(vrndq_f32(self.0)) }
+    }
+    
+    #[inline(always)]
+    fn reinterpret(self) -> Self::Integer {
+        unsafe { u32x4(vreinterpretq_u32_f32(self.0)) }
+    }
 
     #[inline(always)]
     fn fract(mut self) -> Self {

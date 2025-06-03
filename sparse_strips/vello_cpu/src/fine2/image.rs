@@ -1,12 +1,12 @@
 // // Copyright 2025 the Vello Authors
 // // SPDX-License-Identifier: Apache-2.0 OR MIT
-//
+// 
 // use vello_common::encode::EncodedImage;
 // use vello_common::kurbo::{Point, Vec2};
 // use vello_common::peniko::{Extend, ImageQuality};
 // use vello_common::tile::Tile;
 // use vello_simd::{Float, Type};
-//
+// 
 // #[derive(Debug)]
 // pub(crate) struct ImageFiller<'a> {
 //     /// The current position that should be processed.
@@ -21,12 +21,12 @@
 //     width: f32,
 //     width_inv: f32,
 // }
-//
+// 
 // impl<'a> ImageFiller<'a> {
 //     pub(crate) fn new(image: &'a EncodedImage, start_x: u16, start_y: u16) -> Self {
 //         let width = image.pixmap.width() as f32;
 //         let height = image.pixmap.height() as f32;
-//
+// 
 //         Self {
 //             cur_pos: image.transform * Point::new(f64::from(start_x), f64::from(start_y)),
 //             x_advances: (image.x_advance.x as f32, image.x_advance.y as f32),
@@ -38,7 +38,7 @@
 //             height_inv: 1.0 / height,
 //         }
 //     }
-//
+// 
 //     pub(super) fn run<F: Type>(mut self, target: &mut [F]) {
 //         // We currently have two branches for filling images: The first case is used for
 //         // nearest neighbor filtering and for images with no skewing-transform (this is checked
@@ -58,7 +58,7 @@
 //             //         self.cur_pos += self.image.x_advance;
 //             //     });
 //         } else {
-//
+// 
 //             let pad = self.gradient.pad;
 //             let (x_pos, y_pos) = F::Float::splat_col_pos(
 //                 (self.cur_pos.x as f32, self.cur_pos.y as f32),
@@ -67,9 +67,9 @@
 //             );
 //             let x_advance = self.image.x_advance.x;
 //             let y_advance = self.image.y_advance.y;
-//
+// 
 //             let mut y_positions = [0.0; Tile::HEIGHT as usize];
-//
+// 
 //             for (idx, pos) in y_positions.iter_mut().enumerate() {
 //                 *pos = extend(
 //                     (self.cur_pos.y + y_advance * idx as f64) as f32,
@@ -78,7 +78,7 @@
 //                     self.height_inv,
 //                 );
 //             }
-//
+// 
 //             target
 //                 .chunks_exact_mut(TILE_HEIGHT_COMPONENTS)
 //                 .for_each(|column| {
@@ -93,7 +93,7 @@
 //                 });
 //         }
 //     }
-//
+// 
 //     // // Ideally, we'd add this only on the specific arm, but clippy doesn't support that
 //     // #[expect(
 //     //     clippy::trivially_copy_pass_by_ref,
@@ -252,13 +252,13 @@
 //     //     }
 //     // }
 // }
-//
+// 
 // #[inline(always)]
 // fn extend(val: f32, extend: Extend, max: f32, inv_max: f32) -> f32 {
 //     // We cannot chose f32::EPSILON here because for example 30.0 - f32::EPSILON is still 30.0.
 //     // This bias should be large enough for all numbers that we support (i.e. <= u16::MAX).
 //     const BIAS: f32 = 0.01;
-//
+// 
 //     match extend {
 //         // Note that max should be exclusive, so subtract a small bias to enforce that.
 //         // Otherwise, we might sample out-of-bounds pixels.
@@ -269,9 +269,9 @@
 //             let u = val - floor(val * inv_max * 0.5) * 2.0 * max;
 //             let s = floor(u * inv_max);
 //             let m = u - 2.0 * s * (u - max);
-//
+// 
 //             let bias_in_ulps = s.trunc();
-//
+// 
 //             let m_bits = m.to_bits();
 //             // This would yield NaN if `m` is 0 and `bias_in_ulps` > 0, but since
 //             // our `max` is always an integer number, u and s must also be an integer number
@@ -281,11 +281,11 @@
 //         }
 //     }
 // }
-//
+// 
 // #[inline(always)]
 // fn extend_simd<T: Float>(val: T, extend: Extend, max: T, inv_max: T) -> T {
 //     let bias = T::splat(0.01);
-//
+// 
 //     match extend {
 //         Extend::Pad => val.min(max - bias).max(T::splat(0.0)),
 //         Extend::Repeat => val - (val * inv_max).floor() * max,
@@ -294,24 +294,24 @@
 //             let u = val - (val * inv_max * T::splat(0.5)).floor() * T::splat(2.0) * max;
 //             let s = (u * inv_max).floor();
 //             let m = u - T::splat(2.0) * s * (u - max);
-//
+// 
 //             let bias_in_ulps = s.trunc();
-//
+// 
 //             let m_bits = m.to_bits();
 //             let biased_bits = m_bits.wrapping_sub(bias_in_ulps as u32);
 //             f32::from_bits(biased_bits)
 //         }
 //     }
-//
+// 
 // }
-//
+// 
 // impl Painter for ImageFiller<'_> {
 //     fn paint<F: Type>(self, target: &mut [F]) {
 //         self.run(target);
 //     }
 // }
-//
-// /// Calculate the weights for a single fractional value.
+// 
+// // /// Calculate the weights for a single fractional value.
 // // const fn weights(fract: f32) -> [f32; 4] {
 // //     const MF: [[f32; 4]; 4] = mf_resampler();
 // //

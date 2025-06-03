@@ -213,6 +213,22 @@ impl Float for f32x8 {
     }
 
     #[inline(always)]
+    fn trunc(mut self) -> Self {
+        self.0 = self.0.trunc();
+        self.1 = self.1.trunc();
+
+        self
+    }
+
+    #[inline(always)]
+    fn reinterpret(mut self) -> Self::Integer {
+        let a  = self.0.reinterpret();
+        let b = self.1.reinterpret();
+
+        u32x8(a, b)
+    }
+
+    #[inline(always)]
     fn abs(mut self) -> Self {
         self.0 = self.0.abs();
         self.1 = self.1.abs();

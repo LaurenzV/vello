@@ -2,6 +2,7 @@ use crate::fallback::f32x8::f32x8;
 use crate::fallback::u32x16::u32x16;
 use crate::{Base, ColorLike, Float, Type, Widened, fallback};
 use std::ops::{Add, Div, Mul, Sub};
+use crate::fallback::u32x8::u32x8;
 
 #[derive(Copy, Clone, Debug)]
 pub struct f32x16(pub(crate) f32x8, pub(crate) f32x8);
@@ -220,6 +221,22 @@ impl Float for f32x16 {
         self
     }
 
+    #[inline(always)]
+    fn trunc(mut self) -> Self {
+        self.0 = self.0.trunc();
+        self.1 = self.1.trunc();
+
+        self
+    }
+
+    #[inline(always)]
+    fn reinterpret(mut self) -> Self::Integer {
+        let a  = self.0.reinterpret();
+        let b = self.1.reinterpret();
+
+        u32x16(a, b)
+    }
+    
     #[inline(always)]
     fn floor(mut self) -> Self {
         self.0 = self.0.floor();
