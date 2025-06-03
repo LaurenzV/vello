@@ -275,11 +275,8 @@ impl<'a, S: Type, U: SimdGradientKind<S::Float>> GradientFiller<'a, S, U> {
 
     fn run_float_range(&mut self, target: &mut [S::Scalar]) {
         let pad = self.gradient.pad;
-        let (x_pos, y_pos) = S::Float::splat_col_pos(
-            (self.cur_pos.x as f32, self.cur_pos.y as f32),
-            self.x_advances,
-            self.y_advances,
-        );
+        let x_pos = S::Float::splat_x_col_pos(self.cur_pos.x as f32, self.x_advances.0, self.y_advances.0);
+        let y_pos = S::Float::splat_y_col_pos(self.cur_pos.y as f32, self.x_advances.1, self.y_advances.1);
 
         let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
 

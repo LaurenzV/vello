@@ -63,11 +63,9 @@ impl<'a> ImageFiller<'a> {
             //     });
         } else {
             target.chunks_exact_mut(64).for_each(|column| {
-                let (x_pos, y_pos) = F::Float::splat_col_pos(
-                    (self.cur_pos.x as f32, self.cur_pos.y as f32),
-                    self.x_advances,
-                    self.y_advances,
-                );
+                let x_pos = F::Float::splat_x_col_pos(self.cur_pos.x as f32, self.x_advances.0, self.y_advances.0);
+                let y_pos = F::Float::splat_y_col_pos(self.cur_pos.y as f32, self.x_advances.1, self.y_advances.1);
+
 
                 let extended_x_pos = extend_simd(
                     x_pos,

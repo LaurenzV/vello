@@ -116,11 +116,8 @@ impl<F: Float> Iterator for AlphaCalculator<'_, F> {
 
         let pos = calc_pos(self.idx);
 
-        let (i, j) = F::splat_col_pos(
-            (pos.x as f32, pos.y as f32),
-            (self.x_advance.x as f32, self.x_advance.y as f32),
-            (self.y_advance.x as f32, self.y_advance.y as f32),
-        );
+        let i = F::Float::splat_x_col_pos(pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
+        let j = F::Float::splat_y_col_pos(pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);
         let r = self.r;
 
         let y = j + r.height.mul_sub(r.v1, r.v1);

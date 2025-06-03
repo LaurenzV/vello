@@ -284,21 +284,34 @@ impl Float for f32x8 {
     }
 
     #[inline(always)]
-    fn splat_col_pos(
-        pos: (f32, f32),
-        x_advance: (f32, f32),
-        y_advance: (f32, f32),
-    ) -> (Self, Self) {
-        let first_col = f32x4::splat_col_pos(pos, x_advance, y_advance);
-        let second_col = f32x4::splat_col_pos(
-            (pos.0 + x_advance.0, pos.1 + x_advance.1),
+    fn splat_x_col_pos(
+        pos: f32,
+        x_advance: f32,
+        y_advance: f32,
+    ) -> Self {
+        let first_col = f32x4::splat_x_col_pos(pos, x_advance, y_advance);
+        let second_col = f32x4::splat_x_col_pos(
+            pos + x_advance,
             x_advance,
             y_advance,
         );
 
-        let x_pos = f32x8(first_col.0, second_col.0);
-        let y_pos = f32x8(first_col.1, second_col.1);
+        f32x8(first_col, second_col)
+    }
 
-        (x_pos, y_pos)
+    #[inline(always)]
+    fn splat_y_col_pos(
+        pos: f32,
+        x_advance: f32,
+        y_advance: f32,
+    ) -> Self {
+        let first_col = f32x4::splat_x_col_pos(pos, x_advance, y_advance);
+        let second_col = f32x4::splat_x_col_pos(
+            pos + x_advance,
+            x_advance,
+            y_advance,
+        );
+
+        f32x8(first_col, second_col)
     }
 }

@@ -266,10 +266,21 @@ impl Float for f32x4 {
     }
 
     #[inline(always)]
-    fn splat_col_pos(pos: (f32, f32), _: (f32, f32), y_advance: (f32, f32)) -> (Self, Self) {
-        let (x_pos, y_pos) = splat_col_pos(pos, y_advance);
+    fn splat_x_col_pos(pos: f32, _: f32, y_advance: f32) -> Self {
+        unsafe {
+            let column_mask = vld1q_f32([0.0, 1.0, 2.0, 3.0].as_ptr());
 
-        (Self(x_pos), Self(y_pos))
+            Self(vfmaq_f32(vdupq_n_f32(pos), column_mask, vdupq_n_f32(y_advance)))
+        }
+    }
+
+    #[inline(always)]
+    fn splat_y_col_pos(pos: f32, _: f32, y_advance: f32) -> Self {
+        unsafe {
+            let column_mask = vld1q_f32([0.0, 1.0, 2.0, 3.0].as_ptr());
+
+            Self(vfmaq_f32(vdupq_n_f32(pos), column_mask, vdupq_n_f32(y_advance)))
+        }
     }
 }
 
@@ -372,17 +383,5 @@ impl f32x4 {
     #[inline(always)]
     pub(crate) fn if_then_else(mask: u32x4, a: Self, b: Self) -> Self {
         unsafe { Self(vbslq_f32(mask.0, a.0, b.0)) }
-    }
-}
-
-#[inline(always)]
-fn splat_col_pos(pos: (f32, f32), advance: (f32, f32)) -> (float32x4_t, float32x4_t) {
-    unsafe {
-        let column_mask = vld1q_f32([0.0, 1.0, 2.0, 3.0].as_ptr());
-
-        let x_positions = vfmaq_f32(vdupq_n_f32(pos.0), column_mask, vdupq_n_f32(advance.0));
-        let y_positions = vfmaq_f32(vdupq_n_f32(pos.1), column_mask, vdupq_n_f32(advance.1));
-
-        (x_positions, y_positions)
     }
 }

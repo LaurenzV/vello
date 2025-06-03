@@ -179,11 +179,17 @@ pub trait Float: Type<Scalar = f32, Float = Self> + Div<Self, Output = Self> {
         x / denom
     }
 
-    fn splat_col_pos(
-        base_pos: (f32, f32),
-        x_advance: (f32, f32),
-        y_advance: (f32, f32),
-    ) -> (Self, Self);
+    fn splat_x_col_pos(
+        base_pos: f32,
+        x_advance: f32,
+        y_advance: f32,
+    ) -> Self;
+
+    fn splat_y_col_pos(
+        base_pos: f32,
+        x_advance: f32,
+        y_advance: f32,
+    ) -> Self;
 }
 
 pub trait Index<T: Float<Integer = Self>>: Add<Self, Output = Self> + Copy + Debug + Sized {
