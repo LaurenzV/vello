@@ -10,6 +10,7 @@ mod image;
 mod rounded_blurred_rect;
 
 use crate::fine2::gradient::{GradientFiller, SimdLinearKind, SimdRadialKind, SimdSweepKind};
+use crate::fine2::image::ImageFiller;
 use crate::fine2::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::scalar::div_255;
 use alloc::vec;
@@ -226,7 +227,16 @@ impl<N: Type> Fine<N> {
                             );
                         }
                     },
-                    _ => unimplemented!(),
+                    EncodedPaint::Image(i) => {
+                        let filler: ImageFiller = ImageFiller::new(i, start_x, start_y);
+                        fill_complex_paint::<N>(
+                            color_buf,
+                            blend_buf,
+                            i.has_opacities,
+                            blend_mode,
+                            filler,
+                        );
+                    }
                 }
             }
         }
@@ -309,6 +319,10 @@ impl<N: Type> Fine<N> {
                             );
                         }
                     },
+                    EncodedPaint::Image(i) => {
+                        let filler: ImageFiller = ImageFiller::new(i, start_x, start_y);
+                        strip_complex_paint::<N>(color_buf, blend_buf, filler, blend_mode, alphas);
+                    }
                     _ => unimplemented!(),
                 }
             }

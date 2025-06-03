@@ -18,6 +18,7 @@ impl Add for u32x4 {
 impl Sub for u32x4 {
     type Output = Self;
 
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         unsafe { Self(vsubq_u32(self.0, rhs.0)) }
     }

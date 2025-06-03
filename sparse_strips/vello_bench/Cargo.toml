@@ -28,9 +28,5 @@ harness = false
 name = "vello_bench"
 path = "src/lib.rs"
 
-[[bin]]
-name = "custom_bench"
-path = "src/main.rs"
-
 [lints]
 workspace = true

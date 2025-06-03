@@ -20,12 +20,12 @@ pub fn gradient(c: &mut Criterion) {
     radial::opaque(c);
     sweep::opaque(c);
 
-    // extend::pad(c);
-    // extend::repeat(c);
-    // extend::reflect(c);
-    //
-    // many_stops(c);
-    // transparent(c);
+    extend::pad(c);
+    extend::repeat(c);
+    extend::reflect(c);
+    
+    many_stops(c);
+    transparent(c);
 }
 
 #[vello_bench]

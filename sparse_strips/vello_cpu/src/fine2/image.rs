@@ -62,29 +62,29 @@ impl<'a> ImageFiller<'a> {
             //         self.cur_pos += self.image.x_advance;
             //     });
         } else {
-            let (x_pos, y_pos) = F::Float::splat_col_pos(
-                (self.cur_pos.x as f32, self.cur_pos.y as f32),
-                self.x_advances,
-                self.y_advances,
-            );
-
-            let extended_x_pos = extend_simd(
-                x_pos,
-                self.image.extends.0,
-                F::Float::splat(self.width),
-                F::Float::splat(self.width_inv),
-            );
-            let extended_y_pos = extend_simd(
-                y_pos,
-                self.image.extends.1,
-                F::Float::splat(self.height),
-                F::Float::splat(self.height_inv),
-            );
-
-            extended_x_pos.store(&mut x_pos_storage);
-            extended_y_pos.store(&mut y_pos_storage);
-
             target.chunks_exact_mut(64).for_each(|column| {
+                let (x_pos, y_pos) = F::Float::splat_col_pos(
+                    (self.cur_pos.x as f32, self.cur_pos.y as f32),
+                    self.x_advances,
+                    self.y_advances,
+                );
+
+                let extended_x_pos = extend_simd(
+                    x_pos,
+                    self.image.extends.0,
+                    F::Float::splat(self.width),
+                    F::Float::splat(self.width_inv),
+                );
+                let extended_y_pos = extend_simd(
+                    y_pos,
+                    self.image.extends.1,
+                    F::Float::splat(self.height),
+                    F::Float::splat(self.height_inv),
+                );
+
+                extended_x_pos.store(&mut x_pos_storage);
+                extended_y_pos.store(&mut y_pos_storage);
+
                 self.run_simple_column::<F>(column, x_pos_storage, y_pos_storage);
 
                 self.cur_pos += self.image.x_advance * 4.0;

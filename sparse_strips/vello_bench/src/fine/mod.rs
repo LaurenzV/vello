@@ -14,6 +14,7 @@ pub use blend::*;
 pub use clear::*;
 pub use fill::*;
 pub use gradient::*;
+pub use image::*;
 pub use rounded_blurred_rect::*;
 pub use strip::*;
 use vello_common::peniko::{BlendMode, Compose, Mix};

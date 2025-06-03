@@ -112,7 +112,9 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     skip_cpu |= {
         input_fn_name_str.contains("colr")
             || input_fn_name_str.contains("bitmap")
-            || input_fn_name_str.contains("image")
+            || input_fn_name_str.contains("image_bilinear")
+            || input_fn_name_str.contains("image_bicubic")
+            || input_fn_name_str.contains("image_with_transform")
             || input_fn_name_str.contains("layer")
             || input_fn_name_str.contains("mask")
             || input_fn_name_str.contains("mix")
