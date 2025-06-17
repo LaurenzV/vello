@@ -1,13 +1,13 @@
 use vello_common::paint::PremulColor;
 use crate::fine2::FineKernel;
 
-pub(crate) struct F32Kernel;
+pub(crate) struct U8Kernel;
 
-impl FineKernel for F32Kernel {
-    type Numeric = f32;
+impl FineKernel for U8Kernel {
+    type Numeric = u8;
 
     #[inline(always)]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
-        color.as_premul_f32().components
+        color.as_premul_rgba8().to_u8_array()
     }
 }

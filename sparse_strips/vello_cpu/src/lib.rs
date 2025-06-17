@@ -106,6 +106,7 @@
 #![cfg_attr(not(feature = "multithreading"), no_std)]
 
 extern crate alloc;
+extern crate core;
 
 // Suppress the unused_crate_dependencies lint when both std and libm are specified.
 #[cfg(all(feature = "std", feature = "libm"))]
