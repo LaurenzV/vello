@@ -5,7 +5,7 @@ use core::fmt::Debug;
 use vello_common::coarse::WideTile;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
-use crate::RenderMode;
+use crate::region::Region;
 
 pub(crate) const COLOR_COMPONENTS: usize = 4;
 pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_COMPONENTS;
@@ -15,7 +15,7 @@ pub const SCRATCH_BUF_SIZE: usize =
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
-trait Numeric: Copy + Default + Clone + Debug + PartialEq {
+pub trait Numeric: Copy + Default + Clone + Debug + PartialEq {
     const ZERO: Self;
 }
 
@@ -27,16 +27,15 @@ impl Numeric for u8 {
     const ZERO: Self = 0;
 }
 
-trait FineKernel {
+pub trait FineKernel {
     type Numeric: Numeric;
     
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
+    fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
 }
 
 
 #[derive(Debug)]
-#[doc(hidden)]
-/// This is an internal struct, do not access directly.
 pub struct Fine<T: FineKernel> {
     pub(crate) wide_coords: (u16, u16),
     pub(crate) blend_buf: Vec<ScratchBuf<T::Numeric>>,
@@ -44,7 +43,6 @@ pub struct Fine<T: FineKernel> {
 }
 
 impl<T: FineKernel> Fine<T> {
-    /// Create a new fine rasterizer.
     pub fn new() -> Self {
         Self {
             wide_coords: (0, 0),
@@ -53,7 +51,6 @@ impl<T: FineKernel> Fine<T> {
         }
     }
 
-    /// Set the coordinates of the current wide tile that is being processed (in tile units).
     pub fn set_coords(&mut self, x: u16, y: u16) {
         self.wide_coords = (x, y);
     }
@@ -74,5 +71,11 @@ impl<T: FineKernel> Fine<T> {
                 z.copy_from_slice(&converted_color);
             }
         }
+    }
+
+    pub fn pack(&self, region: &mut Region<'_>) {
+        let blend_buf = self.blend_buf.last().unwrap();
+        
+        T::pack(region, blend_buf);
     }
 }
