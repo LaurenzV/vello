@@ -121,6 +121,7 @@ pub mod fine;
 pub mod region;
 mod strip_generator;
 mod util;
+mod fine2;
 
 pub use render::{RenderContext, RenderSettings};
 pub use vello_common::fearless_simd::Level;
