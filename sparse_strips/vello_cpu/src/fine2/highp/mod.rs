@@ -34,3 +34,21 @@ impl FineKernel for F32Kernel {
         }
     }
 }
+
+mod fill {
+    use crate::fine2::TILE_HEIGHT_COMPONENTS;
+
+    fn alpha_composite(
+        target: &mut [u8],
+        mut source: [u8; 4],
+    ) {
+        for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
+            for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
+                let src_c = source.next().unwrap();
+                for i in 0..COLOR_COMPONENTS {
+                    bg_c[i] = src_c[i].add(bg_c[i].normalized_mul(src_c[3].one_minus()));
+                }
+            }
+        }
+    }
+}
