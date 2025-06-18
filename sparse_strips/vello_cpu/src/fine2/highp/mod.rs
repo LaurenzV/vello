@@ -36,13 +36,18 @@ impl FineKernel for F32Kernel {
 }
 
 mod fill {
+    use vello_common::fearless_simd::{u32x4, u32x8, u8x32, Simd, SimdBase};
     use crate::fine2::TILE_HEIGHT_COMPONENTS;
 
-    fn alpha_composite(
+    fn alpha_composite<S: Simd>(
+        s: S,
         target: &mut [u8],
-        mut source: [u8; 4],
+        src_c: [u8; 4],
     ) {
-        for strip in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
+        let src_c = u32x8::block_splat(u32x4::splat(s, u32::from_ne_bytes(src_c))).reinterpret_u8();
+        
+        for target_p in target.chunks_exact_mut(32) {
+            let target_p = u8x32::from_slice(s, target_p);
             for bg_c in strip.chunks_exact_mut(COLOR_COMPONENTS) {
                 let src_c = source.next().unwrap();
                 for i in 0..COLOR_COMPONENTS {

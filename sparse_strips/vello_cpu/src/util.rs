@@ -56,3 +56,8 @@ pub(crate) mod scalar {
         }
     }
 }
+
+pub(crate) trait U8Ext {
+    fn normalized_mul(self, other: Self) -> Self;
+    fn one_minus(self) -> Self;
+}
