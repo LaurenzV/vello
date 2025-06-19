@@ -69,9 +69,9 @@ pub struct Fine<T: FineKernel> {
 }
 
 impl<T: FineKernel> Fine<T> {
-    pub fn new() -> Self {
+    pub fn new(level: Level) -> Self {
         Self {
-            level: Level::new(),
+            level,
             wide_coords: (0, 0),
             blend_buf: vec![[T::Numeric::ZERO; SCRATCH_BUF_SIZE]],
             paint_buf: [T::Numeric::ZERO; SCRATCH_BUF_SIZE],

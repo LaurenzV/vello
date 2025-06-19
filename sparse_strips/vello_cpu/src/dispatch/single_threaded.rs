@@ -18,6 +18,7 @@ use crate::fine2::{F32Kernel, Fine, FineKernel, U8Kernel};
 pub(crate) struct SingleThreadedDispatcher {
     wide: Wide,
     strip_generator: StripGenerator,
+    level: Level,
 }
 
 impl SingleThreadedDispatcher {
@@ -28,6 +29,7 @@ impl SingleThreadedDispatcher {
         Self {
             wide,
             strip_generator,
+            level,
         }
     }
 
@@ -39,7 +41,7 @@ impl SingleThreadedDispatcher {
         encoded_paints: &[EncodedPaint],
     ) {
         let mut buffer = Regions::new(width, height, buffer);
-        let mut fine = Fine::<F>::new();
+        let mut fine = Fine::<F>::new(self.level);
 
         buffer.update_regions(|region| {
             let x = region.x;

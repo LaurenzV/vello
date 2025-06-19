@@ -46,6 +46,7 @@ pub(crate) struct MultiThreadedDispatcher {
     alpha_storage: Arc<OnceLockAlphaStorage>,
     task_idx: usize,
     num_threads: u16,
+    level: Level,
     flushed: bool,
 }
 
@@ -93,6 +94,7 @@ impl MultiThreadedDispatcher {
             workers,
             task_sender: None,
             result_receiver: None,
+            level,
             alpha_storage,
             num_threads,
         };
@@ -225,7 +227,7 @@ impl MultiThreadedDispatcher {
                 let x = region.x;
                 let y = region.y;
 
-                let mut fine = fines.get_or(|| RefCell::new(Fine::<F>::new())).borrow_mut();
+                let mut fine = fines.get_or(|| RefCell::new(Fine::<F>::new(self.level))).borrow_mut();
 
                 let wtile = wide.get(x, y);
                 fine.set_coords(x, y);
