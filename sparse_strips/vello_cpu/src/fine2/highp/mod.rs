@@ -46,11 +46,13 @@ impl FineKernel for F32Kernel {
             el.copy_from_slice(&color.val);
         }
     }
-    
+
+    #[inline(always)]
     fn fill_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
         fill::alpha_composite_solid(simd, target, color);
     }
 
+    #[inline(always)]
     fn strip_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(simd, target, color, alphas);
     }
