@@ -71,15 +71,21 @@ mod fill {
         let one_minus_alpha = 255 - u8x32::splat(s, src_c[3]);
         let src_c = u32x8::splat(s, u32::from_ne_bytes(src_c)).reinterpret_u8();
 
-        for part in target.chunks_exact_mut(32) {
+        for part in target.chunks_exact_mut(64) {
             alpha_composite_inner(s, part, src_c, one_minus_alpha);
         }
     }
 
     #[inline(always)]
     fn alpha_composite_inner<S: Simd>(s: S, target: &mut [u8], src_c: u8x32<S>, one_minus_alpha: u8x32<S>) {
-        let bg_c = u8x32::from_slice(s, target);
-        let res = s.narrow_u16x32(normalized_mul(bg_c, one_minus_alpha)) + src_c;
+        // We process in batches of 64 because loading/storing is much faster this way (at least on NEON),
+        // but since we widen to u16, we can only work with 256 bits, so we split it up.
+        let bg = u8x64::from_slice(s, target);
+        let (bg_1, bg_2) = s.split_u8x64(bg);
+        let res_1 = s.narrow_u16x32(normalized_mul(bg_1, one_minus_alpha)) + src_c;
+        let res_2 = s.narrow_u16x32(normalized_mul(bg_2, one_minus_alpha)) + src_c;
+        let res = s.combine_u8x32(res_1, res_2);
+        
         target.copy_from_slice(&res.val)
     }
 }
