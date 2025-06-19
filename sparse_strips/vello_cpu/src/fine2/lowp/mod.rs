@@ -30,7 +30,6 @@ impl FineKernel for U8Kernel {
         }
     }
 
-    #[inline(always)]
     fn fill_buf<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         let color = u8x64::block_splat(u32x4::splat(simd, u32::from_ne_bytes(color)).reinterpret_u8());
 
@@ -53,9 +52,6 @@ impl FineKernel for U8Kernel {
 mod fill {
     use vello_common::fearless_simd::*;
     use crate::util::{normalized_mul, Div255Ext};
-    
-    // Careful: From my experiments, inlining these functions can have drastic (negative)
-    // consequences on performance.
     
     #[inline(always)]
     pub(super) fn alpha_composite_solid<S: Simd>(s: S, target: &mut [u8], src_c: [u8; 4]) {

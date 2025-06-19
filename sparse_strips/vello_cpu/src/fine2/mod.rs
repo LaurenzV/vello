@@ -161,8 +161,6 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
 
                     return;
                 }
-
-                T::fill_solid(self.simd, blend_buf, color, blend_mode);
             }
             Paint::Indexed(paint) => {
                 unimplemented!()

@@ -37,7 +37,8 @@ impl FineKernel for F32Kernel {
         }
     }
     
-    #[inline(always)]
+    // Not having this tanks performance for some reason.
+    #[inline(never)]
     fn fill_buf<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         let color = f32x16::block_splat(color.simd_into(simd));
 
