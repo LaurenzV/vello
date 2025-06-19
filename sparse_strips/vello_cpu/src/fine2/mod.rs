@@ -1,8 +1,9 @@
 mod highp;
 mod lowp;
 
+use alloc::vec;
+use alloc::vec::Vec;
 use core::fmt::Debug;
-use std::iter;
 use vello_common::coarse::{Cmd, WideTile};
 use vello_common::encode::{EncodedKind, EncodedPaint};
 use vello_common::paint::{Paint, PremulColor};

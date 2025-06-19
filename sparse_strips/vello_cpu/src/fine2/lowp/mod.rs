@@ -34,7 +34,7 @@ impl FineKernel for U8Kernel {
 }
 
 mod fill {
-    use vello_common::fearless_simd::{simd_dispatch, u32x4, u32x8, u8x32, Simd, SimdBase};
+    use vello_common::fearless_simd::*;
     use crate::util::normalized_mul;
     use crate::Level;
 
