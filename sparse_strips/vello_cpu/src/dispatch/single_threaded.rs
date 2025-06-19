@@ -3,7 +3,6 @@
 
 use crate::RenderMode;
 use crate::dispatch::Dispatcher;
-use crate::fine::{Fine, FineType};
 use crate::kurbo::{Affine, BezPath, Stroke};
 use crate::peniko::{BlendMode, Fill};
 use crate::region::Regions;
@@ -13,6 +12,7 @@ use vello_common::encode::EncodedPaint;
 use vello_common::fearless_simd::Level;
 use vello_common::mask::Mask;
 use vello_common::paint::Paint;
+use crate::fine2::{F32Kernel, Fine, FineKernel, U8Kernel};
 
 #[derive(Debug)]
 pub(crate) struct SingleThreadedDispatcher {
@@ -31,7 +31,7 @@ impl SingleThreadedDispatcher {
         }
     }
 
-    fn rasterize<F: FineType>(
+    fn rasterize<F: FineKernel>(
         &self,
         buffer: &mut [u8],
         width: u16,
@@ -39,7 +39,7 @@ impl SingleThreadedDispatcher {
         encoded_paints: &[EncodedPaint],
     ) {
         let mut buffer = Regions::new(width, height, buffer);
-        let mut fine = Fine::new();
+        let mut fine = Fine::<F>::new();
 
         buffer.update_regions(|region| {
             let x = region.x;
@@ -48,7 +48,7 @@ impl SingleThreadedDispatcher {
             let wtile = self.wide.get(x, y);
             fine.set_coords(x, y);
 
-            fine.clear(F::extract_color(&wtile.bg));
+            fine.clear(wtile.bg);
             for cmd in &wtile.cmds {
                 fine.run_cmd(cmd, self.strip_generator.alpha_buf(), encoded_paints);
             }
@@ -125,10 +125,10 @@ impl Dispatcher for SingleThreadedDispatcher {
     ) {
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                Self::rasterize::<u8>(self, buffer, width, height, encoded_paints);
+                Self::rasterize::<U8Kernel>(self, buffer, width, height, encoded_paints);
             }
             RenderMode::OptimizeQuality => {
-                Self::rasterize::<f32>(self, buffer, width, height, encoded_paints);
+                Self::rasterize::<F32Kernel>(self, buffer, width, height, encoded_paints);
             }
         }
     }

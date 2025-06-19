@@ -11,6 +11,7 @@ pub(crate) struct U8Kernel;
 impl FineKernel for U8Kernel {
     type Numeric = u8;
 
+    #[inline]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
         color.as_premul_rgba8().to_u8_array()
     }
@@ -27,9 +28,13 @@ impl FineKernel for U8Kernel {
             }
         }
     }
-
+    
     fn fill_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
         fill::alpha_composite_solid(level, target, color);
+    }
+
+    fn strip_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
+        strip::alpha_composite_solid(level, target, color, alphas);       
     }
 }
 

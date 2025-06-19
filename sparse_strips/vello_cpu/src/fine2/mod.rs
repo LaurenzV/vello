@@ -19,9 +19,12 @@ pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_C
 pub const SCRATCH_BUF_SIZE: usize =
     WideTile::WIDTH as usize * Tile::HEIGHT as usize * COLOR_COMPONENTS;
 
+pub(crate) use lowp::U8Kernel;
+pub(crate) use highp::F32Kernel;
+
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
-pub trait Numeric: Copy + Default + Clone + Debug + PartialEq {
+pub trait Numeric: Copy + Default + Clone + Debug + PartialEq + Send + Sync + 'static {
     const ZERO: Self;
     const ONE: Self;
 }
@@ -36,7 +39,7 @@ impl Numeric for u8 {
     const ONE: Self = 255;
 }
 
-pub trait FineKernel {
+pub trait FineKernel: Send + Sync + 'static {
     type Numeric: Numeric;
     
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
@@ -47,13 +50,13 @@ pub trait FineKernel {
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
-    // fn strip_solid(
-    //     level: Level,
-    //     target: &mut [Self::Numeric],
-    //     color: [Self::Numeric; 4],
-    //     blend_mode: BlendMode,
-    //     alphas: &[u8]
-    // );
+    fn strip_solid(
+        level: Level,
+        target: &mut [Self::Numeric],
+        color: [Self::Numeric; 4],
+        blend_mode: BlendMode,
+        alphas: &[u8]
+    );
 }
 
 
@@ -117,15 +120,15 @@ impl<T: FineKernel> Fine<T> {
             }
             Cmd::AlphaFill(s) => {
                 let a_slice = &alphas[s.alpha_idx..];
-                // self.strip(
-                //     usize::from(s.x),
-                //     usize::from(s.width),
-                //     a_slice,
-                //     &s.paint,
-                //     s.blend_mode
-                //         .unwrap_or(BlendMode::new(Mix::Normal, Compose::SrcOver)),
-                //     paints,
-                // );
+                self.strip(
+                    usize::from(s.x),
+                    usize::from(s.width),
+                    a_slice,
+                    &s.paint,
+                    s.blend_mode
+                        .unwrap_or(BlendMode::new(Mix::Normal, Compose::SrcOver)),
+                    paints,
+                );
             }
             Cmd::PushBuf => {
                 self.blend_buf.push([T::Numeric::ZERO; crate::fine::SCRATCH_BUF_SIZE]);
@@ -170,6 +173,35 @@ impl<T: FineKernel> Fine<T> {
                 }
 
                 T::fill_solid(self.level, blend_buf, color, blend_mode);
+            }
+            Paint::Indexed(paint) => {
+                unimplemented!()
+            }
+        }
+    }
+
+    /// Strip at a given x and with a width using the given paint and alpha values.
+    #[inline(always)]
+    pub fn strip(
+        &mut self,
+        x: usize,
+        width: usize,
+        alphas: &[u8],
+        fill: &Paint,
+        blend_mode: BlendMode,
+        encoded_paints: &[EncodedPaint],
+    ) {
+        debug_assert!(
+            alphas.len() >= width,
+            "alpha buffer doesn't contain sufficient elements"
+        );
+
+        let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
+            [..TILE_HEIGHT_COMPONENTS * width];
+
+        match fill {
+            Paint::Solid(color) => {
+                T::strip_solid(self.level, blend_buf, T::extract_color(*color), blend_mode, alphas);
             }
             Paint::Indexed(paint) => {
                 unimplemented!()

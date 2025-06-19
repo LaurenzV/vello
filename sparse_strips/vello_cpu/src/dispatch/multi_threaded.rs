@@ -3,7 +3,6 @@
 
 use crate::RenderMode;
 use crate::dispatch::Dispatcher;
-use crate::fine::{Fine, FineType};
 use crate::kurbo::{Affine, BezPath, PathSeg, Point, Stroke};
 use crate::peniko::{BlendMode, Fill};
 use crate::region::Regions;
@@ -24,6 +23,7 @@ use vello_common::fearless_simd::Level;
 use vello_common::mask::Mask;
 use vello_common::paint::Paint;
 use vello_common::strip::Strip;
+use crate::fine2::{F32Kernel, FineKernel, U8Kernel, Fine};
 
 // TODO: Fine-tune this parameter.
 const COST_THRESHOLD: f32 = 5.0;
@@ -208,7 +208,7 @@ impl MultiThreadedDispatcher {
         }
     }
 
-    fn rasterize<F: FineType>(
+    fn rasterize<F: FineKernel>(
         &self,
         buffer: &mut [u8],
         width: u16,
@@ -225,12 +225,12 @@ impl MultiThreadedDispatcher {
                 let x = region.x;
                 let y = region.y;
 
-                let mut fine = fines.get_or(|| RefCell::new(Fine::new())).borrow_mut();
+                let mut fine = fines.get_or(|| RefCell::new(Fine::<F>::new())).borrow_mut();
 
                 let wtile = wide.get(x, y);
                 fine.set_coords(x, y);
 
-                fine.clear(F::extract_color(&wtile.bg));
+                fine.clear(wtile.bg);
                 for cmd in &wtile.cmds {
                     let thread_idx = match cmd {
                         Cmd::AlphaFill(a) => Some(a.thread_idx),
@@ -358,10 +358,10 @@ impl Dispatcher for MultiThreadedDispatcher {
 
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                self.rasterize::<u8>(buffer, width, height, encoded_paints);
+                self.rasterize::<U8Kernel>(buffer, width, height, encoded_paints);
             }
             RenderMode::OptimizeQuality => {
-                self.rasterize::<f32>(buffer, width, height, encoded_paints);
+                self.rasterize::<F32Kernel>(buffer, width, height, encoded_paints);
             }
         }
     }

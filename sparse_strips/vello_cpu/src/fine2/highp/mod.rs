@@ -11,10 +11,11 @@ pub(crate) struct F32Kernel;
 impl FineKernel for F32Kernel {
     type Numeric = f32;
 
+    #[inline]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
         color.as_premul_f32().components
     }
-
+    
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         for y in 0..Tile::HEIGHT {
             for (x, pixel) in region
@@ -35,10 +36,13 @@ impl FineKernel for F32Kernel {
             }
         }
     }
-
-
+    
     fn fill_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
         fill::alpha_composite_solid(level, target, color);
+    }
+
+    fn strip_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
+        strip::alpha_composite_solid(level, target, color, alphas);
     }
 }
 
