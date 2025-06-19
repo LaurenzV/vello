@@ -135,6 +135,7 @@ impl<T: FineKernel> Fine<T> {
         }
     }
 
+    #[inline(always)]
     /// Fill at a given x and with a width using the given paint.
     pub fn fill(
         &mut self,

@@ -11,7 +11,7 @@ pub struct F32Kernel;
 impl FineKernel for F32Kernel {
     type Numeric = f32;
 
-    #[inline]
+    #[inline(always)]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
         color.as_premul_f32().components
     }
@@ -37,17 +37,17 @@ impl FineKernel for F32Kernel {
         }
     }
     
-    #[inline]
+    #[inline(always)]
     fn fill_buf(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         fill::fill_buf(level, target, color);
     }
     
-    #[inline]
+    #[inline(always)]
     fn fill_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
         fill::alpha_composite_solid(level, target, color);
     }
 
-    #[inline]
+    #[inline(always)]
     fn strip_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(level, target, color, alphas);
     }
@@ -57,7 +57,7 @@ mod fill {
     use vello_common::fearless_simd::*;
     use crate::util::normalized_mul;
 
-    simd_dispatch!(pub(super) fill_buf(level, target: &mut [f32], src_c: [f32; 4]) = fill_buf_dispatch);
+    simd_dispatch!(#[inline(always)] pub(super) fill_buf(level, target: &mut [f32], src_c: [f32; 4]) = fill_buf_dispatch);
 
     #[inline(always)]
     pub(super) fn fill_buf_dispatch<S: Simd>(s: S, target: &mut [f32], color: [f32; 4]) {
@@ -68,7 +68,7 @@ mod fill {
         }
     }
 
-    simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4]) = alpha_composite_solid_dispatch);
+    simd_dispatch!(#[inline(always)] pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4]) = alpha_composite_solid_dispatch);
 
     #[inline(always)]
     pub(super) fn alpha_composite_solid_dispatch<S: Simd>(s: S, target: &mut [f32], src_c: [f32; 4]) {
@@ -92,7 +92,7 @@ mod strip {
     use vello_common::fearless_simd::*;
     use crate::util::normalized_mul;
 
-    simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
+    simd_dispatch!(#[inline(always)] pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
 
     #[inline(always)]
     fn alpha_composite_solid_dispatch<S: Simd>(

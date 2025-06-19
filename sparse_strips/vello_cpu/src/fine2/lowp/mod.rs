@@ -30,14 +30,17 @@ impl FineKernel for U8Kernel {
         }
     }
 
+    #[inline(always)]
     fn fill_buf(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         fill::fill_buf(level, target, color);
     }
 
+    #[inline(always)]
     fn fill_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
         fill::alpha_composite_solid(level, target, color);
     }
 
+    #[inline(always)]
     fn strip_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(level, target, color, alphas);       
     }
@@ -48,7 +51,7 @@ mod fill {
     use crate::util::{normalized_mul, Div255Ext};
     use crate::Level;
 
-    simd_dispatch!(pub(super) fill_buf(level, target: &mut [u8], src_c: [u8; 4]) = fill_buf_dispatch);
+    simd_dispatch!(#[inline(always)] pub(super) fill_buf(level, target: &mut [u8], src_c: [u8; 4]) = fill_buf_dispatch);
     
     #[inline(always)]
     pub(super) fn fill_buf_dispatch<S: Simd>(s: S, target: &mut [u8], color: [u8; 4]) {
@@ -59,7 +62,7 @@ mod fill {
         }
     }
     
-    simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4]) = alpha_composite_solid_dispatch);
+    simd_dispatch!(#[inline(always)] pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4]) = alpha_composite_solid_dispatch);
 
     #[inline(always)]
     pub(super) fn alpha_composite_solid_dispatch<S: Simd>(s: S, target: &mut [u8], src_c: [u8; 4]) {
@@ -83,7 +86,7 @@ mod strip {
     use vello_common::fearless_simd::*;
     use crate::util::{normalized_mul, Div255Ext};
 
-    simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
+    simd_dispatch!(#[inline(always)] pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
 
     #[inline(always)]
     fn alpha_composite_solid_dispatch<S: Simd>(
