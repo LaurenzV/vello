@@ -6,7 +6,7 @@ use crate::Level;
 use crate::peniko::BlendMode;
 use crate::region::Region;
 
-pub(crate) struct F32Kernel;
+pub struct F32Kernel;
 
 impl FineKernel for F32Kernel {
     type Numeric = f32;

@@ -19,10 +19,11 @@ pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_C
 pub const SCRATCH_BUF_SIZE: usize =
     WideTile::WIDTH as usize * Tile::HEIGHT as usize * COLOR_COMPONENTS;
 
-pub(crate) use lowp::U8Kernel;
-pub(crate) use highp::F32Kernel;
+pub use lowp::U8Kernel;
+pub use highp::F32Kernel;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
+
 
 pub trait Numeric: Copy + Default + Clone + Debug + PartialEq + Send + Sync + 'static {
     const ZERO: Self;

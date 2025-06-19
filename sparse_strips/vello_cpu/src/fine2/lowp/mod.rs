@@ -6,7 +6,7 @@ use crate::Level;
 use crate::peniko::BlendMode;
 use crate::region::Region;
 
-pub(crate) struct U8Kernel;
+pub struct U8Kernel;
 
 impl FineKernel for U8Kernel {
     type Numeric = u8;

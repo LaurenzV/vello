@@ -1,6 +1,3 @@
-// Copyright 2025 the Vello Authors
-// SPDX-License-Identifier: Apache-2.0 OR MIT
-
 use crate::fine::{default_blend, fill_single};
 use criterion::{Bencher, Criterion};
 use vello_common::blurred_rounded_rect::BlurredRoundedRectangle;
@@ -9,8 +6,9 @@ use vello_common::color::palette::css::GREEN;
 use vello_common::encode::EncodeExt;
 use vello_common::kurbo::{Affine, Point, Rect};
 use vello_common::tile::Tile;
-use vello_cpu::fine::{Fine, FineType};
+use vello_cpu::fine2::Fine;
 use vello_dev_macros::vello_bench;
+use vello_simd::Type;
 
 pub fn rounded_blurred_rect(c: &mut Criterion) {
     with_transform(c);
@@ -18,18 +16,18 @@ pub fn rounded_blurred_rect(c: &mut Criterion) {
 }
 
 #[vello_bench]
-fn with_transform<F: FineType>(b: &mut Bencher<'_>, fine: &mut Fine<F>) {
+fn with_transform<N: Type>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
     let center = Point::new(WideTile::WIDTH as f64 / 2.0, Tile::HEIGHT as f64 / 2.0);
 
     base(b, fine, Affine::rotate_about(1.0, center));
 }
 
 #[vello_bench]
-fn no_transform<F: FineType>(b: &mut Bencher<'_>, fine: &mut Fine<F>) {
-    base(b, fine, Affine::IDENTITY);
+fn no_transform<N: Type>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+    base(b, fine, Affine::IDENTITY)
 }
 
-fn base<F: FineType>(b: &mut Bencher<'_>, fine: &mut Fine<F>, transform: Affine) {
+fn base<F: Type>(b: &mut Bencher<'_>, fine: &mut Fine<F>, transform: Affine) {
     let mut paints = vec![];
 
     let rect = BlurredRoundedRectangle {
