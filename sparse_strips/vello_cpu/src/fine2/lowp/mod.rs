@@ -116,13 +116,13 @@ mod strip {
             let m1 = u32x4::splat(s, u32::from_ne_bytes(masks[0..4].try_into().unwrap())).reinterpret_u8();
             let m2 = u32x4::splat(s, u32::from_ne_bytes(masks[4..8].try_into().unwrap())).reinterpret_u8();
 
-            let zipped1 = m1.zip(m1).0;
-            let zipped1 = zipped1.zip(zipped1);
+            let zipped1 = m1.zip1(m1);
+            let zipped1 = zipped1.zip1(zipped1);
 
-            let zipped2 = m2.zip(m2).0;
-            let zipped2 = zipped2.zip(zipped2);
+            let zipped2 = m2.zip1(m2);
+            let zipped2 = zipped2.zip1(zipped2);
 
-            s.combine_u8x16(zipped1.0, zipped2.0)
+            s.combine_u8x16(zipped1, zipped2)
         };
         let inv_src_a_mask_a = one - s.narrow_u16x32(normalized_mul(src_a, mask_a));
 
