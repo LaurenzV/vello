@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use vello_common::fearless_simd::{u16x32, u8x32, u8x64, Simd, SimdBase};
+use crate::util::scalar::div_255;
 
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.
@@ -72,3 +73,7 @@ impl<S: Simd> Div255Ext for u16x32<S> {
     }
 }
 
+#[inline(always)]
+pub(crate) fn normalized_mul<S: Simd>(a: u8x32<S>, b: u8x32<S>) -> u16x32<S> {
+    S::widen_u8x32(a.simd, a) * S::widen_u8x32(b.simd, b).div_255()
+}

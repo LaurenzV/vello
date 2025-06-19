@@ -109,15 +109,15 @@ impl<T: FineKernel> Fine<T> {
             }
             Cmd::AlphaFill(s) => {
                 let a_slice = &alphas[s.alpha_idx..];
-                self.strip(
-                    usize::from(s.x),
-                    usize::from(s.width),
-                    a_slice,
-                    &s.paint,
-                    s.blend_mode
-                        .unwrap_or(BlendMode::new(Mix::Normal, Compose::SrcOver)),
-                    paints,
-                );
+                // self.strip(
+                //     usize::from(s.x),
+                //     usize::from(s.width),
+                //     a_slice,
+                //     &s.paint,
+                //     s.blend_mode
+                //         .unwrap_or(BlendMode::new(Mix::Normal, Compose::SrcOver)),
+                //     paints,
+                // );
             }
             Cmd::PushBuf => {
                 self.blend_buf.push([T::Numeric::ZERO; crate::fine::SCRATCH_BUF_SIZE]);
@@ -161,7 +161,7 @@ impl<T: FineKernel> Fine<T> {
                     return;
                 }
 
-                fill::blend(blend_buf, iter::repeat(color), blend_mode);
+                T::fill_solid(self.level, blend_buf, color, blend_mode);
             }
             Paint::Indexed(paint) => {
                 unimplemented!()
