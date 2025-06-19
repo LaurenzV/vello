@@ -127,8 +127,8 @@ mod strip {
             base_mask = base_mask * f32x4::splat(s, 1.0 / 255.0);
             
             let res = f32x16::block_splat(base_mask);
-            let zip1 = res.zip(res).0;
-            let zip2 = zip1.zip(zip1).0;
+            let zip1 = res.zip1(res);
+            let zip2 = zip1.zip1(zip1);
             
             zip2
         };
