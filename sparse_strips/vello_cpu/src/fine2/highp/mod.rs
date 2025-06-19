@@ -117,13 +117,14 @@ mod strip {
         let bg_c = f32x16::from_slice(s, target);
 
         let mask_a = {
-            // TODO: Use SIMD
-            let base_mask = [
-                masks[0] as f32 / 255.0,
-                masks[1] as f32 / 255.0,
-                masks[2] as f32 / 255.0,
-                masks[3] as f32 / 255.0,
+            let mut base_mask = [
+                masks[0] as f32,
+                masks[1] as f32,
+                masks[2] as f32,
+                masks[3] as f32,
             ].simd_into(s);
+            
+            base_mask = base_mask * f32x4::splat(s, 1.0 / 255.0);
             
             let res = f32x16::block_splat(base_mask);
             let zip1 = res.zip(res).0;
@@ -131,7 +132,7 @@ mod strip {
             
             zip2
         };
-        // TODO: FMSUB
+        
         let inv_src_a_mask_a = one - (src_a * mask_a);
     
         let res = (src_c * mask_a).madd(bg_c, inv_src_a_mask_a);
