@@ -50,18 +50,77 @@ mod fill {
 
     #[inline(always)]
     pub(super) fn alpha_composite_solid_dispatch<S: Simd>(s: S, target: &mut [f32], src_c: [f32; 4]) {
-        let one_minus_alpha = f32x8::block_splat(f32x4::splat(s, src_c[3]));
-        let src_c = f32x8::block_splat(f32x4::simd_from(src_c, s));
+        let one_minus_alpha = f32x16::block_splat(f32x4::splat(s, src_c[3]));
+        let src_c = f32x16::block_splat(f32x4::simd_from(src_c, s));
 
-        for part in target.chunks_exact_mut(8) {
+        for part in target.chunks_exact_mut(16) {
             alpha_composite_inner(s, part, src_c, one_minus_alpha);
         }
     }
 
     #[inline(always)]
-    fn alpha_composite_inner<S: Simd>(s: S, target: &mut [f32], src_c: f32x8<S>, one_minus_alpha: f32x8<S>) {
-        let mut bg_c = f32x8::from_slice(s, target);
+    fn alpha_composite_inner<S: Simd>(s: S, target: &mut [f32], src_c: f32x16<S>, one_minus_alpha: f32x16<S>) {
+        let mut bg_c = f32x16::from_slice(s, target);
         bg_c = bg_c * one_minus_alpha + src_c;
         target.copy_from_slice(&bg_c.val)
+    }
+}
+
+mod strip {
+    use vello_common::fearless_simd::*;
+    use crate::util::normalized_mul;
+
+    simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
+
+    #[inline(always)]
+    fn alpha_composite_solid_dispatch<S: Simd>(
+        s: S,
+        target: &mut [f32],
+        src_c: [f32; 4],
+        alphas: &[u8],
+    ) {
+        let src_a = f32x16::splat(s, src_c[3]);
+        let src_c = f32x16::block_splat(src_c.simd_into(s));
+        let one = f32x16::splat(s, 1.0);
+
+        for (bg_part, masks) in target
+            .chunks_exact_mut(16)
+            .zip(alphas.chunks_exact(4))
+        {
+            alpha_composite_inner(s, bg_part, masks, src_c, src_a, one);
+        }
+    }
+
+    #[inline(always)]
+    fn alpha_composite_inner<S: Simd>(
+        s: S,
+        target: &mut [f32],
+        masks: &[u8],
+        src_c: f32x16<S>,
+        src_a: f32x16<S>,
+        one: f32x16<S>,
+    ) {
+        let bg_c = f32x16::from_slice(s, target);
+
+        let mask_a = {
+            // TODO: Use SIMD
+            let base_mask = [
+                masks[0] as f32 / 255.0,
+                masks[1] as f32 / 255.0,
+                masks[2] as f32 / 255.0,
+                masks[3] as f32 / 255.0,
+            ].simd_into(s);
+            
+            let res = f32x16::block_splat(base_mask);
+            let zip1 = res.zip(res).0;
+            let zip2 = zip1.zip(zip1).0;
+            
+            zip2
+        };
+        let inv_src_a_mask_a = one - (src_a * mask_a);
+
+    
+        let res = (bg_c * inv_src_a_mask_a) + (src_c * mask_a);
+        target.copy_from_slice(&res.val);
     }
 }

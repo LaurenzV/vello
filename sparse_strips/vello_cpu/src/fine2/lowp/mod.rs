@@ -62,6 +62,8 @@ mod strip {
     use vello_common::fearless_simd::*;
     use crate::util::normalized_mul;
 
+    simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
+
     #[inline(always)]
     fn alpha_composite_solid_dispatch<S: Simd>(
         s: S,
@@ -77,7 +79,6 @@ mod strip {
             .chunks_exact_mut(32)
             .zip(alphas.chunks_exact(8))
         {
-            // Not passing the `one` explicitly here messes with auto-vectorization.
             alpha_composite_inner(s, bg_part, masks, src_c, src_a, one);
         }
     }
