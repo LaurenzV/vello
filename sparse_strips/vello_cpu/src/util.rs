@@ -75,5 +75,5 @@ impl<S: Simd> Div255Ext for u16x32<S> {
 
 #[inline(always)]
 pub(crate) fn normalized_mul<S: Simd>(a: u8x32<S>, b: u8x32<S>) -> u16x32<S> {
-    S::widen_u8x32(a.simd, a) * S::widen_u8x32(b.simd, b).div_255()
+    (S::widen_u8x32(a.simd, a) * S::widen_u8x32(b.simd, b)).div_255()
 }

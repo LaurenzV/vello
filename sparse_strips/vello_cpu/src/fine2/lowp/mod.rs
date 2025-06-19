@@ -40,7 +40,7 @@ impl FineKernel for U8Kernel {
 
 mod fill {
     use vello_common::fearless_simd::*;
-    use crate::util::normalized_mul;
+    use crate::util::{normalized_mul, Div255Ext};
     use crate::Level;
 
     simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4]) = alpha_composite_solid_dispatch);
@@ -57,15 +57,15 @@ mod fill {
 
     #[inline(always)]
     fn alpha_composite_inner<S: Simd>(s: S, target: &mut [u8], src_c: u8x32<S>, one_minus_alpha: u8x32<S>) {
-        let mut bg_c = u8x32::from_slice(s, target);
-        bg_c = s.narrow_u16x32(normalized_mul(bg_c, one_minus_alpha)) + src_c;
-        target.copy_from_slice(&bg_c.val)
+        let bg_c = u8x32::from_slice(s, target);
+        let res = s.narrow_u16x32(normalized_mul(bg_c, one_minus_alpha)) + src_c;
+        target.copy_from_slice(&res.val)
     }
 }
 
 mod strip {
     use vello_common::fearless_simd::*;
-    use crate::util::normalized_mul;
+    use crate::util::{normalized_mul, Div255Ext};
 
     simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
 
@@ -115,7 +115,7 @@ mod strip {
 
         let p1 = s.widen_u8x32(bg_c) * s.widen_u8x32(inv_src_a_mask_a);
         let p2 = s.widen_u8x32(src_c) * s.widen_u8x32(mask_a);
-        let res = s.narrow_u16x32(p1 + p2);
+        let res = s.narrow_u16x32((p1 + p2).div_255());
         target.copy_from_slice(&res.val);
     }
 }
