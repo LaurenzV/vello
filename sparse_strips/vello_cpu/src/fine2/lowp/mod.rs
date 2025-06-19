@@ -50,10 +50,12 @@ mod fill {
     use vello_common::fearless_simd::*;
     use crate::util::{normalized_mul, Div255Ext};
     use crate::Level;
-
-    simd_dispatch!(#[inline(always)] pub(super) fill_buf(level, target: &mut [u8], src_c: [u8; 4]) = fill_buf_dispatch);
     
-    #[inline(always)]
+    // Careful: From my experiments, inlining these functions can have drastic (negative)
+    // consequences on performance.
+
+    simd_dispatch!(pub(super) fill_buf(level, target: &mut [u8], src_c: [u8; 4]) = fill_buf_dispatch);
+    
     pub(super) fn fill_buf_dispatch<S: Simd>(s: S, target: &mut [u8], color: [u8; 4]) {
         let color = u8x64::block_splat(u32x4::splat(s, u32::from_ne_bytes(color)).reinterpret_u8());
         
