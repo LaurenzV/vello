@@ -1,6 +1,8 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use vello_common::fearless_simd::{u16x32, u8x32, u8x64, Simd, SimdBase};
+
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.
     ///
@@ -57,7 +59,16 @@ pub(crate) mod scalar {
     }
 }
 
-pub(crate) trait U8Ext {
-    fn normalized_mul(self, other: Self) -> Self;
-    fn one_minus(self) -> Self;
+pub(crate) trait Div255Ext {
+    fn div_255(self) -> Self;
 }
+
+impl<S: Simd> Div255Ext for u16x32<S> {
+    #[inline(always)]
+    fn div_255(self) -> u16x32<S> {
+        let p1 = u16x32::splat(self.simd, 255);
+        let p2 = self + p1;
+        p2.shr(8)
+    }
+}
+
