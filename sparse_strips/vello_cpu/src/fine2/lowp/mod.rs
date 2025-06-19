@@ -1,3 +1,4 @@
+use vello_common::fearless_simd::u8x64;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
 use crate::fine2::FineKernel;
@@ -28,7 +29,11 @@ impl FineKernel for U8Kernel {
             }
         }
     }
-    
+
+    fn fill_buf(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+        fill::fill_buf(level, target, color);
+    }
+
     fn fill_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
         fill::alpha_composite_solid(level, target, color);
     }
@@ -43,6 +48,17 @@ mod fill {
     use crate::util::{normalized_mul, Div255Ext};
     use crate::Level;
 
+    simd_dispatch!(pub(super) fill_buf(level, target: &mut [u8], src_c: [u8; 4]) = fill_buf_dispatch);
+    
+    #[inline(always)]
+    pub(super) fn fill_buf_dispatch<S: Simd>(s: S, target: &mut [u8], color: [u8; 4]) {
+        let color = u8x64::block_splat(u32x4::splat(s, u32::from_ne_bytes(color)).reinterpret_u8());
+        
+        for el in target.chunks_exact_mut(64) {
+            el.copy_from_slice(&color.val);
+        }
+    }
+    
     simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [u8], src_c: [u8; 4]) = alpha_composite_solid_dispatch);
 
     #[inline(always)]

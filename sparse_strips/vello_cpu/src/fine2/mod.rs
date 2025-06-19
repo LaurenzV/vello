@@ -45,6 +45,7 @@ pub trait FineKernel: Send + Sync + 'static {
     
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
+    fn fill_buf(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
     fn fill_solid(
         level: Level,
         target: &mut [Self::Numeric],
@@ -87,18 +88,7 @@ impl<T: FineKernel> Fine<T> {
         let converted_color = T::extract_color(premul_color);
         let blend_buf = self.blend_buf.last_mut().unwrap();
 
-        if converted_color[0] == converted_color[1]
-            && converted_color[1] == converted_color[2]
-            && converted_color[2] == converted_color[3]
-        {
-            // All components are the same, so we can use memset instead.
-            blend_buf.fill(converted_color[0]);
-        } else {
-            // TODO: Faster with 512x SIMD?
-            for z in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
-                z.copy_from_slice(&converted_color);
-            }
-        }
+        T::fill_buf(self.level, blend_buf, converted_color);
     }
 
     pub fn pack(&self, region: &mut Region<'_>) {
@@ -165,10 +155,7 @@ impl<T: FineKernel> Fine<T> {
 
                 // If color is completely opaque we can just memcopy the colors.
                 if color[3] == T::Numeric::ONE && default_blend {
-                    for t in blend_buf.chunks_exact_mut(COLOR_COMPONENTS) {
-                        // TODO: Faster with 512x SIMD?
-                        t.copy_from_slice(&color);
-                    }
+                    T::fill_buf(self.level, blend_buf, color);
 
                     return;
                 }

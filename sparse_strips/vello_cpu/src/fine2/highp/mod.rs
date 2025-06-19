@@ -37,10 +37,17 @@ impl FineKernel for F32Kernel {
         }
     }
     
+    #[inline]
+    fn fill_buf(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+        fill::fill_buf(level, target, color);
+    }
+    
+    #[inline]
     fn fill_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
         fill::alpha_composite_solid(level, target, color);
     }
 
+    #[inline]
     fn strip_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(level, target, color, alphas);
     }
@@ -49,6 +56,17 @@ impl FineKernel for F32Kernel {
 mod fill {
     use vello_common::fearless_simd::*;
     use crate::util::normalized_mul;
+
+    simd_dispatch!(pub(super) fill_buf(level, target: &mut [f32], src_c: [f32; 4]) = fill_buf_dispatch);
+
+    #[inline(always)]
+    pub(super) fn fill_buf_dispatch<S: Simd>(s: S, target: &mut [f32], color: [f32; 4]) {
+        let color = f32x16::block_splat(color.simd_into(s));
+
+        for el in target.chunks_exact_mut(16) {
+            el.copy_from_slice(&color.val);
+        }
+    }
 
     simd_dispatch!(pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4]) = alpha_composite_solid_dispatch);
 
