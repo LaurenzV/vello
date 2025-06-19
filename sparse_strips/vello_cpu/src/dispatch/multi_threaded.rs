@@ -19,7 +19,7 @@ use std::sync::{Barrier, OnceLock};
 use thread_local::ThreadLocal;
 use vello_common::coarse::{Cmd, Wide};
 use vello_common::encode::EncodedPaint;
-use vello_common::fearless_simd::Level;
+use vello_common::fearless_simd::{Fallback, Level, Neon, Simd};
 use vello_common::mask::Mask;
 use vello_common::paint::Paint;
 use vello_common::strip::Strip;
@@ -217,6 +217,37 @@ impl MultiThreadedDispatcher {
         height: u16,
         encoded_paints: &[EncodedPaint],
     ) {
+        match self.level {
+            Level::Fallback(f) => {
+                self.rasterize_with::<F, Fallback>(
+                    f,
+                    buffer,
+                    width,
+                    height,
+                    encoded_paints,
+                )
+            }
+            #[cfg(target_arch = "aarch64")]
+            Level::Neon(n) => {
+                self.rasterize_with::<F, Neon>(
+                    n,
+                    buffer,
+                    width,
+                    height,
+                    encoded_paints,
+                )
+            }
+        }
+    }
+
+    fn rasterize_with<F: FineKernel, S: Simd>(
+        &self,
+        simd: S,
+        buffer: &mut [u8],
+        width: u16,
+        height: u16,
+        encoded_paints: &[EncodedPaint],
+    ) {
         let mut buffer = Regions::new(width, height, buffer);
         let fines = ThreadLocal::new();
         let wide = &self.wide;
@@ -227,7 +258,7 @@ impl MultiThreadedDispatcher {
                 let x = region.x;
                 let y = region.y;
 
-                let mut fine = fines.get_or(|| RefCell::new(Fine::<F>::new(self.level))).borrow_mut();
+                let mut fine = fines.get_or(|| RefCell::new(Fine::<F, S>::new(simd))).borrow_mut();
 
                 let wtile = wide.get(x, y);
                 fine.set_coords(x, y);

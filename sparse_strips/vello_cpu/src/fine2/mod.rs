@@ -21,6 +21,7 @@ pub const SCRATCH_BUF_SIZE: usize =
 
 pub use lowp::U8Kernel;
 pub use highp::F32Kernel;
+use vello_common::fearless_simd::Simd;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
@@ -45,15 +46,15 @@ pub trait FineKernel: Send + Sync + 'static {
     
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
-    fn fill_buf(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
-    fn fill_solid(
-        level: Level,
+    fn fill_buf<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
+    fn fill_solid<S: Simd>(
+        simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
-    fn strip_solid(
-        level: Level,
+    fn strip_solid<S: Simd>(
+        simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
@@ -63,17 +64,17 @@ pub trait FineKernel: Send + Sync + 'static {
 
 
 #[derive(Debug)]
-pub struct Fine<T: FineKernel> {
-    level: Level,
+pub struct Fine<T: FineKernel, S: Simd> {
     pub(crate) wide_coords: (u16, u16),
     pub(crate) blend_buf: Vec<ScratchBuf<T::Numeric>>,
     pub(crate) paint_buf: ScratchBuf<T::Numeric>,
+    pub(crate) simd: S,
 }
 
-impl<T: FineKernel> Fine<T> {
-    pub fn new(level: Level) -> Self {
+impl<T: FineKernel, S: Simd> Fine<T, S> {
+    pub fn new(simd: S) -> Self {
         Self {
-            level,
+            simd,
             wide_coords: (0, 0),
             blend_buf: vec![[T::Numeric::ZERO; SCRATCH_BUF_SIZE]],
             paint_buf: [T::Numeric::ZERO; SCRATCH_BUF_SIZE],
@@ -88,7 +89,7 @@ impl<T: FineKernel> Fine<T> {
         let converted_color = T::extract_color(premul_color);
         let blend_buf = self.blend_buf.last_mut().unwrap();
 
-        T::fill_buf(self.level, blend_buf, converted_color);
+        T::fill_buf(self.simd, blend_buf, converted_color);
     }
 
     pub fn pack(&self, region: &mut Region<'_>) {
@@ -156,12 +157,12 @@ impl<T: FineKernel> Fine<T> {
 
                 // If color is completely opaque we can just memcopy the colors.
                 if color[3] == T::Numeric::ONE && default_blend {
-                    T::fill_buf(self.level, blend_buf, color);
+                    T::fill_buf(self.simd, blend_buf, color);
 
                     return;
                 }
 
-                T::fill_solid(self.level, blend_buf, color, blend_mode);
+                T::fill_solid(self.simd, blend_buf, color, blend_mode);
             }
             Paint::Indexed(paint) => {
                 unimplemented!()
@@ -190,7 +191,7 @@ impl<T: FineKernel> Fine<T> {
 
         match fill {
             Paint::Solid(color) => {
-                T::strip_solid(self.level, blend_buf, T::extract_color(*color), blend_mode, alphas);
+                T::strip_solid(self.simd, blend_buf, T::extract_color(*color), blend_mode, alphas);
             }
             Paint::Indexed(paint) => {
                 unimplemented!()

@@ -19,6 +19,7 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
             use vello_cpu::fine2::{Fine, U8Kernel, F32Kernel};
             use vello_common::coarse::WideTile;
             use vello_common::tile::Tile;
+            use vello_common::fearless_simd::Simd;
             use vello_cpu::Level;
 
             fn get_bench_name(suffix1: &str, suffix2: &str) -> String {
@@ -33,32 +34,32 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
                 format!("{}/{}_{}", module, suffix1, suffix2)
             }
 
-            fn run_integer(b: &mut Bencher, level: Level) {
-                let mut fine = Fine::<U8Kernel>::new(level);
+            fn run_integer<S: Simd>(b: &mut Bencher, simd: S) {
+                let mut fine = Fine::<U8Kernel, S>::new(simd);
                 #inner_fn_name(b, &mut fine);
             }
 
-            fn run_float(b: &mut Bencher, level: Level) {
-                let mut fine = Fine::<F32Kernel>::new(level);
+            fn run_float<S: Simd>(b: &mut Bencher, simd: S) {
+                let mut fine = Fine::<F32Kernel, S>::new(simd);
                 #inner_fn_name(b, &mut fine);
             }
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_scalar"), |b| {
-                run_integer(b, Level::fallback());
+                run_integer(b, vello_common::fearless_simd::Fallback::new());
             });
 
             c.bench_function(&get_bench_name(&#input_fn_name_str, "f32_scalar"), |b| {
-                run_float(b, Level::fallback());
+                run_float(b, vello_common::fearless_simd::Fallback::new());
             });
 
             #[cfg(target_arch = "aarch64")]
             if let Some(neon) = Level::new().as_neon() {
                 c.bench_function(&get_bench_name(&#input_fn_name_str, "u8_neon"), |b| {
-                    run_integer(b, Level::Neon(neon));
+                    run_integer(b, neon);
                 });
 
                 c.bench_function(&get_bench_name(&#input_fn_name_str, "f32_neon"), |b| {
-                    run_float(b, Level::Neon(neon));
+                    run_float(b, neon);
                 });
             }
         }

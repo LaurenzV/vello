@@ -9,7 +9,7 @@ use crate::region::Regions;
 use crate::strip_generator::StripGenerator;
 use vello_common::coarse::Wide;
 use vello_common::encode::EncodedPaint;
-use vello_common::fearless_simd::Level;
+use vello_common::fearless_simd::{Fallback, Level, Neon, Simd};
 use vello_common::mask::Mask;
 use vello_common::paint::Paint;
 use crate::fine2::{F32Kernel, Fine, FineKernel, U8Kernel};
@@ -40,8 +40,39 @@ impl SingleThreadedDispatcher {
         height: u16,
         encoded_paints: &[EncodedPaint],
     ) {
+        match self.level {
+            Level::Fallback(f) => {
+                self.rasterize_with::<F, Fallback>(
+                    f,
+                    buffer,
+                    width,
+                    height,
+                    encoded_paints,
+                )
+            }
+            #[cfg(target_arch = "aarch64")]
+            Level::Neon(n) => {
+                self.rasterize_with::<F, Neon>(
+                    n,
+                    buffer,
+                    width,
+                    height,
+                    encoded_paints,
+                )
+            }
+        }
+    }
+    
+    fn rasterize_with<F: FineKernel, S: Simd>(
+        &self,
+        simd: S,
+        buffer: &mut [u8],
+        width: u16,
+        height: u16,
+        encoded_paints: &[EncodedPaint],
+    ) {
         let mut buffer = Regions::new(width, height, buffer);
-        let mut fine = Fine::<F>::new(self.level);
+        let mut fine = Fine::<F, S>::new(simd);
 
         buffer.update_regions(|region| {
             let x = region.x;

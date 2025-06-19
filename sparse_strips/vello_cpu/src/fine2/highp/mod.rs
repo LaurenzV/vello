@@ -1,8 +1,8 @@
+use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
 use crate::fine2::FineKernel;
 use crate::fine::COLOR_COMPONENTS;
-use crate::Level;
 use crate::peniko::BlendMode;
 use crate::region::Region;
 
@@ -38,42 +38,33 @@ impl FineKernel for F32Kernel {
     }
     
     #[inline(always)]
-    fn fill_buf(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
-        fill::fill_buf(level, target, color);
-    }
-    
-    #[inline(always)]
-    fn fill_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
-        fill::alpha_composite_solid(level, target, color);
-    }
-
-    #[inline(always)]
-    fn strip_solid(level: Level, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
-        strip::alpha_composite_solid(level, target, color, alphas);
-    }
-}
-
-mod fill {
-    use vello_common::fearless_simd::*;
-    use crate::util::normalized_mul;
-
-    // Careful: From my experiments, inlining these functions can have drastic (negative)
-    // consequences on performance.
-
-    simd_dispatch!(pub(super) fill_buf(level, target: &mut [f32], src_c: [f32; 4]) = fill_buf_dispatch);
-
-    pub(super) fn fill_buf_dispatch<S: Simd>(s: S, target: &mut [f32], color: [f32; 4]) {
-        let color = f32x16::block_splat(color.simd_into(s));
+    fn fill_buf<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+        let color = f32x16::block_splat(color.simd_into(simd));
 
         for el in target.chunks_exact_mut(16) {
             el.copy_from_slice(&color.val);
         }
     }
-
-    simd_dispatch!(#[inline(always)] pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4]) = alpha_composite_solid_dispatch);
+    
+    #[inline(always)]
+    fn fill_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
+        fill::alpha_composite_solid(simd, target, color);
+    }
 
     #[inline(always)]
-    pub(super) fn alpha_composite_solid_dispatch<S: Simd>(s: S, target: &mut [f32], src_c: [f32; 4]) {
+    fn strip_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
+        strip::alpha_composite_solid(simd, target, color, alphas);
+    }
+}
+
+mod fill {
+    use vello_common::fearless_simd::*;
+
+    // Careful: From my experiments, inlining these functions can have drastic (negative)
+    // consequences on performance.
+
+    #[inline(always)]
+    pub(super) fn alpha_composite_solid<S: Simd>(s: S, target: &mut [f32], src_c: [f32; 4]) {
         let one_minus_alpha = f32x16::block_splat(f32x4::splat(s, src_c[3]));
         let src_c = f32x16::block_splat(f32x4::simd_from(src_c, s));
 
@@ -93,11 +84,9 @@ mod fill {
 mod strip {
     use vello_common::fearless_simd::*;
     use crate::util::normalized_mul;
-
-    simd_dispatch!(#[inline(always)] pub(crate) alpha_composite_solid(level, target: &mut [f32], src_c: [f32; 4], alphas: &[u8]) = alpha_composite_solid_dispatch);
-
+    
     #[inline(always)]
-    fn alpha_composite_solid_dispatch<S: Simd>(
+    pub(super) fn alpha_composite_solid<S: Simd>(
         s: S,
         target: &mut [f32],
         src_c: [f32; 4],

@@ -6,6 +6,7 @@ use rand::{Rng, SeedableRng};
 use vello_common::coarse::WideTile;
 use vello_common::color::palette::css::ROYAL_BLUE;
 use vello_common::encode::EncodedPaint;
+use vello_common::fearless_simd::Simd;
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::tile::Tile;
 use vello_cpu::fine2::{Fine, FineKernel};
@@ -17,7 +18,7 @@ pub fn strip(c: &mut Criterion) {
 }
 
 #[vello_bench]
-pub fn solid_short<N: FineKernel>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn solid_short<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 8;
 
@@ -25,19 +26,19 @@ pub fn solid_short<N: FineKernel>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
 }
 
 #[vello_bench]
-pub fn solid_long<N: FineKernel>(b: &mut Bencher<'_>, fine: &mut Fine<N>) {
+pub fn solid_long<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 64;
 
     strip_single(&paint, &[], width, b, fine);
 }
 
-fn strip_single<N: FineKernel>(
+fn strip_single<N: FineKernel, S: Simd>(
     paint: &Paint,
     encoded_paints: &[EncodedPaint],
     width: usize,
     b: &mut Bencher<'_>,
-    fine: &mut Fine<N>,
+    fine: &mut Fine<N, S>,
 ) {
     let mut rng = StdRng::from_seed(SEED);
     let mut alphas = vec![];
