@@ -47,6 +47,13 @@ pub trait FineKernel {
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
+    // fn strip_solid(
+    //     level: Level,
+    //     target: &mut [Self::Numeric],
+    //     color: [Self::Numeric; 4],
+    //     blend_mode: BlendMode,
+    //     alphas: &[u8]
+    // );
 }
 
 

@@ -57,3 +57,59 @@ mod fill {
         target.copy_from_slice(&bg_c.val)
     }
 }
+
+mod strip {
+    use vello_common::fearless_simd::*;
+    use crate::util::normalized_mul;
+
+    #[inline(always)]
+    fn alpha_composite_solid_dispatch<S: Simd>(
+        s: S,
+        target: &mut [u8],
+        src_c: [u8; 4],
+        alphas: &[u8],
+    ) {
+        let src_a = u8x32::splat(s, src_c[3]);
+        let src_c = u32x8::splat(s, u32::from_ne_bytes(src_c)).reinterpret_u8();
+        let one = u8x32::splat(s, 255);
+
+        for (bg_part, masks) in target
+            .chunks_exact_mut(32)
+            .zip(alphas.chunks_exact(8))
+        {
+            // Not passing the `one` explicitly here messes with auto-vectorization.
+            alpha_composite_inner(s, bg_part, masks, src_c, src_a, one);
+        }
+    }
+    
+    #[inline(always)]
+    fn alpha_composite_inner<S: Simd>(
+        s: S,
+        target: &mut [u8],
+        masks: &[u8],
+        src_c: u8x32<S>,
+        src_a: u8x32<S>,
+        one: u8x32<S>,
+    ) {
+        let bg_c = u8x32::from_slice(s, target);
+        
+        let mask_a = {
+            let m1 = u32x4::splat(s, u32::from_ne_bytes(masks[0..4].try_into().unwrap())).reinterpret_u8();
+            let m2 = u32x4::splat(s, u32::from_ne_bytes(masks[4..8].try_into().unwrap())).reinterpret_u8();
+
+            let zipped1 = m1.zip(m1).0;
+            let zipped1 = zipped1.zip(zipped1);
+
+            let zipped2 = m2.zip(m2).0;
+            let zipped2 = zipped2.zip(zipped2);
+
+            s.combine_u8x16(zipped1.0, zipped2.0)
+        };
+        let inv_src_a_mask_a = one - s.narrow_u16x32(normalized_mul(src_a, mask_a));
+
+        let p1 = s.widen_u8x32(bg_c) * s.widen_u8x32(inv_src_a_mask_a);
+        let p2 = s.widen_u8x32(src_c) * s.widen_u8x32(mask_a);
+        let res = s.narrow_u16x32(p1 + p2);
+        target.copy_from_slice(&res.val);
+    }
+}
