@@ -141,6 +141,7 @@ mod strip {
             
             zip2
         };
+        // TODO: FMSUB
         let inv_src_a_mask_a = one - (src_a * mask_a);
     
         let res = (src_c * mask_a).madd(bg_c, inv_src_a_mask_a);
