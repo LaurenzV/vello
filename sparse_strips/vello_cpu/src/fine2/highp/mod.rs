@@ -85,7 +85,7 @@ mod fill {
     #[inline(always)]
     fn alpha_composite_inner<S: Simd>(s: S, target: &mut [f32], src_c: f32x16<S>, one_minus_alpha: f32x16<S>) {
         let mut bg_c = f32x16::from_slice(s, target);
-        bg_c = bg_c * one_minus_alpha + src_c;
+        bg_c = src_c.madd(one_minus_alpha, bg_c);
         target.copy_from_slice(&bg_c.val)
     }
 }
@@ -142,9 +142,8 @@ mod strip {
             zip2
         };
         let inv_src_a_mask_a = one - (src_a * mask_a);
-
     
-        let res = (bg_c * inv_src_a_mask_a) + (src_c * mask_a);
+        let res = (src_c * mask_a).madd(bg_c, inv_src_a_mask_a);
         target.copy_from_slice(&res.val);
     }
 }
