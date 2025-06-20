@@ -81,7 +81,7 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
             r3.bias[2], r3.bias[3],
         ]);
         
-        let res = t_vals.madd(scales, biases);
+        let res = biases.madd(scales, t_vals);
         self.idx += 4;
         
         Some(res)
