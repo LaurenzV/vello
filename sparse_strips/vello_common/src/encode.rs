@@ -506,7 +506,7 @@ pub struct EncodedImage {
 }
 
 /// Computed properties of a linear gradient.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct LinearKind;
 
 /// Focal data for a radial gradient.

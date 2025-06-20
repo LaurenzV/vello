@@ -1,9 +1,117 @@
-use vello_common::fearless_simd::{f32x8, Simd};
+use vello_common::encode::{EncodedGradient, GradientRange};
+use vello_common::fearless_simd::*;
+use crate::fine2::highp::{calc_pos, element_wise_splat};
+use crate::fine2::PosExt;
+use crate::kurbo::Point;
 
-mod linear;
+pub(crate) mod linear;
+
+#[derive(Debug)]
+pub(crate) struct GradientFiller<'a, S: Simd, U: SimdGradientKind<S>> {
+    start_pos: Point,
+    idx: usize,
+    gradient: &'a EncodedGradient,
+    kind: U,
+    x_advances: (f32, f32),
+    y_advances: (f32, f32),
+    simd: S
+}
+
+impl<'a, S: Simd, U: SimdGradientKind<S>> GradientFiller<'a, S, U> {
+    pub(crate) fn new(simd: S,
+        gradient: &'a EncodedGradient,
+        kind: &'a (impl Into<U> + Copy),
+        start_x: u16,
+        start_y: u16,
+    ) -> Self {
+        let start_pos = gradient.transform * Point::new(f64::from(start_x), f64::from(start_y));
+        
+        Self {
+            start_pos,
+            idx: 0,
+            gradient,
+            x_advances: (gradient.x_advance.x as f32, gradient.x_advance.y as f32),
+            y_advances: (gradient.y_advance.x as f32, gradient.y_advance.y as f32),
+            kind: (*kind).into(),
+            simd
+        }
+    }
+}
+
+impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> {
+    type Item = f32x16<S>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let pad = self.gradient.pad;
+        let cur_pos = calc_pos(self.start_pos, self.idx, self.gradient.x_advance, self.gradient.y_advance);
+        let x_pos = f32x4::splat_col_pos(self.simd, cur_pos.x as f32, self.x_advances.0, self.y_advances.0);
+        let y_pos = f32x4::splat_col_pos(self.simd, cur_pos.y as f32, self.x_advances.1, self.y_advances.1);
+        let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
+        let indices = advance(self.simd, t_vals, &self.gradient.ranges);
+
+        let r0 = &self.gradient.ranges[indices[0] as usize];
+        let r1 = &self.gradient.ranges[indices[1] as usize];
+        let r2 = &self.gradient.ranges[indices[2] as usize];
+        let r3 = &self.gradient.ranges[indices[3] as usize];
+        
+        let t_vals = element_wise_splat(self.simd, t_vals);
+
+        let scales = f32x16::from_slice(self.simd, &[
+            r0.scale[0],
+            r0.scale[1],
+            r0.scale[2],
+            r0.scale[3],
+            r1.scale[0],
+            r1.scale[1],
+            r1.scale[2],
+            r1.scale[3],
+            r2.scale[0],
+            r2.scale[1],
+            r2.scale[2],
+            r2.scale[3],
+            r3.scale[0],
+            r3.scale[1],
+            r3.scale[2],
+            r3.scale[3],
+        ]);
+
+        let biases = f32x16::from_slice(self.simd, &[
+            r0.bias[0], r0.bias[1], r0.bias[2], r0.bias[3], r1.bias[0], r1.bias[1], r1.bias[2],
+            r1.bias[3], r2.bias[0], r2.bias[1], r2.bias[2], r2.bias[3], r3.bias[0], r3.bias[1],
+            r3.bias[2], r3.bias[3],
+        ]);
+        
+        let res = t_vals.madd(scales, biases);
+        self.idx += 4;
+        
+        Some(res)
+    }
+}
+
+#[inline]
+fn advance<S: Simd>(simd: S, target_pos: f32x4<S>, ranges: &[GradientRange]) -> u32x4<S> {
+    let mut idx = u32x4::splat(simd, 0);
+
+    for i in 0..(ranges.len() - 1) {
+        let cond = simd.simd_le_f32x4(f32x4::splat(simd, ranges[i].x1), target_pos);
+        idx = idx + simd.select_u32x4(cond, u32x4::splat(simd, 1), u32x4::splat(simd, 0));
+    }
+
+    idx
+}
+
+
+#[inline]
+pub(crate) fn extend<S: Simd>(mut val: f32x4<S>, pad: bool) -> f32x4<S> {
+    if pad {
+        val
+    } else {
+        (val - val.floor()).fract()
+    }
+}
 
 trait SimdGradientKind<S: Simd> {
-    fn cur_pos(&self, x_pos: f32x8<S>, y_pos: f32x8<S>) -> f32x8<S>;
+    fn cur_pos(&self, x_pos: f32x4<S>, y_pos: f32x4<S>) -> f32x4<S>;
     fn has_undefined(&self) -> bool {
         false
     }

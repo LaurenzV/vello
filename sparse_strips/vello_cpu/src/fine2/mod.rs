@@ -5,7 +5,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use vello_common::coarse::{Cmd, WideTile};
-use vello_common::encode::EncodedPaint;
+use vello_common::encode::{EncodedKind, EncodedPaint};
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::tile::Tile;
 use crate::fine::FineType;
@@ -21,6 +21,8 @@ pub const SCRATCH_BUF_SIZE: usize =
 pub use lowp::U8Kernel;
 pub use highp::F32Kernel;
 use vello_common::fearless_simd::{f32x16, f32x4, f32x8, u8x16, u8x32, Simd, SimdBase, SimdFloat, SimdInto};
+use crate::fine2::highp::gradient::GradientFiller;
+use crate::fine2::highp::gradient::linear::SimdLinearKind;
 use crate::fine2::highp::rounded_blurred_rect::BlurredRoundedRectFiller;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
@@ -233,6 +235,29 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                             filler
                         );
                     }
+                    EncodedPaint::Gradient(g) => {
+                        match &g.kind {
+                            EncodedKind::Linear(l) => {
+                                let filler: GradientFiller<S, SimdLinearKind<S>> = GradientFiller::new(
+                                    self.simd,
+                                    g,
+                                    l,
+                                    start_x,
+                                    start_y
+                                );
+
+                                fill_complex_paint::<T, S>(
+                                    self.simd,
+                                    color_buf,
+                                    blend_buf,
+                                    g.has_opacities,
+                                    blend_mode,
+                                    filler
+                                );
+                            }
+                            _ => unimplemented!()
+                        }
+                    }
                     _ => unimplemented!()
                 }
             }
@@ -302,6 +327,29 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                             filler,
                             alphas
                         );
+                    }
+                    EncodedPaint::Gradient(g) => {
+                        match &g.kind {
+                            EncodedKind::Linear(l) => {
+                                let filler: GradientFiller<S, SimdLinearKind<S>> = GradientFiller::new(
+                                    self.simd,
+                                    g,
+                                    l,
+                                    start_x,
+                                    start_y
+                                );
+
+                                fill_complex_paint::<T, S>(
+                                    self.simd,
+                                    color_buf,
+                                    blend_buf,
+                                    blend_mode,
+                                    filler,
+                                    alphas
+                                );
+                            }
+                            _ => unimplemented!()
+                        }
                     }
                     _ => unimplemented!()
                 }
