@@ -6,94 +6,60 @@
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
 use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::fearless_simd::{f32x8, Simd, SimdBase, SimdFloat};
+use vello_common::fearless_simd::{f32x16, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
 use vello_common::tile::Tile;
 use crate::fine2::PosExt;
 use crate::kurbo::{Point, Vec2};
 
-// #[derive(Debug)]
-// pub(crate) struct BlurredRoundedRectFiller<T: Type> {
-//     /// The underlying encoded blurred rectangle.
-//     rect: SimdRectangle<T::Float>,
-//     start_pos: Point,
-//     x_advance: Vec2,
-//     y_advance: Vec2,
-//     color: T,
-// }
-// 
-// impl<T: Type> BlurredRoundedRectFiller<T> {
-//     pub(crate) fn new(rect: &EncodedBlurredRoundedRectangle, start_x: u16, start_y: u16) -> Self {
-//         let start_pos = rect.transform * Point::new(f64::from(start_x), f64::from(start_y));
-//         let x_advance = rect.x_advance;
-//         let y_advance = rect.y_advance;
-//         let color = T::splat_color(rect.color);
-//         let rect = SimdRectangle::<T::Float>::new(rect);
-// 
-//         Self {
-//             start_pos,
-//             rect,
-//             x_advance,
-//             y_advance,
-//             color,
-//         }
-//     }
-// 
-//     pub(super) fn run(mut self, target: &mut [T::Scalar]) {
-//         let mut alpha_calculator = AlphaCalculator::<T::Float>::new(
-//             self.start_pos,
-//             self.x_advance,
-//             self.y_advance,
-//             &self.rect,
-//         );
-//         let color = self.color;
-// 
-//         if T::LENGTH / 4 >= T::Float::LENGTH {
-//             let mut storage = vec![];
-//             for column in target.chunks_exact_mut(T::LENGTH) {
-//                 storage.clear();
-// 
-//                 for _ in 0..((T::LENGTH / 4) / T::Float::LENGTH) {
-//                     storage.push(alpha_calculator.next().unwrap());
-//                 }
-// 
-//                 let loaded = T::from_float(storage.as_slice());
-//                 let mulled = loaded.normalized_mul(color);
-// 
-//                 mulled.store(column);
-//             }
-//         } else {
-//             let mut iter = target.chunks_exact_mut(T::LENGTH);
-// 
-//             'outer: loop {
-//                 let mut stored_alpha = vec![0.0f32; T::Float::LENGTH];
-//                 let alphas = alpha_calculator.next().unwrap();
-//                 alphas.store(&mut stored_alpha);
-// 
-//                 for alphas in stored_alpha.chunks_exact(T::LENGTH / 4) {
-//                     let Some(column) = iter.next() else {
-//                         break 'outer;
-//                     };
-// 
-//                     let t = T::load_alphas_f32(alphas);
-//                     let mulled = t.normalized_mul(color);
-//                     mulled.store(column);
-//                 }
-//             }
-//         }
-//     }
-// }
-// 
-struct AlphaCalculator<'a, S: Simd> {
+#[derive(Debug)]
+pub(crate) struct BlurredRoundedRectFiller<S: Simd> {
+    start_pos: Point,
+    color: f32x16<S>,
+    alpha_calculator: AlphaCalculator<S>,
+    simd: S
+}
+
+impl<S: Simd> BlurredRoundedRectFiller<S> {
+    pub(crate) fn new(
+        simd: S,
+        rect: &EncodedBlurredRoundedRectangle, start_x: u16, start_y: u16) -> Self {
+        let start_pos = rect.transform * Point::new(f64::from(start_x), f64::from(start_y));
+        let color = f32x16::block_splat(rect.color.as_premul_f32().components.simd_into(simd));
+        let simd_rect = SimdRoundedBlurredRect::new(rect, simd);
+        let alpha_calculator = AlphaCalculator::new(start_pos, rect.x_advance, rect.y_advance, simd_rect, simd);
+
+        Self {
+            start_pos,
+            alpha_calculator,
+            color,
+            simd
+        }
+    }
+}
+
+impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
+    type Item = f32x16<S>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let n1 = self.alpha_calculator.next().unwrap();
+        let n2 = self.alpha_calculator.next().unwrap();
+        
+        Some(self.simd.combine_f32x8(n1, n2))
+    }
+}
+
+#[derive(Debug)]
+struct AlphaCalculator<S: Simd> {
     start_pos: Point,
     x_advance: Vec2,
     y_advance: Vec2,
-    r: &'a SimdRectangle<S>,
+    r: SimdRoundedBlurredRect<S>,
     simd: S,
     idx: usize,
 }
 
-impl<'a, S: Simd> AlphaCalculator<'a, S> {
-    fn new(start_pos: Point, x_advance: Vec2, y_advance: Vec2, r: &'a SimdRectangle<S>, simd: S) -> Self {
+impl<'a, S: Simd> AlphaCalculator<S> {
+    fn new(start_pos: Point, x_advance: Vec2, y_advance: Vec2, r: SimdRoundedBlurredRect<S>, simd: S) -> Self {
         Self {
             start_pos,
             x_advance,
@@ -105,7 +71,7 @@ impl<'a, S: Simd> AlphaCalculator<'a, S> {
     }
 }
 
-impl<S: Simd> Iterator for AlphaCalculator<'_, S> {
+impl<S: Simd> Iterator for AlphaCalculator<S> {
     type Item = f32x8<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -120,7 +86,7 @@ impl<S: Simd> Iterator for AlphaCalculator<'_, S> {
 
         let i = f32x8::splat_x_col_pos(self.simd, pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
         let j = f32x8::splat_y_col_pos(self.simd, pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);
-        let r = self.r;
+        let r = &self.r;
 
         let y = j + r.v1.msub(r.v1, r.height);
         let y0 = y.abs().msub(r.v1, r.h) + r.r1;
@@ -143,7 +109,7 @@ impl<S: Simd> Iterator for AlphaCalculator<'_, S> {
 }
 
 #[derive(Debug)]
-struct SimdRectangle<S: Simd> {
+struct SimdRoundedBlurredRect<S: Simd> {
     pub exponent: f32,
     pub recip_exponent: f32,
     pub scale: f32x8<S>,
@@ -159,7 +125,7 @@ struct SimdRectangle<S: Simd> {
     pub v1: f32x8<S>,
 }
 
-impl<S: Simd> SimdRectangle<S> {
+impl<S: Simd> SimdRoundedBlurredRect<S> {
     fn new(encoded: &EncodedBlurredRoundedRectangle, s: S) -> Self {
         let h = f32x8::splat(s, encoded.h);
         let w = f32x8::splat(s, encoded.w);
@@ -191,12 +157,6 @@ impl<S: Simd> SimdRectangle<S> {
         }
     }
 }
-// 
-// impl<F: Type> Painter<F> for BlurredRoundedRectFiller<F> {
-//     fn paint(self, target: &mut [F::Scalar]) {
-//         self.run(target);
-//     }
-// }
 
 trait FloatExt<S: Simd> {
     // See https://raphlinus.github.io/audio/2018/09/05/sigmoid.html for a little
