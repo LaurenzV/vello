@@ -73,6 +73,10 @@ impl FineKernel for U8Kernel {
         fill::alpha_composite_solid(simd, target, color);
     }
 
+    fn fill_arbitrary<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], blend_mode: BlendMode) {
+        unimplemented!()
+    }
+
     #[inline(always)]
     fn strip_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(simd, target, color, alphas);       

@@ -59,12 +59,12 @@ pub trait FineKernel: Send + Sync + 'static {
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
-    // fn fill_arbitrary<S: Simd>(
-    //     simd: S,
-    //     target: &mut [Self::Numeric],
-    //     shader_src: impl Iterator<Item = f32x16<S>>,
-    //     blend_mode: BlendMode,
-    // );
+    fn fill_arbitrary<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        shader_src: &[Self::Numeric],
+        blend_mode: BlendMode,
+    );
     fn strip_solid<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
@@ -224,12 +224,18 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
 
                 match encoded_paint {
                     EncodedPaint::BlurredRoundedRect(b) => {
-                        // let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
-                        // T::fill_shader(self.simd, )
-                        // fill_complex_paint::<N>(color_buf, blend_buf, true, blend_mode, filler);
+                        let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
+                        T::fill_buf_arbitrary(self.simd, color_buf, filler);
                     }
                     _ => unimplemented!()
                 }
+                
+                T::fill_arbitrary(
+                    self.simd, 
+                    blend_buf,
+                    color_buf,
+                    blend_mode
+                );
             }
         }
     }
@@ -273,5 +279,39 @@ impl<S: Simd> PosExt<S> for f32x8<S> {
     #[inline(always)]
     fn splat_y_col_pos(simd: S, pos: f32, x_advance: f32, y_advance: f32) -> Self {
         simd.combine_f32x4(f32x4::splat_y_col_pos(simd, pos, x_advance, y_advance), f32x4::splat_y_col_pos(simd, pos + x_advance, x_advance, y_advance))
+    }
+}
+
+pub trait Splat4thExt<S> {
+    fn splat_4th(self) -> Self;
+}
+
+impl<S: Simd> Splat4thExt<S> for f32x4<S> {
+    #[inline(always)]
+    fn splat_4th(self) -> Self {
+        let zip1 = self.zip2(self);
+        zip1.zip2(zip1)
+    }
+}
+
+impl<S: Simd> Splat4thExt<S> for f32x8<S> {
+    #[inline(always)]
+    fn splat_4th(self) -> Self {
+        let (mut p1, mut p2) = self.simd.split_f32x8(self);
+        p1 = p1.splat_4th();
+        p2 = p2.splat_4th();
+        
+        self.simd.combine_f32x4(p1, p2)
+    }
+}
+
+impl<S: Simd> Splat4thExt<S> for f32x16<S> {
+    #[inline(always)]
+    fn splat_4th(self) -> Self {
+        let (mut p1, mut p2) = self.simd.split_f32x16(self);
+        p1 = p1.splat_4th();
+        p2 = p2.splat_4th();
+        
+        self.simd.combine_f32x8(p1, p2)
     }
 }

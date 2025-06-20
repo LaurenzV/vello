@@ -13,7 +13,6 @@ use crate::kurbo::{Point, Vec2};
 
 #[derive(Debug)]
 pub(crate) struct BlurredRoundedRectFiller<S: Simd> {
-    start_pos: Point,
     color: f32x16<S>,
     alpha_calculator: AlphaCalculator<S>,
     simd: S
@@ -29,7 +28,6 @@ impl<S: Simd> BlurredRoundedRectFiller<S> {
         let alpha_calculator = AlphaCalculator::new(start_pos, rect.x_advance, rect.y_advance, simd_rect, simd);
 
         Self {
-            start_pos,
             alpha_calculator,
             color,
             simd
@@ -44,7 +42,7 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
         let n1 = self.alpha_calculator.next().unwrap();
         let n2 = self.alpha_calculator.next().unwrap();
         
-        Some(self.simd.combine_f32x8(n1, n2))
+        Some(self.color * self.simd.combine_f32x8(n1, n2))
     }
 }
 
@@ -114,7 +112,6 @@ struct SimdRoundedBlurredRect<S: Simd> {
     pub recip_exponent: f32,
     pub scale: f32x8<S>,
     pub std_dev_inv: f32x8<S>,
-    pub simd: S,
     pub min_edge: f32x8<S>,
     pub w: f32x8<S>,
     pub h: f32x8<S>,
@@ -153,7 +150,6 @@ impl<S: Simd> SimdRoundedBlurredRect<S> {
             width,
             height,
             r1,
-            simd: s
         }
     }
 }

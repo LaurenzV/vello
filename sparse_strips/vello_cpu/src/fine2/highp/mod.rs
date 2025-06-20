@@ -58,19 +58,23 @@ impl FineKernel for F32Kernel {
     }
 
     #[inline(always)]
-    fn fill_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
+    fn fill_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode) {
         fill::alpha_composite_solid(simd, target, color);
+    }
+    
+    fn fill_arbitrary<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
+        fill::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)));
     }
 
     #[inline(always)]
-    fn strip_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
+    fn strip_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(simd, target, color, alphas);
     }
 }
 
 mod fill {
     use vello_common::fearless_simd::*;
-
+    use crate::fine2::Splat4thExt;
     // Careful: From my experiments, inlining these functions can have drastic (negative)
     // consequences on performance.
 
@@ -81,6 +85,17 @@ mod fill {
 
         for part in target.chunks_exact_mut(16) {
             alpha_composite_inner(s, part, src_c, one_minus_alpha);
+        }
+    }
+
+    #[inline(always)]
+    pub(super) fn alpha_composite_arbitrary<
+        S: Simd, 
+        T: Iterator<Item = f32x16<S>>
+    >(simd: S, target: &mut [f32], src_c: T) {
+        for (part, src_c) in target.chunks_exact_mut(16).zip(src_c) {
+            let one_minus_alpha = 1.0 - src_c.splat_4th();
+            alpha_composite_inner(simd, part, src_c, one_minus_alpha)
         }
     }
 
