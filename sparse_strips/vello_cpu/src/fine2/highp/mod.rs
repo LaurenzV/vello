@@ -62,13 +62,17 @@ impl FineKernel for F32Kernel {
         fill::alpha_composite_solid(simd, target, color);
     }
     
-    fn blend_arbitrary<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
+    fn blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
         fill::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)));
     }
 
     #[inline(always)]
     fn alpha_blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(simd, target, color, alphas);
+    }
+
+    fn alpha_blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode, alphas: &[u8]) {
+        strip::alpha_composite(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)), alphas);       
     }
 }
 
@@ -109,6 +113,7 @@ mod fill {
 
 mod strip {
     use vello_common::fearless_simd::*;
+    use crate::fine2::Splat4thExt;
     use crate::util::normalized_mul;
     
     #[inline(always)]
@@ -127,6 +132,25 @@ mod strip {
             .zip(alphas.chunks_exact(4))
         {
             alpha_composite_inner(s, bg_part, masks, src_c, src_a, one);
+        }
+    }
+
+    #[inline(always)]
+    pub(super) fn alpha_composite<S: Simd, T: Iterator<Item = f32x16<S>>>(
+        simd: S,
+        target: &mut [f32],
+        src_c: T,
+        alphas: &[u8],
+    ) {
+        let one = f32x16::splat(simd, 1.0);
+
+        for ((bg_part, masks), src_c) in target
+            .chunks_exact_mut(16)
+            .zip(alphas.chunks_exact(4))
+            .zip(src_c)
+        {
+            let src_a = src_c.splat_4th();
+            alpha_composite_inner(simd, bg_part, masks, src_c, src_a, one);
         }
     }
 

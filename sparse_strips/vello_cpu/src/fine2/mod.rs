@@ -59,7 +59,7 @@ pub trait FineKernel: Send + Sync + 'static {
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
-    fn blend_arbitrary<S: Simd>(
+    fn blend_shader<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
@@ -72,13 +72,13 @@ pub trait FineKernel: Send + Sync + 'static {
         blend_mode: BlendMode,
         alphas: &[u8]
     );
-    // fn strip_shader<S: Simd>(
-    //     simd: S,
-    //     target: &mut [Self::Numeric],
-    //     shader_src: impl Iterator<Item = f32x16<S>>,
-    //     blend_mode: BlendMode,
-    //     alphas: &[u8]
-    // );
+    fn alpha_blend_shader<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        shader_src: &[Self::Numeric],
+        blend_mode: BlendMode,
+        alphas: &[u8]
+    );
 }
 
 
@@ -163,7 +163,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
         width: usize,
         fill: &Paint,
         blend_mode: BlendMode,
-        _: &[EncodedPaint],
+        encoded_paints: &[EncodedPaint],
     ) {
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
@@ -185,7 +185,28 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 T::blend_solid(self.simd, blend_buf, color, blend_mode);
             }
             Paint::Indexed(paint) => {
-                unimplemented!()
+                let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
+                    [..TILE_HEIGHT_COMPONENTS * width];
+
+                let encoded_paint = &encoded_paints[paint.index()];
+
+                let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
+                let start_y = self.wide_coords.1 * Tile::HEIGHT;
+
+                match encoded_paint {
+                    EncodedPaint::BlurredRoundedRect(b) => {
+                        let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
+                        T::fill_buf_arbitrary(self.simd, color_buf, filler);
+                    }
+                    _ => unimplemented!()
+                }
+
+                T::blend_shader(
+                    self.simd,
+                    blend_buf,
+                    color_buf,
+                    blend_mode,
+                );
             }
         }
     }
@@ -230,11 +251,12 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     _ => unimplemented!()
                 }
                 
-                T::blend_arbitrary(
+                T::alpha_blend_shader(
                     self.simd, 
                     blend_buf,
                     color_buf,
-                    blend_mode
+                    blend_mode,
+                    alphas
                 );
             }
         }

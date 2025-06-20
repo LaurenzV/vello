@@ -6,7 +6,7 @@
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
 use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::fearless_simd::{f32x16, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
+use vello_common::fearless_simd::{f32x16, f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
 use vello_common::tile::Tile;
 use crate::fine2::PosExt;
 use crate::kurbo::{Point, Vec2};
@@ -15,6 +15,7 @@ use crate::kurbo::{Point, Vec2};
 pub(crate) struct BlurredRoundedRectFiller<S: Simd> {
     color: f32x16<S>,
     alpha_calculator: AlphaCalculator<S>,
+    next_alphas: Option<f32x4<S>>,
     simd: S
 }
 
@@ -30,7 +31,8 @@ impl<S: Simd> BlurredRoundedRectFiller<S> {
         Self {
             alpha_calculator,
             color,
-            simd
+            simd,
+            next_alphas: None,
         }
     }
 }
@@ -39,11 +41,34 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
     type Item = f32x16<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let n1 = self.alpha_calculator.next().unwrap();
-        let n2 = self.alpha_calculator.next().unwrap();
+        let alphas = if let Some(next) = self.next_alphas {
+            self.next_alphas = None;
+            
+            element_wise_splat(self.simd, next)
+        }   else {
+            let next = self.alpha_calculator.next().unwrap();
+            let (s0, s1) = self.simd.split_f32x8(next);
+            self.next_alphas = Some(s1);
+            
+            element_wise_splat(self.simd, s0)
+        };
         
-        Some(self.color * self.simd.combine_f32x8(n1, n2))
+        Some(self.color * alphas)
     }
+}
+
+#[inline(always)]
+fn element_wise_splat<S: Simd>(simd: S, input: f32x4<S>) -> f32x16<S> {
+    simd.combine_f32x8(
+        simd.combine_f32x4(
+            f32x4::splat(simd, input.val[0]),
+            f32x4::splat(simd, input.val[1]),
+        ),
+        simd.combine_f32x4(
+            f32x4::splat(simd, input.val[2]),
+            f32x4::splat(simd, input.val[3]),
+        ),
+    )
 }
 
 #[derive(Debug)]
