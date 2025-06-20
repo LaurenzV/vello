@@ -7,8 +7,7 @@
 
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::fearless_simd::{f32x16, f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
-use vello_common::tile::Tile;
-use crate::fine2::highp::calc_pos;
+use crate::fine2::highp::{calc_pos, element_wise_splat};
 use crate::fine2::PosExt;
 use crate::kurbo::{Point, Vec2};
 
@@ -56,20 +55,6 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
         
         Some(self.color * alphas)
     }
-}
-
-#[inline(always)]
-fn element_wise_splat<S: Simd>(simd: S, input: f32x4<S>) -> f32x16<S> {
-    simd.combine_f32x8(
-        simd.combine_f32x4(
-            f32x4::splat(simd, input.val[0]),
-            f32x4::splat(simd, input.val[1]),
-        ),
-        simd.combine_f32x4(
-            f32x4::splat(simd, input.val[2]),
-            f32x4::splat(simd, input.val[3]),
-        ),
-    )
 }
 
 #[derive(Debug)]

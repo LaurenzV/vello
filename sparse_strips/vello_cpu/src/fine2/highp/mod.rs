@@ -198,3 +198,17 @@ fn calc_pos(start_pos: Point, idx: usize, x_advance: Vec2, y_advance: Vec2) -> P
 
     start_pos + (x_advance * col_idx as f64 + y_advance * row_idx as f64)
 }
+
+#[inline(always)]
+fn element_wise_splat<S: Simd>(simd: S, input: f32x4<S>) -> f32x16<S> {
+    simd.combine_f32x8(
+        simd.combine_f32x4(
+            f32x4::splat(simd, input.val[0]),
+            f32x4::splat(simd, input.val[1]),
+        ),
+        simd.combine_f32x4(
+            f32x4::splat(simd, input.val[2]),
+            f32x4::splat(simd, input.val[3]),
+        ),
+    )
+}
