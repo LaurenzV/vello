@@ -107,8 +107,8 @@ impl<S: Simd> Iterator for AlphaCalculator<S> {
 
         let pos = calc_pos(self.idx);
 
-        let i = f32x8::splat_x_col_pos(self.simd, pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
-        let j = f32x8::splat_y_col_pos(self.simd, pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);
+        let i = f32x8::splat_col_pos(self.simd, pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
+        let j = f32x8::splat_col_pos(self.simd, pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);
         let r = &self.r;
 
         let y = j + r.v1.msub(r.v1, r.height);

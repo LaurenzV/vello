@@ -315,13 +315,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
 }
 
 pub trait PosExt<S: Simd> {
-    fn splat_x_col_pos(
-        simd: S,
-        pos: f32,
-        x_advance: f32,
-        y_advance: f32,
-    ) -> Self;
-    fn splat_y_col_pos(
+    fn splat_col_pos(
         simd: S,
         pos: f32,
         x_advance: f32,
@@ -331,14 +325,7 @@ pub trait PosExt<S: Simd> {
 
 impl<S: Simd> PosExt<S> for f32x4<S> {
     #[inline(always)]
-    fn splat_x_col_pos(simd: S, pos: f32, _: f32, y_advance: f32) -> Self {
-        let column_mask: f32x4<_> = [0.0, 1.0, 2.0, 3.0].simd_into(simd);
-
-        f32x4::splat(simd, pos).madd(column_mask, f32x4::splat(simd, y_advance))
-    }
-
-    #[inline(always)]
-    fn splat_y_col_pos(simd: S, pos: f32, _: f32, y_advance: f32) -> Self {
+    fn splat_col_pos(simd: S, pos: f32, _: f32, y_advance: f32) -> Self {
         let column_mask: f32x4<_> = [0.0, 1.0, 2.0, 3.0].simd_into(simd);
         
         f32x4::splat(simd, pos).madd(column_mask, f32x4::splat(simd, y_advance))
@@ -347,13 +334,8 @@ impl<S: Simd> PosExt<S> for f32x4<S> {
 
 impl<S: Simd> PosExt<S> for f32x8<S> {
     #[inline(always)]
-    fn splat_x_col_pos(simd: S, pos: f32, x_advance: f32, y_advance: f32) -> Self {
-        simd.combine_f32x4(f32x4::splat_x_col_pos(simd, pos, x_advance, y_advance), f32x4::splat_x_col_pos(simd, pos + x_advance, x_advance, y_advance))
-    }
-
-    #[inline(always)]
-    fn splat_y_col_pos(simd: S, pos: f32, x_advance: f32, y_advance: f32) -> Self {
-        simd.combine_f32x4(f32x4::splat_y_col_pos(simd, pos, x_advance, y_advance), f32x4::splat_y_col_pos(simd, pos + x_advance, x_advance, y_advance))
+    fn splat_col_pos(simd: S, pos: f32, x_advance: f32, y_advance: f32) -> Self {
+        simd.combine_f32x4(f32x4::splat_col_pos(simd, pos, x_advance, y_advance), f32x4::splat_col_pos(simd, pos + x_advance, x_advance, y_advance))
     }
 }
 
