@@ -88,7 +88,7 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
     }
 }
 
-#[inline]
+#[inline(always)]
 fn advance<S: Simd>(simd: S, target_pos: f32x4<S>, ranges: &[GradientRange]) -> u32x4<S> {
     let mut idx = u32x4::splat(simd, 0);
 
@@ -101,7 +101,7 @@ fn advance<S: Simd>(simd: S, target_pos: f32x4<S>, ranges: &[GradientRange]) -> 
 }
 
 
-#[inline]
+#[inline(always)]
 pub(crate) fn extend<S: Simd>(mut val: f32x4<S>, pad: bool) -> f32x4<S> {
     if pad {
         val
