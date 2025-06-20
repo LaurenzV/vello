@@ -6,6 +6,8 @@ use crate::fine::COLOR_COMPONENTS;
 use crate::peniko::BlendMode;
 use crate::region::Region;
 
+mod rounded_blurred_rect;
+
 pub struct F32Kernel;
 
 impl FineKernel for F32Kernel {
