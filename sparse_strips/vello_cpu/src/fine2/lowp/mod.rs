@@ -73,22 +73,23 @@ impl FineKernel for U8Kernel {
         fill::alpha_composite_solid(simd, target, color);
     }
 
-    fn blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], blend_mode: BlendMode) {
-        unimplemented!()
+    fn blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
+        fill::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(32).map(|el| u8x32::from_slice(simd, el)));
     }
 
     #[inline(always)]
-    fn alpha_blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode, alphas: &[u8]) {
+    fn alpha_blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(simd, target, color, alphas);       
     }
 
-    fn alpha_blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], blend_mode: BlendMode, alphas: &[u8]) {
-        unimplemented!()
+    fn alpha_blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode, alphas: &[u8]) {
+        strip::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(32).map(|el| u8x32::from_slice(simd, el)), alphas);
     }
 }
 
 mod fill {
     use vello_common::fearless_simd::*;
+    use crate::fine2::Splat4thExt;
     use crate::util::{normalized_mul, Div255Ext};
     
     #[inline(always)]
@@ -98,6 +99,17 @@ mod fill {
 
         for part in target.chunks_exact_mut(64) {
             alpha_composite_inner(s, part, src_c, one_minus_alpha);
+        }
+    }
+
+    #[inline(always)]
+    pub(super) fn alpha_composite_arbitrary<
+        S: Simd,
+        T: Iterator<Item = u8x32<S>>
+    >(simd: S, target: &mut [u8], src_c: T) {
+        for (part, src_c) in target.chunks_exact_mut(64).zip(src_c) {
+            let one_minus_alpha = 255 - src_c.splat_4th();
+            alpha_composite_inner(simd, part, src_c, one_minus_alpha)
         }
     }
 
@@ -117,6 +129,7 @@ mod fill {
 
 mod strip {
     use vello_common::fearless_simd::*;
+    use crate::fine2::Splat4thExt;
     use crate::util::{normalized_mul, Div255Ext};
     
     #[inline(always)]
@@ -135,6 +148,25 @@ mod strip {
             .zip(alphas.chunks_exact(8))
         {
             alpha_composite_inner(s, bg_part, masks, src_c, src_a, one);
+        }
+    }
+
+    #[inline(always)]
+    pub(super) fn alpha_composite_arbitrary<S: Simd, T: Iterator<Item = u8x32<S>>>(
+        simd: S,
+        target: &mut [u8],
+        src_c: T,
+        alphas: &[u8],
+    ) {
+        let one = u8x32::splat(simd, 255);
+
+        for ((bg_part, masks), src_c) in target
+            .chunks_exact_mut(32)
+            .zip(alphas.chunks_exact(8))
+            .zip(src_c)
+        {
+            let src_a = src_c.splat_4th();
+            alpha_composite_inner(simd, bg_part, masks, src_c, src_a, one);
         }
     }
     

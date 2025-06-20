@@ -21,7 +21,7 @@ pub const SCRATCH_BUF_SIZE: usize =
 
 pub use lowp::U8Kernel;
 pub use highp::F32Kernel;
-use vello_common::fearless_simd::{f32x16, f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
+use vello_common::fearless_simd::{f32x16, f32x4, f32x8, u8x16, u8x32, Simd, SimdBase, SimdFloat, SimdInto};
 use crate::fine2::highp::rounded_blurred_rect::BlurredRoundedRectFiller;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
@@ -337,5 +337,44 @@ impl<S: Simd> Splat4thExt<S> for f32x16<S> {
         p2 = p2.splat_4th();
         
         self.simd.combine_f32x8(p1, p2)
+    }
+}
+
+impl<S: Simd> Splat4thExt<S> for u8x16<S> {
+    #[inline(always)]
+    fn splat_4th(self) -> Self {
+        // TODO: SIMDify
+        u8x16 {
+            val: [
+                self.val[3],
+                self.val[3],
+                self.val[3],
+                self.val[3],
+                self.val[7],
+                self.val[7],
+                self.val[7],
+                self.val[7],
+                self.val[11],
+                self.val[11],
+                self.val[11],
+                self.val[11],
+                self.val[15],
+                self.val[15],
+                self.val[15],
+                self.val[15],
+            ],
+            simd: self.simd,
+        }
+    }
+}
+
+impl<S: Simd> Splat4thExt<S> for u8x32<S> {
+    #[inline(always)]
+    fn splat_4th(self) -> Self {
+        let (mut p1, mut p2) = self.simd.split_u8x32(self);
+        p1 = p1.splat_4th();
+        p2 = p2.splat_4th();
+
+        self.simd.combine_u8x16(p1, p2)
     }
 }

@@ -72,7 +72,7 @@ impl FineKernel for F32Kernel {
     }
 
     fn alpha_blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode, alphas: &[u8]) {
-        strip::alpha_composite(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)), alphas);       
+        strip::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)), alphas);       
     }
 }
 
@@ -136,7 +136,7 @@ mod strip {
     }
 
     #[inline(always)]
-    pub(super) fn alpha_composite<S: Simd, T: Iterator<Item = f32x16<S>>>(
+    pub(super) fn alpha_composite_arbitrary<S: Simd, T: Iterator<Item = f32x16<S>>>(
         simd: S,
         target: &mut [f32],
         src_c: T,
