@@ -58,16 +58,16 @@ impl FineKernel for F32Kernel {
     }
 
     #[inline(always)]
-    fn fill_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode) {
+    fn blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode) {
         fill::alpha_composite_solid(simd, target, color);
     }
     
-    fn fill_arbitrary<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
+    fn blend_arbitrary<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
         fill::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)));
     }
 
     #[inline(always)]
-    fn strip_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode, alphas: &[u8]) {
+    fn alpha_blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode, alphas: &[u8]) {
         strip::alpha_composite_solid(simd, target, color, alphas);
     }
 }

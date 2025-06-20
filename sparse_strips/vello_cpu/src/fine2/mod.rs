@@ -53,19 +53,19 @@ pub trait FineKernel: Send + Sync + 'static {
         target: &mut [Self::Numeric],
         src: impl Iterator<Item = f32x16<S>>
     );
-    fn fill_solid<S: Simd>(
+    fn blend_solid<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
-    fn fill_arbitrary<S: Simd>(
+    fn blend_arbitrary<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
         blend_mode: BlendMode,
     );
-    fn strip_solid<S: Simd>(
+    fn alpha_blend_solid<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
@@ -182,7 +182,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     return;
                 }
 
-                T::fill_solid(self.simd, blend_buf, color, blend_mode);
+                T::blend_solid(self.simd, blend_buf, color, blend_mode);
             }
             Paint::Indexed(paint) => {
                 unimplemented!()
@@ -211,7 +211,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
 
         match fill {
             Paint::Solid(color) => {
-                T::strip_solid(self.simd, blend_buf, T::extract_color(*color), blend_mode, alphas);
+                T::alpha_blend_solid(self.simd, blend_buf, T::extract_color(*color), blend_mode, alphas);
             }
             Paint::Indexed(paint) => {
                 let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
@@ -230,7 +230,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     _ => unimplemented!()
                 }
                 
-                T::fill_arbitrary(
+                T::blend_arbitrary(
                     self.simd, 
                     blend_buf,
                     color_buf,
