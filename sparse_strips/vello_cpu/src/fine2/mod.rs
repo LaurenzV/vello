@@ -5,11 +5,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use vello_common::coarse::{Cmd, WideTile};
-use vello_common::encode::{EncodedKind, EncodedPaint};
+use vello_common::encode::EncodedPaint;
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::tile::Tile;
-use crate::fine::{fill, FineType};
-use crate::Level;
+use crate::fine::FineType;
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 
@@ -197,20 +196,45 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
 
+                fn fill_complex_paint<T: FineKernel, S: Simd>(
+                    simd: S,
+                    color_buf: &mut [T::Numeric],
+                    blend_buf: &mut [T::Numeric],
+                    has_opacities: bool,
+                    blend_mode: BlendMode,
+                    filler: impl Iterator<Item = f32x16<S>>,
+                ) {
+                    if has_opacities {
+                        T::fill_buf_arbitrary(simd, color_buf, filler);
+
+                        T::blend_shader(
+                            simd,
+                            blend_buf,
+                            color_buf,
+                            blend_mode,
+                        );
+                    } else {
+                        // Similarly to solid colors we can just override the previous values
+                        // if all colors in the gradient are fully opaque.
+                        T::fill_buf_arbitrary(simd, blend_buf, filler);
+                    }
+                }
+
                 match encoded_paint {
                     EncodedPaint::BlurredRoundedRect(b) => {
                         let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
-                        T::fill_buf_arbitrary(self.simd, color_buf, filler);
+
+                        fill_complex_paint::<T, S>(
+                            self.simd,
+                            color_buf,
+                            blend_buf,
+                            true,
+                            blend_mode,
+                            filler
+                        );
                     }
                     _ => unimplemented!()
                 }
-
-                T::blend_shader(
-                    self.simd,
-                    blend_buf,
-                    color_buf,
-                    blend_mode,
-                );
             }
         }
     }
@@ -239,6 +263,25 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 T::alpha_blend_solid(self.simd, blend_buf, T::extract_color(*color), blend_mode, alphas);
             }
             Paint::Indexed(paint) => {
+                fn fill_complex_paint<T: FineKernel, S: Simd>(
+                    simd: S,
+                    color_buf: &mut [T::Numeric],
+                    blend_buf: &mut [T::Numeric],
+                    blend_mode: BlendMode,
+                    filler: impl Iterator<Item = f32x16<S>>,
+                    alphas: &[u8]
+                ) {
+                    T::fill_buf_arbitrary(simd, color_buf, filler);
+
+                    T::alpha_blend_shader(
+                        simd,
+                        blend_buf,
+                        color_buf,
+                        blend_mode,
+                        alphas
+                    );
+                }
+                
                 let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
                     [..TILE_HEIGHT_COMPONENTS * width];
 
@@ -250,18 +293,18 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 match encoded_paint {
                     EncodedPaint::BlurredRoundedRect(b) => {
                         let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
-                        T::fill_buf_arbitrary(self.simd, color_buf, filler);
+                        
+                        fill_complex_paint::<T, S>(
+                            self.simd,
+                            color_buf,
+                            blend_buf,
+                            blend_mode,
+                            filler,
+                            alphas
+                        );
                     }
                     _ => unimplemented!()
                 }
-                
-                T::alpha_blend_shader(
-                    self.simd, 
-                    blend_buf,
-                    color_buf,
-                    blend_mode,
-                    alphas
-                );
             }
         }
     }
