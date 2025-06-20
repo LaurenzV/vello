@@ -199,6 +199,7 @@ trait FloatExt {
     // Doing `inline(always)` seems to reduce performance for some reason.
     /// Approximate the erf function.
     fn compute_erf7(self) -> Self;
+    fn powf(self, x: f32) -> Self;
 }
 
 impl<S: Simd> FloatExt for f32x8<S> {
@@ -211,5 +212,20 @@ impl<S: Simd> FloatExt for f32x8<S> {
         let x = p3.madd(p2, x);
         let denom = x.madd(x, f32x8::splat(self.simd, 1.0)).sqrt();
         x / denom
+    }
+
+    #[inline]
+    fn powf(mut self, x: f32) -> Self {
+        // TODO: SIMD
+        self.val[0] = self.val[0].powf(x);
+        self.val[1] = self.val[1].powf(x);
+        self.val[2] = self.val[2].powf(x);
+        self.val[3] = self.val[3].powf(x);
+        self.val[4] = self.val[4].powf(x);
+        self.val[5] = self.val[5].powf(x);
+        self.val[6] = self.val[6].powf(x);
+        self.val[7] = self.val[7].powf(x);
+        
+        self
     }
 } 

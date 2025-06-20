@@ -135,7 +135,7 @@ mod strip {
             zip2
         };
         
-        let inv_src_a_mask_a = one - (src_a * mask_a);
+        let inv_src_a_mask_a = one.msub(src_a, mask_a);
     
         let res = (src_c * mask_a).madd(bg_c, inv_src_a_mask_a);
         target.copy_from_slice(&res.val);
