@@ -56,30 +56,15 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
         
         let t_vals = element_wise_splat(self.simd, t_vals);
 
-        let scales = f32x16::from_slice(self.simd, &[
-            r0.scale[0],
-            r0.scale[1],
-            r0.scale[2],
-            r0.scale[3],
-            r1.scale[0],
-            r1.scale[1],
-            r1.scale[2],
-            r1.scale[3],
-            r2.scale[0],
-            r2.scale[1],
-            r2.scale[2],
-            r2.scale[3],
-            r3.scale[0],
-            r3.scale[1],
-            r3.scale[2],
-            r3.scale[3],
-        ]);
+        let scales = self.simd.combine_f32x8(
+            self.simd.combine_f32x4(r0.scale.simd_into(self.simd), r1.scale.simd_into(self.simd)),
+            self.simd.combine_f32x4(r2.scale.simd_into(self.simd), r3.scale.simd_into(self.simd)),
+        );
 
-        let biases = f32x16::from_slice(self.simd, &[
-            r0.bias[0], r0.bias[1], r0.bias[2], r0.bias[3], r1.bias[0], r1.bias[1], r1.bias[2],
-            r1.bias[3], r2.bias[0], r2.bias[1], r2.bias[2], r2.bias[3], r3.bias[0], r3.bias[1],
-            r3.bias[2], r3.bias[3],
-        ]);
+        let biases = self.simd.combine_f32x8(
+            self.simd.combine_f32x4(r0.bias.simd_into(self.simd), r1.bias.simd_into(self.simd)),
+            self.simd.combine_f32x4(r2.bias.simd_into(self.simd), r3.bias.simd_into(self.simd)),
+        );
         
         let res = biases.madd(scales, t_vals);
         self.idx += 4;
