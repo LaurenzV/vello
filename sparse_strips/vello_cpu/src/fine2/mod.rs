@@ -148,9 +148,13 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 self.blend_buf.pop();
             }
             Cmd::ClipFill(cf) => {
+                self.clip_fill(cf.x as usize, cf.width as usize);
             }
             Cmd::ClipStrip(cs) => {
+                let aslice = &alphas[cs.alpha_idx..];
+                self.clip_strip(cs.x as usize, cs.width as usize, aslice);
             }
+            Cmd::Blend(b) => self.apply_blend(*b),
             _ => unimplemented!()
         }
     }
@@ -260,6 +264,53 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 );
             }
         }
+    }
+    
+    fn apply_blend(&mut self, blend_mode: BlendMode) {
+        let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
+        let target_buffer = rest.last_mut().unwrap();
+
+        T::blend_shader(
+            self.simd,
+            target_buffer,
+            source_buffer,
+            blend_mode
+        );
+    }
+
+    fn clip_fill(&mut self, x: usize, width: usize) {
+        let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
+        let target_buffer = rest.last_mut().unwrap();
+
+        let source_buffer =
+            &mut source_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let target_buffer =
+            &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+
+        T::blend_shader(
+            self.simd,
+            target_buffer,
+            source_buffer,
+            BlendMode::new(Mix::Normal, Compose::SrcOver),
+        );
+    }
+
+    fn clip_strip(&mut self, x: usize, width: usize, alphas: &[u8]) {
+        let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
+        let target_buffer = rest.last_mut().unwrap();
+
+        let source_buffer =
+            &mut source_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+        let target_buffer =
+            &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
+
+        T::alpha_blend_shader(
+            self.simd,
+            target_buffer,
+            source_buffer,
+            BlendMode::new(Mix::Normal, Compose::SrcOver),
+            alphas
+        );
     }
 }
 
