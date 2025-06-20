@@ -6,7 +6,7 @@
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
 use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::fearless_simd::{f32x8, Simd, SimdBase};
+use vello_common::fearless_simd::{f32x8, Simd, SimdBase, SimdFloat};
 
 // #[derive(Debug)]
 // pub(crate) struct BlurredRoundedRectFiller<T: Type> {
@@ -192,3 +192,24 @@ impl<S: Simd> SimdRectangle<S> {
 //         self.run(target);
 //     }
 // }
+
+trait FloatExt {
+    // See https://raphlinus.github.io/audio/2018/09/05/sigmoid.html for a little
+    // explanation of this approximation to the erf function.
+    // Doing `inline(always)` seems to reduce performance for some reason.
+    /// Approximate the erf function.
+    fn compute_erf7(self) -> Self;
+}
+
+impl<S: Simd> FloatExt for f32x8<S> {
+    fn compute_erf7(self) -> Self {
+        let x = self * f32x8::splat(self.simd, core::f32::consts::FRAC_2_SQRT_PI);
+        let xx = x * x;
+        let p1 = xx.madd(f32x8::splat(self.simd, 0.0104), f32x8::splat(self.simd, 0.03395));
+        let p2 = xx.madd(p1, f32x8::splat(self.simd, 0.24295));
+        let p3 = x * xx;
+        let x = p3.madd(p2, x);
+        let denom = x.madd(x, f32x8::splat(self.simd, 1.0)).sqrt();
+        x / denom
+    }
+} 
