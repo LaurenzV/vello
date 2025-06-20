@@ -7,6 +7,7 @@ use crate::peniko::BlendMode;
 use crate::region::Region;
 
 pub(crate) mod rounded_blurred_rect;
+mod gradient;
 
 #[derive(Clone, Copy, Debug)]
 pub struct F32Kernel;
