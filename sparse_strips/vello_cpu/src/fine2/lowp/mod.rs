@@ -98,7 +98,14 @@ mod fill {
         let src_c = u32x8::splat(s, u32::from_ne_bytes(src_c)).reinterpret_u8();
 
         for part in target.chunks_exact_mut(64) {
-            alpha_composite_inner(s, part, src_c, one_minus_alpha);
+            // We process in batches of 64 because loading/storing is much faster this way (at least on NEON),
+            // but since we widen to u16, we can only work with 256 bits, so we split it up.
+            let bg = u8x64::from_slice(s, part);
+            let (bg_1, bg_2) = s.split_u8x64(bg);
+            let res_1 = alpha_composite_inner(s, bg_1, src_c, one_minus_alpha);
+            let res_2 = alpha_composite_inner(s, bg_2, src_c, one_minus_alpha);
+            let combined = s.combine_u8x32(res_1, res_2);
+            part.copy_from_slice(&combined.val);
         }
     }
 
@@ -107,23 +114,17 @@ mod fill {
         S: Simd,
         T: Iterator<Item = u8x32<S>>
     >(simd: S, target: &mut [u8], src_c: T) {
-        for (part, src_c) in target.chunks_exact_mut(64).zip(src_c) {
+        for (part, src_c) in target.chunks_exact_mut(32).zip(src_c) {
             let one_minus_alpha = 255 - src_c.splat_4th();
-            alpha_composite_inner(simd, part, src_c, one_minus_alpha)
+            let bg = u8x32::from_slice(simd, part);
+            let res = alpha_composite_inner(simd, bg, src_c, one_minus_alpha);
+            part.copy_from_slice(&res.val);       
         }
     }
 
     #[inline(always)]
-    fn alpha_composite_inner<S: Simd>(s: S, target: &mut [u8], src_c: u8x32<S>, one_minus_alpha: u8x32<S>) {
-        // We process in batches of 64 because loading/storing is much faster this way (at least on NEON),
-        // but since we widen to u16, we can only work with 256 bits, so we split it up.
-        let bg = u8x64::from_slice(s, target);
-        let (bg_1, bg_2) = s.split_u8x64(bg);
-        let res_1 = s.narrow_u16x32(normalized_mul(bg_1, one_minus_alpha)) + src_c;
-        let res_2 = s.narrow_u16x32(normalized_mul(bg_2, one_minus_alpha)) + src_c;
-        let res = s.combine_u8x32(res_1, res_2);
-        
-        target.copy_from_slice(&res.val)
+    fn alpha_composite_inner<S: Simd>(s: S, bg: u8x32<S>, src_c: u8x32<S>, one_minus_alpha: u8x32<S>) -> u8x32<S> {
+        s.narrow_u16x32(normalized_mul(bg, one_minus_alpha)) + src_c
     }
 }
 
