@@ -280,8 +280,10 @@ pub trait PosExt<S: Simd> {
 
 impl<S: Simd> PosExt<S> for f32x4<S> {
     #[inline(always)]
-    fn splat_x_col_pos(simd: S, pos: f32, _: f32, _: f32) -> Self {
-        f32x4::splat(simd, pos)
+    fn splat_x_col_pos(simd: S, pos: f32, _: f32, y_advance: f32) -> Self {
+        let column_mask: f32x4<_> = [0.0, 1.0, 2.0, 3.0].simd_into(simd);
+
+        f32x4::splat(simd, pos).madd(column_mask, f32x4::splat(simd, y_advance))
     }
 
     #[inline(always)]
