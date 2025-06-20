@@ -7,6 +7,7 @@ use crate::Level;
 use crate::peniko::BlendMode;
 use crate::region::Region;
 
+#[derive(Clone, Copy, Debug)]
 pub struct U8Kernel;
 
 impl FineKernel for U8Kernel {
