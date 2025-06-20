@@ -21,7 +21,7 @@ pub const SCRATCH_BUF_SIZE: usize =
 
 pub use lowp::U8Kernel;
 pub use highp::F32Kernel;
-use vello_common::fearless_simd::Simd;
+use vello_common::fearless_simd::{f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
@@ -197,5 +197,46 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 unimplemented!()
             }
         }
+    }
+}
+
+pub trait PosExt<S: Simd> {
+    fn splat_x_col_pos(
+        simd: S,
+        pos: f32,
+        x_advance: f32,
+        y_advance: f32,
+    ) -> Self;
+    fn splat_y_col_pos(
+        simd: S,
+        pos: f32,
+        x_advance: f32,
+        y_advance: f32,
+    ) -> Self;
+}
+
+impl<S: Simd> PosExt<S> for f32x4<S> {
+    #[inline(always)]
+    fn splat_x_col_pos(simd: S, pos: f32, _: f32, _: f32) -> Self {
+        f32x4::splat(simd, pos)
+    }
+
+    #[inline(always)]
+    fn splat_y_col_pos(simd: S, pos: f32, _: f32, y_advance: f32) -> Self {
+        let column_mask: f32x4<_> = [0.0, 1.0, 2.0, 3.0].simd_into(simd);
+        
+        f32x4::splat(simd, pos).madd(column_mask, f32x4::splat(simd, y_advance))
+    }
+}
+
+impl<S: Simd> PosExt<S> for f32x8<S> {
+    #[inline(always)]
+    fn splat_x_col_pos(simd: S, pos: f32, x_advance: f32, y_advance: f32) -> Self {
+        simd.combine_f32x4(f32x4::splat_x_col_pos(simd, pos, x_advance, y_advance), f32x4::splat_x_col_pos(simd, pos + x_advance, x_advance, y_advance))
+    }
+
+    #[inline(always)]
+    fn splat_y_col_pos(simd: S, pos: f32, x_advance: f32, y_advance: f32) -> Self {
+        simd.combine_f32x4(f32x4::splat_y_col_pos(simd, pos, x_advance, y_advance), f32x4::splat_y_col_pos(simd, pos + x_advance, x_advance, y_advance))
     }
 }

@@ -7,6 +7,9 @@
 
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::fearless_simd::{f32x8, Simd, SimdBase, SimdFloat};
+use vello_common::tile::Tile;
+use crate::fine2::PosExt;
+use crate::kurbo::{Point, Vec2};
 
 // #[derive(Debug)]
 // pub(crate) struct BlurredRoundedRectFiller<T: Type> {
@@ -80,62 +83,64 @@ use vello_common::fearless_simd::{f32x8, Simd, SimdBase, SimdFloat};
 //     }
 // }
 // 
-// struct AlphaCalculator<'a, F: Float> {
-//     start_pos: Point,
-//     x_advance: Vec2,
-//     y_advance: Vec2,
-//     r: &'a SimdRectangle<F>,
-//     idx: usize,
-// }
-// 
-// impl<'a, F: Float> AlphaCalculator<'a, F> {
-//     fn new(start_pos: Point, x_advance: Vec2, y_advance: Vec2, r: &'a SimdRectangle<F>) -> Self {
-//         Self {
-//             start_pos,
-//             x_advance,
-//             y_advance,
-//             r,
-//             idx: 0,
-//         }
-//     }
-// }
-// 
-// impl<F: Float> Iterator for AlphaCalculator<'_, F> {
-//     type Item = F;
-// 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         let calc_pos = |idx: usize| {
-//             let col_idx = idx >> (Tile::HEIGHT.trailing_zeros() as usize);
-//             let row_idx = idx & (Tile::HEIGHT as usize - 1);
-// 
-//             self.start_pos + self.x_advance * col_idx as f64 + self.y_advance * row_idx as f64
-//         };
-// 
-//         let pos = calc_pos(self.idx);
-// 
-//         let i = F::Float::splat_x_col_pos(pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
-//         let j = F::Float::splat_y_col_pos(pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);
-//         let r = self.r;
-// 
-//         let y = j + r.height.mul_sub(r.v1, r.v1);
-//         let y0 = r.h.mul_sub(r.v1, y.abs()) + r.r1;
-//         let y1 = y0.max(r.v0);
-// 
-//         let x = i + r.width.mul_sub(r.v1, r.v1);
-//         let x0 = r.w.mul_sub(r.v1, x.abs()) + r.r1;
-//         let x1 = x0.max(r.v0);
-//         let d_pos = (x1.powf(r.exponent) + y1.powf(r.exponent)).powf(r.recip_exponent);
-//         let d_neg = x0.max(y0).min(r.v0);
-//         let d = d_pos + d_neg - r.r1;
-//         let z = r.scale
-//             * (F::compute_erf7(r.std_dev_inv * (r.min_edge + d))
-//                 - F::compute_erf7(r.std_dev_inv * d));
-// 
-//         self.idx += F::LENGTH;
-// 
-//         Some(z)
-//     }
-// }
+struct AlphaCalculator<'a, S: Simd> {
+    start_pos: Point,
+    x_advance: Vec2,
+    y_advance: Vec2,
+    r: &'a SimdRectangle<S>,
+    simd: S,
+    idx: usize,
+}
+
+impl<'a, S: Simd> AlphaCalculator<'a, S> {
+    fn new(start_pos: Point, x_advance: Vec2, y_advance: Vec2, r: &'a SimdRectangle<S>, simd: S) -> Self {
+        Self {
+            start_pos,
+            x_advance,
+            y_advance,
+            r,
+            simd,
+            idx: 0,
+        }
+    }
+}
+
+impl<S: Simd> Iterator for AlphaCalculator<'_, S> {
+    type Item = f32x8<S>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let calc_pos = |idx: usize| {
+            let col_idx = idx >> (Tile::HEIGHT.trailing_zeros() as usize);
+            let row_idx = idx & (Tile::HEIGHT as usize - 1);
+
+            self.start_pos + self.x_advance * col_idx as f64 + self.y_advance * row_idx as f64
+        };
+
+        let pos = calc_pos(self.idx);
+
+        let i = f32x8::splat_x_col_pos(self.simd, pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
+        let j = f32x8::splat_y_col_pos(self.simd, pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);
+        let r = self.r;
+
+        let y = j + r.v1.msub(r.v1, r.height);
+        let y0 = y.abs().msub(r.v1, r.h) + r.r1;
+        let y1 = y0.max(r.v0);
+
+        let x = i + r.v1.msub(r.v1, r.width);
+        let x0 = x.abs().msub(r.v1, r.w) + r.r1;
+        let x1 = x0.max(r.v0);
+        let d_pos = (x1.powf(r.exponent) + y1.powf(r.exponent)).powf(r.recip_exponent);
+        let d_neg = x0.max(y0).min(r.v0);
+        let d = d_pos + d_neg - r.r1;
+        let z = r.scale
+            * (f32x8::compute_erf7(self.simd, r.std_dev_inv * (r.min_edge + d))
+                - f32x8::compute_erf7(self.simd, r.std_dev_inv * d));
+
+        self.idx += 8;
+
+        Some(z)
+    }
+}
 
 #[derive(Debug)]
 struct SimdRectangle<S: Simd> {
@@ -193,24 +198,24 @@ impl<S: Simd> SimdRectangle<S> {
 //     }
 // }
 
-trait FloatExt {
+trait FloatExt<S: Simd> {
     // See https://raphlinus.github.io/audio/2018/09/05/sigmoid.html for a little
     // explanation of this approximation to the erf function.
     // Doing `inline(always)` seems to reduce performance for some reason.
     /// Approximate the erf function.
-    fn compute_erf7(self) -> Self;
+    fn compute_erf7(simd: S, x: Self) -> Self;
     fn powf(self, x: f32) -> Self;
 }
 
-impl<S: Simd> FloatExt for f32x8<S> {
-    fn compute_erf7(self) -> Self {
-        let x = self * f32x8::splat(self.simd, core::f32::consts::FRAC_2_SQRT_PI);
+impl<S: Simd> FloatExt<S> for f32x8<S> {
+    fn compute_erf7(simd: S, x: Self) -> Self {
+        let x = x * f32x8::splat(simd, core::f32::consts::FRAC_2_SQRT_PI);
         let xx = x * x;
-        let p1 = xx.madd(f32x8::splat(self.simd, 0.0104), f32x8::splat(self.simd, 0.03395));
-        let p2 = xx.madd(p1, f32x8::splat(self.simd, 0.24295));
+        let p1 = f32x8::splat(simd, 0.03395).madd(f32x8::splat(simd, 0.0104), xx);
+        let p2 = f32x8::splat(simd, 0.24295).madd(p1, xx);
         let p3 = x * xx;
-        let x = p3.madd(p2, x);
-        let denom = x.madd(x, f32x8::splat(self.simd, 1.0)).sqrt();
+        let x = x.madd(p2, p3);
+        let denom = f32x8::splat(simd, 1.0).madd(x, x).sqrt();
         x / denom
     }
 
