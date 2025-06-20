@@ -32,11 +32,39 @@ impl FineKernel for U8Kernel {
     }
 
     // Inlining causes performance degradation
-    fn fill_buf<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+    fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         let color = u8x64::block_splat(u32x4::splat(simd, u32::from_ne_bytes(color)).reinterpret_u8());
 
         for el in target.chunks_exact_mut(64) {
             el.copy_from_slice(&color.val);
+        }
+    }
+
+    #[inline(always)]
+    fn fill_buf_arbitrary<S: Simd>(simd: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item=f32x16<S>>) {
+        for el in target.chunks_exact_mut(16) {
+            let next = src.next().unwrap();
+            let mulled = f32x16::splat(simd, 0.5).madd(next, f32x16::splat(simd, 255.0));
+            
+            // TODO: SIMDify
+            el.copy_from_slice(&[
+                mulled.val[0] as u8, 
+                mulled.val[1] as u8, 
+                mulled.val[2] as u8, 
+                mulled.val[3] as u8,
+                mulled.val[4] as u8, 
+                mulled.val[5] as u8, 
+                mulled.val[6] as u8, 
+                mulled.val[7] as u8,
+                mulled.val[8] as u8, 
+                mulled.val[9] as u8, 
+                mulled.val[10] as u8, 
+                mulled.val[11] as u8, 
+                mulled.val[12] as u8, 
+                mulled.val[13] as u8, 
+                mulled.val[14] as u8, 
+                mulled.val[15] as u8,
+            ])
         }
     }
 

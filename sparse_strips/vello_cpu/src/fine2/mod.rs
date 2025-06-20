@@ -21,7 +21,8 @@ pub const SCRATCH_BUF_SIZE: usize =
 
 pub use lowp::U8Kernel;
 pub use highp::F32Kernel;
-use vello_common::fearless_simd::{f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
+use vello_common::fearless_simd::{f32x16, f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
+use crate::fine2::highp::rounded_blurred_rect::BlurredRoundedRectFiller;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
@@ -46,13 +47,24 @@ pub trait FineKernel: Send + Sync + 'static {
     
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
-    fn fill_buf<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
+    fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
+    fn fill_buf_arbitrary<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        src: impl Iterator<Item = f32x16<S>>
+    );
     fn fill_solid<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
+    // fn fill_arbitrary<S: Simd>(
+    //     simd: S,
+    //     target: &mut [Self::Numeric],
+    //     shader_src: impl Iterator<Item = f32x16<S>>,
+    //     blend_mode: BlendMode,
+    // );
     fn strip_solid<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
@@ -60,6 +72,13 @@ pub trait FineKernel: Send + Sync + 'static {
         blend_mode: BlendMode,
         alphas: &[u8]
     );
+    // fn strip_shader<S: Simd>(
+    //     simd: S,
+    //     target: &mut [Self::Numeric],
+    //     shader_src: impl Iterator<Item = f32x16<S>>,
+    //     blend_mode: BlendMode,
+    //     alphas: &[u8]
+    // );
 }
 
 
@@ -89,7 +108,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
         let converted_color = T::extract_color(premul_color);
         let blend_buf = self.blend_buf.last_mut().unwrap();
 
-        T::fill_buf(self.simd, blend_buf, converted_color);
+        T::fill_buf_solid(self.simd, blend_buf, converted_color);
     }
 
     pub fn pack(&self, region: &mut Region<'_>) {
@@ -155,9 +174,10 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
             Paint::Solid(color) => {
                 let color = T::extract_color(*color);
 
-                // If color is completely opaque we can just memcopy the colors.
+                // If color is completely opaque, we can just directly override
+                // the blend buffer.
                 if color[3] == T::Numeric::ONE && default_blend {
-                    T::fill_buf(self.simd, blend_buf, color);
+                    T::fill_buf_solid(self.simd, blend_buf, color);
 
                     return;
                 }
@@ -194,7 +214,22 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 T::strip_solid(self.simd, blend_buf, T::extract_color(*color), blend_mode, alphas);
             }
             Paint::Indexed(paint) => {
-                unimplemented!()
+                let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
+                    [..TILE_HEIGHT_COMPONENTS * width];
+
+                let encoded_paint = &encoded_paints[paint.index()];
+
+                let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
+                let start_y = self.wide_coords.1 * Tile::HEIGHT;
+
+                match encoded_paint {
+                    EncodedPaint::BlurredRoundedRect(b) => {
+                        // let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
+                        // T::fill_shader(self.simd, )
+                        // fill_complex_paint::<N>(color_buf, blend_buf, true, blend_mode, filler);
+                    }
+                    _ => unimplemented!()
+                }
             }
         }
     }

@@ -42,11 +42,18 @@ impl FineKernel for F32Kernel {
     
     // Not having this tanks performance for some reason.
     #[inline(never)]
-    fn fill_buf<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+    fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         let color = f32x16::block_splat(color.simd_into(simd));
 
         for el in target.chunks_exact_mut(16) {
             el.copy_from_slice(&color.val);
+        }
+    }
+
+    #[inline(always)]
+    fn fill_buf_arbitrary<S: Simd>(_: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item=f32x16<S>>) {
+        for el in target.chunks_exact_mut(16) {
+            el.copy_from_slice(&src.next().unwrap().val);
         }
     }
 
