@@ -8,6 +8,7 @@
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::fearless_simd::{f32x16, f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
 use vello_common::tile::Tile;
+use crate::fine2::highp::calc_pos;
 use crate::fine2::PosExt;
 use crate::kurbo::{Point, Vec2};
 
@@ -98,14 +99,7 @@ impl<S: Simd> Iterator for AlphaCalculator<S> {
     type Item = f32x8<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let calc_pos = |idx: usize| {
-            let col_idx = idx >> (Tile::HEIGHT.trailing_zeros() as usize);
-            let row_idx = idx & (Tile::HEIGHT as usize - 1);
-
-            self.start_pos + self.x_advance * col_idx as f64 + self.y_advance * row_idx as f64
-        };
-
-        let pos = calc_pos(self.idx);
+        let pos = calc_pos(self.start_pos, self.idx, self.x_advance, self.y_advance);
 
         let i = f32x8::splat_col_pos(self.simd, pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
         let j = f32x8::splat_col_pos(self.simd, pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);

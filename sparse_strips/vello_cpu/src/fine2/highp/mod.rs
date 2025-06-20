@@ -3,6 +3,7 @@ use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
 use crate::fine2::FineKernel;
 use crate::fine::COLOR_COMPONENTS;
+use crate::kurbo::{Point, Vec2};
 use crate::peniko::BlendMode;
 use crate::region::Region;
 
@@ -188,4 +189,12 @@ mod strip {
         let res = (src_c * mask_a).madd(bg_c, inv_src_a_mask_a);
         target.copy_from_slice(&res.val);
     }
+}
+
+#[inline(always)]
+fn calc_pos(start_pos: Point, idx: usize, x_advance: Vec2, y_advance: Vec2) -> Point {
+    let col_idx = idx >> (Tile::HEIGHT.trailing_zeros() as usize);
+    let row_idx = idx & (Tile::HEIGHT as usize - 1);
+
+    start_pos + (x_advance * col_idx as f64 + y_advance * row_idx as f64)
 }
