@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
-use vello_common::encode::{FocalData, LinearKind, RadialKind};
+use core::marker::PhantomData;
+use vello_common::encode::{FocalData, GradientLike, LinearKind, RadialKind};
 use vello_common::fearless_simd::{f32x4, mask32x4, Simd, SimdBase};
 use crate::fine2::highp::gradient::SimdGradientKind;
 
@@ -28,6 +28,7 @@ pub enum SimdRadialKindInner<S: Simd> {
 
 pub struct SimdRadialKind<S: Simd> {
     inner: SimdRadialKindInner<S>,
+    has_undefined: bool,
 }
 
 impl<S: Simd> SimdRadialKind<S> {
@@ -56,7 +57,7 @@ impl<S: Simd> SimdRadialKind<S> {
             },
         };
 
-        SimdRadialKind { inner }
+        SimdRadialKind { inner, has_undefined: kind.has_undefined() }
     }
 }
 
@@ -116,5 +117,9 @@ impl<S: Simd> SimdGradientKind<S> for SimdRadialKind<S> {
                 t
             }
         }
+    }
+
+    fn has_undefined(&self) -> bool {
+        self.has_undefined
     }
 }

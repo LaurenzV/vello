@@ -293,7 +293,6 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                     filler
                                 );
                             }
-                            _ => unimplemented!()
                         }
                     }
                     _ => unimplemented!()
@@ -422,7 +421,6 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                     alphas
                                 );
                             }
-                            _ => unimplemented!()
                         }
                     }
                     _ => unimplemented!()

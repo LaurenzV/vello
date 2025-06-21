@@ -47,7 +47,8 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
         let cur_pos = self.pos;
         let x_pos = f32x4::splat_col_pos(self.simd, cur_pos.x as f32, self.x_advances.0, self.y_advances.0);
         let y_pos = f32x4::splat_col_pos(self.simd, cur_pos.y as f32, self.x_advances.1, self.y_advances.1);
-        let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
+        let pos = self.kind.cur_pos(x_pos, y_pos);
+        let t_vals = extend(pos, pad);
         let indices = advance(self.simd, t_vals, &self.gradient.ranges);
 
         let r0 = &self.gradient.ranges[indices[0] as usize];
@@ -67,8 +68,16 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
             self.simd.combine_f32x4(r2.bias.simd_into(self.simd), r3.bias.simd_into(self.simd)),
         );
         
-        let res = biases.madd(scales, t_vals);
+        let mut res = biases.madd(scales, t_vals);
         self.pos += self.gradient.x_advance;
+        
+        if self.kind.has_undefined() {
+            // On some architectures, the NaNs of `t_vals` might have been cleared already by
+            // the `extend` function, so use the original variable as the mask.
+            // Mask out NaNs with 0.
+            let splatted = element_wise_splat(self.simd, pos);
+            res = self.simd.select_f32x16(self.simd.simd_eq_f32x16(splatted, splatted), res, f32x16::splat(self.simd, 0.0));
+        }
         
         Some(res)
     }
