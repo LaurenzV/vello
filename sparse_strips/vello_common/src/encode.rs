@@ -395,26 +395,7 @@ fn encode_stops(
         create_range(left_stop, right_stop)
     });
 
-    if pad {
-        // We handle padding by inserting dummy stops in the beginning and end with a very big
-        // range.
-        let left_range = iter::once({
-            let first_stop = interpolated_stops.first().unwrap();
-
-            create_range(first_stop, first_stop)
-        });
-
-        let right_range = iter::once({
-            let last_stop = interpolated_stops.last().unwrap();
-            let mut encoded_range = create_range(last_stop, last_stop);
-            encoded_range.x1 = f32::MAX;
-            encoded_range
-        });
-
-        left_range.chain(stop_ranges.chain(right_range)).collect()
-    } else {
-        stop_ranges.collect()
-    }
+    stop_ranges.collect()
 }
 
 pub(crate) fn x_y_advances(transform: &Affine) -> (Vec2, Vec2) {
