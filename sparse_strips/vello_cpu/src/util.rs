@@ -60,6 +60,18 @@ pub(crate) mod scalar {
     }
 }
 
+pub(crate) trait NormalizedMulExt {
+    fn normalized_mul(self, other: Self) -> Self;
+}
+
+impl<S: Simd> NormalizedMulExt for u8x32<S> {
+    #[inline(always)]
+    fn normalized_mul(self, other: Self) -> Self {
+        let divided = (self.simd.widen_u8x32(self) * other.simd.widen_u8x32(other)).div_255();
+        self.simd.narrow_u16x32(divided)
+    }
+}
+
 pub(crate) trait Div255Ext {
     fn div_255(self) -> Self;
 }
