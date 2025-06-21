@@ -1,3 +1,5 @@
+mod blend;
+
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
