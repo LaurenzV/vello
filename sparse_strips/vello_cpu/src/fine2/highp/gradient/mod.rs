@@ -41,6 +41,7 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> GradientFiller<'a, S, U> {
 impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> {
     type Item = f32x16<S>;
 
+    #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         let pad = self.gradient.pad;
         let cur_pos = calc_pos(self.start_pos, self.idx, self.gradient.x_advance, self.gradient.y_advance);
