@@ -126,7 +126,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn alpha_composite_solid(
+    fn composite_solid_with_alphas(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
@@ -147,7 +147,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         }
     }
 
-    fn alpha_composite_shader(
+    fn composite_shader_with_alphas(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
