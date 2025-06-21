@@ -3,95 +3,32 @@ use crate::fine2::Splat4thExt;
 use crate::peniko::{BlendMode, Compose};
 use crate::util::NormalizedMulExt;
 
-// 
-// // pub(crate) mod fill {
-// //     use crate::fine2::blend::BlendModeExt;
-// //     use vello_common::peniko::BlendMode;
-// //     use vello_simd::Type;
-// // 
-// //     pub(crate) fn blend<N: Type, T: Iterator<Item = N>>(
-// //         target: &mut [N::Scalar],
-// //         src_c: T,
-// //         blend_mode: BlendMode,
-// //     ) {
-// //         for (part, src_c) in target.chunks_exact_mut(N::LENGTH).zip(src_c) {
-// //             let mut bg_c = N::load(part);
-// //             blend_mode.compose(src_c, &mut bg_c, N::one());
-// //             bg_c.store(part);
-// //         }
-// //     }
-// // }
-// // 
-// // pub(crate) mod strip {
-// //     use crate::fine2::blend::BlendModeExt;
-// //     use vello_common::peniko::BlendMode;
-// //     use vello_simd::Type;
-// // 
-// //     pub(crate) fn blend<N: Type, T: Iterator<Item = N>>(
-// //         target: &mut [N::Scalar],
-// //         src_c: T,
-// //         alphas: &[u8],
-// //         blend_mode: BlendMode,
-// //     ) {
-// //         for ((bg_part, masks), src_c) in target
-// //             .chunks_exact_mut(N::LENGTH)
-// //             .zip(alphas.chunks_exact(N::LENGTH / 4))
-// //             .zip(src_c)
-// //         {
-// //             let mut bg_c = N::load(bg_part);
-// //             let mask_a = N::load_alphas(masks);
-// // 
-// //             blend_mode.compose(src_c, &mut bg_c, mask_a);
-// //             bg_c.store(bg_part);
-// //         }
-// //     }
-// // 
-// //     // pub(crate) fn blend<
-// //     //     F: FineType,
-// //     //     T: Iterator<Item = [F; COLOR_COMPONENTS]>,
-// //     //     A: Iterator<Item = [u8; Tile::HEIGHT as usize]>,
-// //     // >(
-// //     //     target: &mut [F],
-// //     //     mut color_iter: T,
-// //     //     blend_mode: BlendMode,
-// //     //     mut alphas: A,
-// //     // ) {
-// //     //     for bg_col in target.chunks_exact_mut(TILE_HEIGHT_COMPONENTS) {
-// //     //         let masks = alphas.next().unwrap();
-// //     //
-// //     //         for (bg_pix, mask) in bg_col.chunks_exact_mut(Tile::HEIGHT as usize).zip(masks) {
-// //     //             blend_mode.compose(&mixed_src_color, bg_pix, F::from_normalized_u8(mask));
-// //     //         }
-// //     //     }
-// //     // }
-// // }
-// 
-// pub(crate) trait BlendModeExt {
-//     fn compose<S: Simd>(&self, simd: S, src_c: u8x32<S>, bg_c: u8x32<S>, alpha_mask: u8x32<S>) -> u8x32<S>;
-// }
-// 
-// impl BlendModeExt for BlendMode {
-//     fn compose<S: Simd>(&self, simd: S, src_c: u8x32<S>, bg_c: u8x32<S>, alpha_mask: u8x32<S>) -> u8x32<S> {
-//         match self.compose {
-//             Compose::SrcOver => SrcOver::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::Clear => Clear::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::Copy => Copy::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::DestOver => DestOver::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::Dest => Dest::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::SrcIn => SrcIn::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::DestIn => DestIn::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::SrcOut => SrcOut::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::DestOut => DestOut::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::SrcAtop => SrcAtop::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::DestAtop => DestAtop::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::Xor => Xor::compose(simd, src_c, bg_c, alpha_mask),
-//             Compose::Plus => Plus::compose(simd, src_c, bg_c, alpha_mask),
-//             // Have not been able to find a formula for this, so just fallback to Plus.
-//             Compose::PlusLighter => SrcOver::compose(src_c, bg_c, alpha_mask),
-//         }
-//     }
-// }
-// 
+pub(crate) trait BlendModeExt {
+    fn compose<S: Simd>(&self, simd: S, src_c: u8x32<S>, bg_c: u8x32<S>, alpha_mask: u8x32<S>) -> u8x32<S>;
+}
+
+impl BlendModeExt for BlendMode {
+    fn compose<S: Simd>(&self, simd: S, src_c: u8x32<S>, bg_c: u8x32<S>, alpha_mask: u8x32<S>) -> u8x32<S> {
+        match self.compose {
+            Compose::SrcOver => SrcOver::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::Clear => Clear::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::Copy => Copy::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::DestOver => DestOver::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::Dest => Dest::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::SrcIn => SrcIn::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::DestIn => DestIn::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::SrcOut => SrcOut::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::DestOut => DestOut::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::SrcAtop => SrcAtop::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::DestAtop => DestAtop::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::Xor => Xor::compose(simd, src_c, bg_c, alpha_mask),
+            Compose::Plus => Plus::compose(simd, src_c, bg_c, alpha_mask),
+            // Have not been able to find a formula for this, so just fallback to Plus.
+            Compose::PlusLighter => SrcOver::compose(simd, src_c, bg_c, alpha_mask),
+        }
+    }
+}
+
 macro_rules! compose {
     ($name:ident, $fa:expr, $fb:expr, $sat:expr) => {
         struct $name;
