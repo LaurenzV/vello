@@ -19,7 +19,7 @@ criterion_main!(
     // tile,
     // render_strips,
     fine_solid,
-    // fine_strip,
+    fine_strip,
     // fine_pack,
     fine_gradient,
     // fine_rounded_blurred_rect,
