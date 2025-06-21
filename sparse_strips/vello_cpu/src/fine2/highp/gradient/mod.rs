@@ -115,7 +115,7 @@ fn advance<S: Simd>(simd: S, target_pos: f32x4<S>, ranges: &[GradientRange]) -> 
 }
 
 #[inline(always)]
-pub(crate) fn extend<S: Simd>(mut val: f32x4<S>, pad: bool) -> f32x4<S> {
+pub(crate) fn extend<S: Simd>(val: f32x4<S>, pad: bool) -> f32x4<S> {
     if pad {
         val.max(0.0).min(1.0)
     } else {

@@ -1,13 +1,14 @@
 mod blend;
 
-use crate::Level;
+use core::iter;
 use crate::fine::COLOR_COMPONENTS;
 use crate::fine2::FineKernel;
-use crate::peniko::BlendMode;
+use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
+use crate::fine2::lowp::blend::BlendModeExt;
 
 #[derive(Clone, Copy, Debug)]
 pub struct U8Kernel;
@@ -82,22 +83,44 @@ impl FineKernel for U8Kernel {
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     ) {
-        fill::alpha_composite_solid(simd, target, color);
+        if blend_mode.mix == Mix::Normal && blend_mode.compose == Compose::SrcOver {
+            fill::alpha_composite_solid(simd, target, color);
+        }   else {
+            let src_c = u32x8::splat(simd, u32::from_ne_bytes(color)).reinterpret_u8();
+            fill::alpha_composite_arbitrary(
+                simd,
+                target,
+                iter::repeat(src_c),
+                |simd, src_c, bg| blend_mode.compose(simd, src_c, bg, u8x32::splat(simd, 255))
+            );
+        }
     }
 
     fn blend_shader<S: Simd>(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
-        _: BlendMode,
+        blend_mode: BlendMode,
     ) {
-        fill::alpha_composite_arbitrary(
-            simd,
-            target,
-            shader_src
-                .chunks_exact(32)
-                .map(|el| u8x32::from_slice(simd, el)),
-        );
+        let src_iter = shader_src
+            .chunks_exact(32)
+            .map(|el| u8x32::from_slice(simd, el));
+        
+        if blend_mode.mix == Mix::Normal && blend_mode.compose == Compose::SrcOver {
+            fill::alpha_composite_arbitrary(
+                simd,
+                target,
+                src_iter,
+                |_, src, _| src
+            );
+        }   else {
+            fill::alpha_composite_arbitrary(
+                simd,
+                target,
+                src_iter,
+                |simd, src_c, bg| blend_mode.compose(simd, src_c, bg, u8x32::splat(simd, 255))
+            );
+        }
     }
 
     #[inline(always)]
@@ -151,15 +174,16 @@ mod fill {
         }
     }
 
-    #[inline(always)]
     pub(super) fn alpha_composite_arbitrary<S: Simd, T: Iterator<Item = u8x32<S>>>(
         simd: S,
         target: &mut [u8],
         src_c: T,
+        blend_func: impl Fn(S, u8x32<S>, u8x32<S>) -> u8x32<S>,
     ) {
-        for (part, src_c) in target.chunks_exact_mut(32).zip(src_c) {
+        for (part, mut src_c) in target.chunks_exact_mut(32).zip(src_c) {
             let one_minus_alpha = 255 - src_c.splat_4th();
             let bg = u8x32::from_slice(simd, part);
+            src_c = blend_func(simd, src_c, bg);
             let res = alpha_composite_inner(simd, bg, src_c, one_minus_alpha);
             part.copy_from_slice(&res.val);
         }

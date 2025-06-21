@@ -74,7 +74,7 @@ impl<S: Simd> SimdGradientKind<S> for SimdRadialKind<S> {
 
         match &self.inner {
             SimdRadialKindInner::Radial { bias, scale } => {
-                let mut radius = (x_pos * x_pos + y_pos * y_pos).sqrt();
+                let radius = (x_pos * x_pos + y_pos * y_pos).sqrt();
 
                 *bias + radius * *scale
             }

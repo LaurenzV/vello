@@ -1,7 +1,6 @@
 mod highp;
 mod lowp;
 
-use crate::fine::FineType;
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 use alloc::vec;
@@ -230,7 +229,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
                         EncodedKind::Linear(l) => {
-                            let filler: GradientFiller<S, SimdLinearKind<S>> = GradientFiller::new(
+                            let filler: GradientFiller<'_, S, SimdLinearKind<S>> = GradientFiller::new(
                                 self.simd,
                                 g,
                                 SimdLinearKind::new(self.simd, l),
@@ -248,7 +247,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                             );
                         }
                         EncodedKind::Sweep(s) => {
-                            let filler: GradientFiller<S, SimdSweepKind<S>> = GradientFiller::new(
+                            let filler: GradientFiller<'_, S, SimdSweepKind<S>> = GradientFiller::new(
                                 self.simd,
                                 g,
                                 SimdSweepKind::new(self.simd, s),
@@ -266,7 +265,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                             );
                         }
                         EncodedKind::Radial(r) => {
-                            let filler: GradientFiller<S, SimdRadialKind<S>> = GradientFiller::new(
+                            let filler: GradientFiller<'_, S, SimdRadialKind<S>> = GradientFiller::new(
                                 self.simd,
                                 g,
                                 SimdRadialKind::new(self.simd, r),
@@ -351,7 +350,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
                         EncodedKind::Linear(l) => {
-                            let filler: GradientFiller<S, SimdLinearKind<S>> = GradientFiller::new(
+                            let filler: GradientFiller<'_, S, SimdLinearKind<S>> = GradientFiller::new(
                                 self.simd,
                                 g,
                                 SimdLinearKind::new(self.simd, l),
@@ -364,7 +363,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                             );
                         }
                         EncodedKind::Sweep(s) => {
-                            let filler: GradientFiller<S, SimdSweepKind<S>> = GradientFiller::new(
+                            let filler: GradientFiller<'_, S, SimdSweepKind<S>> = GradientFiller::new(
                                 self.simd,
                                 g,
                                 SimdSweepKind::new(self.simd, s),
@@ -377,7 +376,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                             );
                         }
                         EncodedKind::Radial(r) => {
-                            let filler: GradientFiller<S, SimdRadialKind<S>> = GradientFiller::new(
+                            let filler: GradientFiller<'_, S, SimdRadialKind<S>> = GradientFiller::new(
                                 self.simd,
                                 g,
                                 SimdRadialKind::new(self.simd, r),

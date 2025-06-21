@@ -91,12 +91,12 @@ compose!(
 compose!(
     SrcOver,
     |simd, _, _| u8x32::splat(simd, 255),
-    |simd, al_s: u8x32<S>, _| 255 - al_s,
+    |_, al_s: u8x32<S>, _| 255 - al_s,
     false
 );
 compose!(
     DestOver,
-    |simd, _, al_b: u8x32<S>| 255 - al_b,
+    |_, _, al_b: u8x32<S>| 255 - al_b,
     |simd, _, _| u8x32::splat(simd, 255),
     false
 );
@@ -108,44 +108,44 @@ compose!(
 );
 compose!(
     Xor,
-    |simd, _, al_b: u8x32<S>| 255 - al_b,
-    |simd, al_s: u8x32<S>, _| 255 - al_s,
+    |_, _, al_b: u8x32<S>| 255 - al_b,
+    |_, al_s: u8x32<S>, _| 255 - al_s,
     false
 );
 compose!(
     SrcIn,
-    |simd, _, al_b: u8x32<S>| al_b,
+    |_, _, al_b: u8x32<S>| al_b,
     |simd, _, _| u8x32::splat(simd, 0),
     false
 );
 compose!(
     DestIn,
     |simd, _, _| u8x32::splat(simd, 0),
-    |simd, al_s: u8x32<S>, _| al_s,
+    |_, al_s: u8x32<S>, _| al_s,
     false
 );
 compose!(
     SrcOut,
-    |simd, _, al_b: u8x32<S>| 255 - al_b,
+    |_, _, al_b: u8x32<S>| 255 - al_b,
     |simd, _, _| u8x32::splat(simd, 0),
     false
 );
 compose!(
     DestOut,
     |simd, _, _| u8x32::splat(simd, 0),
-    |simd, al_s: u8x32<S>, _| 255 - al_s,
+    |_, al_s: u8x32<S>, _| 255 - al_s,
     false
 );
 compose!(
     SrcAtop,
-    |simd, _, al_b: u8x32<S>| al_b,
-    |simd, al_s: u8x32<S>, _| 255 - al_s,
+    |_, _, al_b: u8x32<S>| al_b,
+    |_, al_s: u8x32<S>, _| 255 - al_s,
     false
 );
 compose!(
     DestAtop,
-    |simd, _, al_b: u8x32<S>| 255 - al_b,
-    |simd, al_s: u8x32<S>, _| al_s,
+    |_, _, al_b: u8x32<S>| 255 - al_b,
+    |_, al_s: u8x32<S>, _| al_s,
     false
 );
-compose!(Plus, |simd, _, _| 255, |simd, _, _| 255, true);
+compose!(Plus, |simd, _, _| u8x32::splat( simd, 255), |simd, _, _| u8x32::splat( simd, 255), true);
