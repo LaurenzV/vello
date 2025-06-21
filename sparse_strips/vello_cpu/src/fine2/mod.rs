@@ -241,7 +241,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 let filler: GradientFiller<S, SimdLinearKind<S>> = GradientFiller::new(
                                     self.simd,
                                     g,
-                                    l,
+                                    SimdLinearKind::new(self.simd, l),
                                     start_x,
                                     start_y
                                 );
@@ -334,7 +334,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 let filler: GradientFiller<S, SimdLinearKind<S>> = GradientFiller::new(
                                     self.simd,
                                     g,
-                                    l,
+                                    SimdLinearKind::new(self.simd, l),
                                     start_x,
                                     start_y
                                 );

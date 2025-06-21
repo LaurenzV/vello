@@ -5,6 +5,7 @@ use crate::fine2::PosExt;
 use crate::kurbo::Point;
 
 pub(crate) mod linear;
+pub(crate) mod sweep;
 
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a, S: Simd, U: SimdGradientKind<S>> {
@@ -19,7 +20,7 @@ pub(crate) struct GradientFiller<'a, S: Simd, U: SimdGradientKind<S>> {
 impl<'a, S: Simd, U: SimdGradientKind<S>> GradientFiller<'a, S, U> {
     pub(crate) fn new(simd: S,
         gradient: &'a EncodedGradient,
-        kind: &'a (impl Into<U> + Copy),
+        kind: U,
         start_x: u16,
         start_y: u16,
     ) -> Self {
@@ -30,7 +31,7 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> GradientFiller<'a, S, U> {
             gradient,
             x_advances: (gradient.x_advance.x as f32, gradient.x_advance.y as f32),
             y_advances: (gradient.y_advance.x as f32, gradient.y_advance.y as f32),
-            kind: (*kind).into(),
+            kind,
             simd
         }
     }

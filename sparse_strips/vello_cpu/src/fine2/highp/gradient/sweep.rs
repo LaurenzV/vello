@@ -1,0 +1,60 @@
+use core::f32::consts::PI;
+use vello_common::encode::SweepKind;
+use vello_common::fearless_simd::{f32x4, Simd, SimdBase, SimdFloat};
+use crate::fine2::highp::gradient::linear::SimdLinearKind;
+use crate::fine2::highp::gradient::SimdGradientKind;
+
+#[derive(Debug)]
+pub struct SimdSweepKind<S: Simd> {
+    start_angle: f32x4<S>,
+    inv_angle_delta: f32x4<S>,
+    simd: S,
+}
+
+impl<S: Simd> SimdSweepKind<S> {
+    pub fn new(simd: S, kind: &SweepKind) -> Self {
+        Self {
+            start_angle: f32x4::splat(simd, kind.start_angle),
+            inv_angle_delta: f32x4::splat(simd, kind.inv_angle_delta),
+            simd,
+        }
+    }
+}
+
+impl<S: Simd> SimdGradientKind<S> for SimdSweepKind<S> {
+    fn cur_pos(&self, x_pos: f32x4<S>, y_pos: f32x4<S>) -> f32x4<S> {
+        let angle = x_y_to_unit_angle(self.simd, x_pos, y_pos * f32x4::splat(self.simd, -1.0)) * f32x4::splat(self.simd, 2.0 * PI);
+
+        (angle - self.start_angle) * self.inv_angle_delta
+    }
+}
+
+
+fn x_y_to_unit_angle<S: Simd>(simd: S, x: f32x4<S>, y: f32x4<S>) -> f32x4<S> {
+    let c0 = f32x4::splat(simd,0.0);
+    let c1 = f32x4::splat(simd,1.0);
+    let c2 = f32x4::splat(simd,1.0 / 4.0);
+    let c3 = f32x4::splat(simd,1.0 / 2.0);
+
+    let x_abs = x.abs();
+    let y_abs = y.abs();
+
+    let slope = x_abs.min(y_abs) / x_abs.max(y_abs);
+    let s = slope * slope;
+
+    let a = f32x4::splat(simd, 2.476101927459239959716796875e-2).madd(
+        f32x4::splat(simd, -7.0547382347285747528076171875e-3),
+        s
+    );
+    let b = f32x4::splat(simd, -5.185396969318389892578125e-2).madd(a, s);
+    let c = f32x4::splat(simd, 0.15912117063999176025390625).madd(b, s);
+
+    let mut phi = slope * c;
+
+    phi = simd.select_f32x4(simd.simd_lt_f32x4(x_abs, y_abs), c2 - phi, phi);
+    phi = simd.select_f32x4(simd.simd_lt_f32x4(x, c0), c3 - phi, phi);
+    phi = simd.select_f32x4(simd.simd_lt_f32x4(y, c0), c1 - phi, phi);
+    phi = simd.select_f32x4(phi.simd_eq(phi), phi, c0);
+
+    phi
+}

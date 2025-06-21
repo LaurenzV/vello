@@ -8,6 +8,14 @@ pub struct SimdLinearKind<S: Simd> {
     phantom_data: PhantomData<S>,
 }
 
+impl<S: Simd> SimdLinearKind<S> {
+    pub fn new(_: S, _: &LinearKind) -> Self {
+        Self {
+            phantom_data: PhantomData::default(),
+        }
+    }
+}
+
 impl<S: Simd> From<LinearKind> for SimdLinearKind<S> {
     fn from(_: LinearKind) -> Self {
         Self {
