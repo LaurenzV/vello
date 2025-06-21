@@ -1,8 +1,8 @@
+use crate::fine2::highp::gradient::SimdGradientKind;
+use crate::fine2::highp::gradient::linear::SimdLinearKind;
 use core::f32::consts::PI;
 use vello_common::encode::SweepKind;
-use vello_common::fearless_simd::{f32x4, Simd, SimdBase, SimdFloat};
-use crate::fine2::highp::gradient::linear::SimdLinearKind;
-use crate::fine2::highp::gradient::SimdGradientKind;
+use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, f32x4};
 
 #[derive(Debug)]
 pub struct SimdSweepKind<S: Simd> {
@@ -23,18 +23,18 @@ impl<S: Simd> SimdSweepKind<S> {
 
 impl<S: Simd> SimdGradientKind<S> for SimdSweepKind<S> {
     fn cur_pos(&self, x_pos: f32x4<S>, y_pos: f32x4<S>) -> f32x4<S> {
-        let angle = x_y_to_unit_angle(self.simd, x_pos, y_pos * f32x4::splat(self.simd, -1.0)) * f32x4::splat(self.simd, 2.0 * PI);
+        let angle = x_y_to_unit_angle(self.simd, x_pos, y_pos * f32x4::splat(self.simd, -1.0))
+            * f32x4::splat(self.simd, 2.0 * PI);
 
         (angle - self.start_angle) * self.inv_angle_delta
     }
 }
 
-
 fn x_y_to_unit_angle<S: Simd>(simd: S, x: f32x4<S>, y: f32x4<S>) -> f32x4<S> {
-    let c0 = f32x4::splat(simd,0.0);
-    let c1 = f32x4::splat(simd,1.0);
-    let c2 = f32x4::splat(simd,1.0 / 4.0);
-    let c3 = f32x4::splat(simd,1.0 / 2.0);
+    let c0 = f32x4::splat(simd, 0.0);
+    let c1 = f32x4::splat(simd, 1.0);
+    let c2 = f32x4::splat(simd, 1.0 / 4.0);
+    let c3 = f32x4::splat(simd, 1.0 / 2.0);
 
     let x_abs = x.abs();
     let y_abs = y.abs();
@@ -42,10 +42,8 @@ fn x_y_to_unit_angle<S: Simd>(simd: S, x: f32x4<S>, y: f32x4<S>) -> f32x4<S> {
     let slope = x_abs.min(y_abs) / x_abs.max(y_abs);
     let s = slope * slope;
 
-    let a = f32x4::splat(simd, 2.476101927459239959716796875e-2).madd(
-        f32x4::splat(simd, -7.0547382347285747528076171875e-3),
-        s
-    );
+    let a = f32x4::splat(simd, 2.476101927459239959716796875e-2)
+        .madd(f32x4::splat(simd, -7.0547382347285747528076171875e-3), s);
     let b = f32x4::splat(simd, -5.185396969318389892578125e-2).madd(a, s);
     let c = f32x4::splat(simd, 0.15912117063999176025390625).madd(b, s);
 

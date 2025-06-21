@@ -119,11 +119,11 @@ mod dispatch;
 /// This is an internal module, do not access directly.
 pub mod fine;
 #[doc(hidden)]
+pub mod fine2;
+#[doc(hidden)]
 pub mod region;
 mod strip_generator;
 mod util;
-#[doc(hidden)]
-pub mod fine2;
 
 pub use render::{RenderContext, RenderSettings};
 pub use vello_common::fearless_simd::Level;

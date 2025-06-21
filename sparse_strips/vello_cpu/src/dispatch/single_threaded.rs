@@ -3,6 +3,7 @@
 
 use crate::RenderMode;
 use crate::dispatch::Dispatcher;
+use crate::fine2::{F32Kernel, Fine, FineKernel, U8Kernel};
 use crate::kurbo::{Affine, BezPath, Stroke};
 use crate::peniko::{BlendMode, Fill};
 use crate::region::Regions;
@@ -12,7 +13,6 @@ use vello_common::encode::EncodedPaint;
 use vello_common::fearless_simd::{Fallback, Level, Neon, Simd};
 use vello_common::mask::Mask;
 use vello_common::paint::Paint;
-use crate::fine2::{F32Kernel, Fine, FineKernel, U8Kernel};
 
 #[derive(Debug)]
 pub(crate) struct SingleThreadedDispatcher {
@@ -42,27 +42,15 @@ impl SingleThreadedDispatcher {
     ) {
         match self.level {
             Level::Fallback(f) => {
-                self.rasterize_with::<F, Fallback>(
-                    f,
-                    buffer,
-                    width,
-                    height,
-                    encoded_paints,
-                )
+                self.rasterize_with::<F, Fallback>(f, buffer, width, height, encoded_paints)
             }
             #[cfg(target_arch = "aarch64")]
             Level::Neon(n) => {
-                self.rasterize_with::<F, Neon>(
-                    n,
-                    buffer,
-                    width,
-                    height,
-                    encoded_paints,
-                )
+                self.rasterize_with::<F, Neon>(n, buffer, width, height, encoded_paints)
             }
         }
     }
-    
+
     fn rasterize_with<F: FineKernel, S: Simd>(
         &self,
         simd: S,

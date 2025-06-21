@@ -1,8 +1,8 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use vello_common::fearless_simd::{u16x32, u8x32, u8x64, Simd, SimdBase};
 use crate::util::scalar::div_255;
+use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u8x64, u16x32};
 
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.

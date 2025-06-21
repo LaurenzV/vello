@@ -3,6 +3,7 @@
 
 use crate::RenderMode;
 use crate::dispatch::Dispatcher;
+use crate::fine2::{F32Kernel, Fine, FineKernel, U8Kernel};
 use crate::kurbo::{Affine, BezPath, PathSeg, Point, Stroke};
 use crate::peniko::{BlendMode, Fill};
 use crate::region::Regions;
@@ -23,7 +24,6 @@ use vello_common::fearless_simd::{Fallback, Level, Neon, Simd};
 use vello_common::mask::Mask;
 use vello_common::paint::Paint;
 use vello_common::strip::Strip;
-use crate::fine2::{F32Kernel, FineKernel, U8Kernel, Fine};
 
 // TODO: Fine-tune this parameter.
 const COST_THRESHOLD: f32 = 5.0;
@@ -219,23 +219,11 @@ impl MultiThreadedDispatcher {
     ) {
         match self.level {
             Level::Fallback(f) => {
-                self.rasterize_with::<F, Fallback>(
-                    f,
-                    buffer,
-                    width,
-                    height,
-                    encoded_paints,
-                )
+                self.rasterize_with::<F, Fallback>(f, buffer, width, height, encoded_paints)
             }
             #[cfg(target_arch = "aarch64")]
             Level::Neon(n) => {
-                self.rasterize_with::<F, Neon>(
-                    n,
-                    buffer,
-                    width,
-                    height,
-                    encoded_paints,
-                )
+                self.rasterize_with::<F, Neon>(n, buffer, width, height, encoded_paints)
             }
         }
     }
@@ -258,7 +246,9 @@ impl MultiThreadedDispatcher {
                 let x = region.x;
                 let y = region.y;
 
-                let mut fine = fines.get_or(|| RefCell::new(Fine::<F, S>::new(simd))).borrow_mut();
+                let mut fine = fines
+                    .get_or(|| RefCell::new(Fine::<F, S>::new(simd)))
+                    .borrow_mut();
 
                 let wtile = wide.get(x, y);
                 fine.set_coords(x, y);

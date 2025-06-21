@@ -1,14 +1,14 @@
-use vello_common::fearless_simd::*;
-use vello_common::paint::PremulColor;
-use vello_common::tile::Tile;
-use crate::fine2::FineKernel;
 use crate::fine::COLOR_COMPONENTS;
+use crate::fine2::FineKernel;
 use crate::kurbo::{Point, Vec2};
 use crate::peniko::BlendMode;
 use crate::region::Region;
+use vello_common::fearless_simd::*;
+use vello_common::paint::PremulColor;
+use vello_common::tile::Tile;
 
-pub(crate) mod rounded_blurred_rect;
 pub(crate) mod gradient;
+pub(crate) mod rounded_blurred_rect;
 
 #[derive(Clone, Copy, Debug)]
 pub struct F32Kernel;
@@ -20,7 +20,7 @@ impl FineKernel for F32Kernel {
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
         color.as_premul_f32().components
     }
-    
+
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         for y in 0..Tile::HEIGHT {
             for (x, pixel) in region
@@ -41,7 +41,7 @@ impl FineKernel for F32Kernel {
             }
         }
     }
-    
+
     // Not having this tanks performance for some reason.
     #[inline(never)]
     fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
@@ -53,34 +53,73 @@ impl FineKernel for F32Kernel {
     }
 
     #[inline(always)]
-    fn fill_buf_arbitrary<S: Simd>(_: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item=f32x16<S>>) {
+    fn fill_buf_arbitrary<S: Simd>(
+        _: S,
+        target: &mut [Self::Numeric],
+        mut src: impl Iterator<Item = f32x16<S>>,
+    ) {
         for el in target.chunks_exact_mut(16) {
             el.copy_from_slice(&src.next().unwrap().val);
         }
     }
 
     #[inline(always)]
-    fn blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode) {
+    fn blend_solid<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        color: [Self::Numeric; 4],
+        _: BlendMode,
+    ) {
         fill::alpha_composite_solid(simd, target, color);
     }
-    
-    fn blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
-        fill::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)));
+
+    fn blend_shader<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        shader_src: &[Self::Numeric],
+        _: BlendMode,
+    ) {
+        fill::alpha_composite_arbitrary(
+            simd,
+            target,
+            shader_src
+                .chunks_exact(16)
+                .map(|el| f32x16::from_slice(simd, el)),
+        );
     }
 
     #[inline(always)]
-    fn alpha_blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode, alphas: &[u8]) {
+    fn alpha_blend_solid<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        color: [Self::Numeric; 4],
+        _: BlendMode,
+        alphas: &[u8],
+    ) {
         strip::alpha_composite_solid(simd, target, color, alphas);
     }
 
-    fn alpha_blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode, alphas: &[u8]) {
-        strip::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(16).map(|el| f32x16::from_slice(simd, el)), alphas);       
+    fn alpha_blend_shader<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        shader_src: &[Self::Numeric],
+        _: BlendMode,
+        alphas: &[u8],
+    ) {
+        strip::alpha_composite_arbitrary(
+            simd,
+            target,
+            shader_src
+                .chunks_exact(16)
+                .map(|el| f32x16::from_slice(simd, el)),
+            alphas,
+        );
     }
 }
 
 mod fill {
-    use vello_common::fearless_simd::*;
     use crate::fine2::Splat4thExt;
+    use vello_common::fearless_simd::*;
     // Careful: From my experiments, inlining these functions can have drastic (negative)
     // consequences on performance.
 
@@ -95,10 +134,11 @@ mod fill {
     }
 
     #[inline(always)]
-    pub(super) fn alpha_composite_arbitrary<
-        S: Simd, 
-        T: Iterator<Item = f32x16<S>>
-    >(simd: S, target: &mut [f32], src_c: T) {
+    pub(super) fn alpha_composite_arbitrary<S: Simd, T: Iterator<Item = f32x16<S>>>(
+        simd: S,
+        target: &mut [f32],
+        src_c: T,
+    ) {
         for (part, src_c) in target.chunks_exact_mut(16).zip(src_c) {
             let one_minus_alpha = 1.0 - src_c.splat_4th();
             alpha_composite_inner(simd, part, src_c, one_minus_alpha)
@@ -106,7 +146,12 @@ mod fill {
     }
 
     #[inline(always)]
-    fn alpha_composite_inner<S: Simd>(s: S, target: &mut [f32], src_c: f32x16<S>, one_minus_alpha: f32x16<S>) {
+    fn alpha_composite_inner<S: Simd>(
+        s: S,
+        target: &mut [f32],
+        src_c: f32x16<S>,
+        one_minus_alpha: f32x16<S>,
+    ) {
         let mut bg_c = f32x16::from_slice(s, target);
         bg_c = src_c.madd(one_minus_alpha, bg_c);
         target.copy_from_slice(&bg_c.val)
@@ -114,10 +159,10 @@ mod fill {
 }
 
 mod strip {
-    use vello_common::fearless_simd::*;
     use crate::fine2::Splat4thExt;
     use crate::util::normalized_mul;
-    
+    use vello_common::fearless_simd::*;
+
     #[inline(always)]
     pub(super) fn alpha_composite_solid<S: Simd>(
         s: S,
@@ -129,10 +174,7 @@ mod strip {
         let src_c = f32x16::block_splat(src_c.simd_into(s));
         let one = f32x16::splat(s, 1.0);
 
-        for (bg_part, masks) in target
-            .chunks_exact_mut(16)
-            .zip(alphas.chunks_exact(4))
-        {
+        for (bg_part, masks) in target.chunks_exact_mut(16).zip(alphas.chunks_exact(4)) {
             alpha_composite_inner(s, bg_part, masks, src_c, src_a, one);
         }
     }
@@ -173,19 +215,20 @@ mod strip {
                 masks[1] as f32,
                 masks[2] as f32,
                 masks[3] as f32,
-            ].simd_into(s);
-            
+            ]
+            .simd_into(s);
+
             base_mask = base_mask * f32x4::splat(s, 1.0 / 255.0);
-            
+
             let res = f32x16::block_splat(base_mask);
             let zip1 = res.zip1(res);
             let zip2 = zip1.zip1(zip1);
-            
+
             zip2
         };
-        
+
         let inv_src_a_mask_a = one.msub(src_a, mask_a);
-    
+
         let res = (src_c * mask_a).madd(bg_c, inv_src_a_mask_a);
         target.copy_from_slice(&res.val);
     }

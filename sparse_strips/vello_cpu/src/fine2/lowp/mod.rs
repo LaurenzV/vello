@@ -1,13 +1,13 @@
 mod blend;
 
+use crate::Level;
+use crate::fine::COLOR_COMPONENTS;
+use crate::fine2::FineKernel;
+use crate::peniko::BlendMode;
+use crate::region::Region;
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
-use crate::fine2::FineKernel;
-use crate::fine::COLOR_COMPONENTS;
-use crate::Level;
-use crate::peniko::BlendMode;
-use crate::region::Region;
 
 #[derive(Clone, Copy, Debug)]
 pub struct U8Kernel;
@@ -35,7 +35,8 @@ impl FineKernel for U8Kernel {
 
     // Inlining causes performance degradation
     fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
-        let color = u8x64::block_splat(u32x4::splat(simd, u32::from_ne_bytes(color)).reinterpret_u8());
+        let color =
+            u8x64::block_splat(u32x4::splat(simd, u32::from_ne_bytes(color)).reinterpret_u8());
 
         for el in target.chunks_exact_mut(64) {
             el.copy_from_slice(&color.val);
@@ -43,57 +44,96 @@ impl FineKernel for U8Kernel {
     }
 
     #[inline(always)]
-    fn fill_buf_arbitrary<S: Simd>(simd: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item=f32x16<S>>) {
+    fn fill_buf_arbitrary<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        mut src: impl Iterator<Item = f32x16<S>>,
+    ) {
         for el in target.chunks_exact_mut(16) {
             let next = src.next().unwrap();
             let mulled = f32x16::splat(simd, 0.5).madd(next, f32x16::splat(simd, 255.0));
-            
+
             // TODO: SIMDify
             el.copy_from_slice(&[
-                mulled.val[0] as u8, 
-                mulled.val[1] as u8, 
-                mulled.val[2] as u8, 
+                mulled.val[0] as u8,
+                mulled.val[1] as u8,
+                mulled.val[2] as u8,
                 mulled.val[3] as u8,
-                mulled.val[4] as u8, 
-                mulled.val[5] as u8, 
-                mulled.val[6] as u8, 
+                mulled.val[4] as u8,
+                mulled.val[5] as u8,
+                mulled.val[6] as u8,
                 mulled.val[7] as u8,
-                mulled.val[8] as u8, 
-                mulled.val[9] as u8, 
-                mulled.val[10] as u8, 
-                mulled.val[11] as u8, 
-                mulled.val[12] as u8, 
-                mulled.val[13] as u8, 
-                mulled.val[14] as u8, 
+                mulled.val[8] as u8,
+                mulled.val[9] as u8,
+                mulled.val[10] as u8,
+                mulled.val[11] as u8,
+                mulled.val[12] as u8,
+                mulled.val[13] as u8,
+                mulled.val[14] as u8,
                 mulled.val[15] as u8,
             ])
         }
     }
 
     #[inline(always)]
-    fn blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], blend_mode: BlendMode) {
+    fn blend_solid<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        color: [Self::Numeric; 4],
+        blend_mode: BlendMode,
+    ) {
         fill::alpha_composite_solid(simd, target, color);
     }
 
-    fn blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode) {
-        fill::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(32).map(|el| u8x32::from_slice(simd, el)));
+    fn blend_shader<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        shader_src: &[Self::Numeric],
+        _: BlendMode,
+    ) {
+        fill::alpha_composite_arbitrary(
+            simd,
+            target,
+            shader_src
+                .chunks_exact(32)
+                .map(|el| u8x32::from_slice(simd, el)),
+        );
     }
 
     #[inline(always)]
-    fn alpha_blend_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], _: BlendMode, alphas: &[u8]) {
-        strip::alpha_composite_solid(simd, target, color, alphas);       
+    fn alpha_blend_solid<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        color: [Self::Numeric; 4],
+        _: BlendMode,
+        alphas: &[u8],
+    ) {
+        strip::alpha_composite_solid(simd, target, color, alphas);
     }
 
-    fn alpha_blend_shader<S: Simd>(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], _: BlendMode, alphas: &[u8]) {
-        strip::alpha_composite_arbitrary(simd, target, shader_src.chunks_exact(32).map(|el| u8x32::from_slice(simd, el)), alphas);
+    fn alpha_blend_shader<S: Simd>(
+        simd: S,
+        target: &mut [Self::Numeric],
+        shader_src: &[Self::Numeric],
+        _: BlendMode,
+        alphas: &[u8],
+    ) {
+        strip::alpha_composite_arbitrary(
+            simd,
+            target,
+            shader_src
+                .chunks_exact(32)
+                .map(|el| u8x32::from_slice(simd, el)),
+            alphas,
+        );
     }
 }
 
 mod fill {
-    use vello_common::fearless_simd::*;
     use crate::fine2::Splat4thExt;
-    use crate::util::{normalized_mul, Div255Ext};
-    
+    use crate::util::{Div255Ext, normalized_mul};
+    use vello_common::fearless_simd::*;
+
     #[inline(always)]
     pub(super) fn alpha_composite_solid<S: Simd>(s: S, target: &mut [u8], src_c: [u8; 4]) {
         let one_minus_alpha = 255 - u8x32::splat(s, src_c[3]);
@@ -112,29 +152,35 @@ mod fill {
     }
 
     #[inline(always)]
-    pub(super) fn alpha_composite_arbitrary<
-        S: Simd,
-        T: Iterator<Item = u8x32<S>>
-    >(simd: S, target: &mut [u8], src_c: T) {
+    pub(super) fn alpha_composite_arbitrary<S: Simd, T: Iterator<Item = u8x32<S>>>(
+        simd: S,
+        target: &mut [u8],
+        src_c: T,
+    ) {
         for (part, src_c) in target.chunks_exact_mut(32).zip(src_c) {
             let one_minus_alpha = 255 - src_c.splat_4th();
             let bg = u8x32::from_slice(simd, part);
             let res = alpha_composite_inner(simd, bg, src_c, one_minus_alpha);
-            part.copy_from_slice(&res.val);       
+            part.copy_from_slice(&res.val);
         }
     }
 
     #[inline(always)]
-    fn alpha_composite_inner<S: Simd>(s: S, bg: u8x32<S>, src_c: u8x32<S>, one_minus_alpha: u8x32<S>) -> u8x32<S> {
+    fn alpha_composite_inner<S: Simd>(
+        s: S,
+        bg: u8x32<S>,
+        src_c: u8x32<S>,
+        one_minus_alpha: u8x32<S>,
+    ) -> u8x32<S> {
         s.narrow_u16x32(normalized_mul(bg, one_minus_alpha)) + src_c
     }
 }
 
 mod strip {
-    use vello_common::fearless_simd::*;
     use crate::fine2::Splat4thExt;
-    use crate::util::{normalized_mul, Div255Ext};
-    
+    use crate::util::{Div255Ext, normalized_mul};
+    use vello_common::fearless_simd::*;
+
     #[inline(always)]
     pub(super) fn alpha_composite_solid<S: Simd>(
         s: S,
@@ -146,10 +192,7 @@ mod strip {
         let src_c = u32x8::splat(s, u32::from_ne_bytes(src_c)).reinterpret_u8();
         let one = u8x32::splat(s, 255);
 
-        for (bg_part, masks) in target
-            .chunks_exact_mut(32)
-            .zip(alphas.chunks_exact(8))
-        {
+        for (bg_part, masks) in target.chunks_exact_mut(32).zip(alphas.chunks_exact(8)) {
             alpha_composite_inner(s, bg_part, masks, src_c, src_a, one);
         }
     }
@@ -172,7 +215,7 @@ mod strip {
             alpha_composite_inner(simd, bg_part, masks, src_c, src_a, one);
         }
     }
-    
+
     #[inline(always)]
     fn alpha_composite_inner<S: Simd>(
         s: S,
@@ -183,10 +226,12 @@ mod strip {
         one: u8x32<S>,
     ) {
         let bg_c = u8x32::from_slice(s, target);
-        
+
         let mask_a = {
-            let m1 = u32x4::splat(s, u32::from_ne_bytes(masks[0..4].try_into().unwrap())).reinterpret_u8();
-            let m2 = u32x4::splat(s, u32::from_ne_bytes(masks[4..8].try_into().unwrap())).reinterpret_u8();
+            let m1 = u32x4::splat(s, u32::from_ne_bytes(masks[0..4].try_into().unwrap()))
+                .reinterpret_u8();
+            let m2 = u32x4::splat(s, u32::from_ne_bytes(masks[4..8].try_into().unwrap()))
+                .reinterpret_u8();
 
             let zipped1 = m1.zip1(m1);
             let zipped1 = zipped1.zip1(zipped1);

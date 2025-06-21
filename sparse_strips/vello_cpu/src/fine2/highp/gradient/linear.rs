@@ -1,7 +1,7 @@
+use crate::fine2::highp::gradient::SimdGradientKind;
 use core::marker::PhantomData;
 use vello_common::encode::LinearKind;
-use vello_common::fearless_simd::{f32x16, f32x4, f32x8, Simd};
-use crate::fine2::highp::gradient::SimdGradientKind;
+use vello_common::fearless_simd::{Simd, f32x4, f32x8, f32x16};
 
 #[derive(Debug)]
 pub struct SimdLinearKind<S: Simd> {

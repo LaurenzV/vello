@@ -1,7 +1,7 @@
+use crate::fine2::highp::gradient::SimdGradientKind;
 use core::marker::PhantomData;
 use vello_common::encode::{FocalData, GradientLike, LinearKind, RadialKind};
-use vello_common::fearless_simd::{f32x4, mask32x4, Simd, SimdBase};
-use crate::fine2::highp::gradient::SimdGradientKind;
+use vello_common::fearless_simd::{Simd, SimdBase, f32x4, mask32x4};
 
 #[derive(Debug, Copy, Clone)]
 pub struct SimdFocalData<S: Simd> {
@@ -51,13 +51,19 @@ impl<S: Simd> SimdRadialKind<S> {
                 focal_data: SimdFocalData {
                     fr1: f32x4::splat(simd, focal_data.fr1),
                     f_focal_x: f32x4::splat(simd, focal_data.f_focal_x),
-                    f_is_swapped: mask32x4::splat(simd, i32::MAX * (focal_data.f_is_swapped as i32)),
+                    f_is_swapped: mask32x4::splat(
+                        simd,
+                        i32::MAX * (focal_data.f_is_swapped as i32),
+                    ),
                     focal_data: *focal_data,
                 },
             },
         };
 
-        SimdRadialKind { inner, has_undefined: kind.has_undefined() }
+        SimdRadialKind {
+            inner,
+            has_undefined: kind.has_undefined(),
+        }
     }
 }
 
@@ -65,7 +71,7 @@ impl<S: Simd> SimdGradientKind<S> for SimdRadialKind<S> {
     #[inline(always)]
     fn cur_pos(&self, x_pos: f32x4<S>, y_pos: f32x4<S>) -> f32x4<S> {
         let simd = x_pos.simd;
-        
+
         match &self.inner {
             SimdRadialKindInner::Radial { bias, scale } => {
                 let mut radius = (x_pos * x_pos + y_pos * y_pos).sqrt();

@@ -5,28 +5,32 @@
 //!
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
-use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::fearless_simd::{f32x16, f32x4, f32x8, Simd, SimdBase, SimdFloat, SimdInto};
-use crate::fine2::highp::{calc_pos, element_wise_splat};
 use crate::fine2::PosExt;
+use crate::fine2::highp::{calc_pos, element_wise_splat};
 use crate::kurbo::{Point, Vec2};
+use vello_common::encode::EncodedBlurredRoundedRectangle;
+use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16};
 
 #[derive(Debug)]
 pub(crate) struct BlurredRoundedRectFiller<S: Simd> {
     color: f32x16<S>,
     alpha_calculator: AlphaCalculator<S>,
     next_alphas: Option<f32x4<S>>,
-    simd: S
+    simd: S,
 }
 
 impl<S: Simd> BlurredRoundedRectFiller<S> {
     pub(crate) fn new(
         simd: S,
-        rect: &EncodedBlurredRoundedRectangle, start_x: u16, start_y: u16) -> Self {
+        rect: &EncodedBlurredRoundedRectangle,
+        start_x: u16,
+        start_y: u16,
+    ) -> Self {
         let start_pos = rect.transform * Point::new(f64::from(start_x), f64::from(start_y));
         let color = f32x16::block_splat(rect.color.as_premul_f32().components.simd_into(simd));
         let simd_rect = SimdRoundedBlurredRect::new(rect, simd);
-        let alpha_calculator = AlphaCalculator::new(start_pos, rect.x_advance, rect.y_advance, simd_rect, simd);
+        let alpha_calculator =
+            AlphaCalculator::new(start_pos, rect.x_advance, rect.y_advance, simd_rect, simd);
 
         Self {
             alpha_calculator,
@@ -43,16 +47,16 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
     fn next(&mut self) -> Option<Self::Item> {
         let alphas = if let Some(next) = self.next_alphas {
             self.next_alphas = None;
-            
+
             element_wise_splat(self.simd, next)
-        }   else {
+        } else {
             let next = self.alpha_calculator.next().unwrap();
             let (s0, s1) = self.simd.split_f32x8(next);
             self.next_alphas = Some(s1);
-            
+
             element_wise_splat(self.simd, s0)
         };
-        
+
         Some(self.color * alphas)
     }
 }
@@ -68,7 +72,13 @@ struct AlphaCalculator<S: Simd> {
 }
 
 impl<'a, S: Simd> AlphaCalculator<S> {
-    fn new(start_pos: Point, x_advance: Vec2, y_advance: Vec2, r: SimdRoundedBlurredRect<S>, simd: S) -> Self {
+    fn new(
+        start_pos: Point,
+        x_advance: Vec2,
+        y_advance: Vec2,
+        r: SimdRoundedBlurredRect<S>,
+        simd: S,
+    ) -> Self {
         Self {
             start_pos,
             x_advance,
@@ -86,8 +96,18 @@ impl<S: Simd> Iterator for AlphaCalculator<S> {
     fn next(&mut self) -> Option<Self::Item> {
         let pos = calc_pos(self.start_pos, self.idx, self.x_advance, self.y_advance);
 
-        let i = f32x8::splat_col_pos(self.simd, pos.x as f32, self.x_advance.x as f32, self.y_advance.x as f32);
-        let j = f32x8::splat_col_pos(self.simd, pos.y as f32, self.x_advance.y as f32, self.y_advance.y as f32);
+        let i = f32x8::splat_col_pos(
+            self.simd,
+            pos.x as f32,
+            self.x_advance.x as f32,
+            self.y_advance.x as f32,
+        );
+        let j = f32x8::splat_col_pos(
+            self.simd,
+            pos.y as f32,
+            self.x_advance.y as f32,
+            self.y_advance.y as f32,
+        );
         let r = &self.r;
 
         let y = j + r.v1.msub(r.v1, r.height);
@@ -190,7 +210,7 @@ impl<S: Simd> FloatExt<S> for f32x8<S> {
         self.val[5] = self.val[5].powf(x);
         self.val[6] = self.val[6].powf(x);
         self.val[7] = self.val[7].powf(x);
-        
+
         self
     }
-} 
+}
