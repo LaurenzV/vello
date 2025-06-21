@@ -8,8 +8,7 @@ pub(crate) mod linear;
 
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a, S: Simd, U: SimdGradientKind<S>> {
-    start_pos: Point,
-    idx: usize,
+    pos: Point,
     gradient: &'a EncodedGradient,
     kind: U,
     x_advances: (f32, f32),
@@ -27,8 +26,7 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> GradientFiller<'a, S, U> {
         let start_pos = gradient.transform * Point::new(f64::from(start_x), f64::from(start_y));
         
         Self {
-            start_pos,
-            idx: 0,
+            pos: start_pos,
             gradient,
             x_advances: (gradient.x_advance.x as f32, gradient.x_advance.y as f32),
             y_advances: (gradient.y_advance.x as f32, gradient.y_advance.y as f32),
@@ -44,7 +42,7 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         let pad = self.gradient.pad;
-        let cur_pos = calc_pos(self.start_pos, self.idx, self.gradient.x_advance, self.gradient.y_advance);
+        let cur_pos = self.pos;
         let x_pos = f32x4::splat_col_pos(self.simd, cur_pos.x as f32, self.x_advances.0, self.y_advances.0);
         let y_pos = f32x4::splat_col_pos(self.simd, cur_pos.y as f32, self.x_advances.1, self.y_advances.1);
         let t_vals = extend(self.kind.cur_pos(x_pos, y_pos), pad);
@@ -68,7 +66,7 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
         );
         
         let res = biases.madd(scales, t_vals);
-        self.idx += 4;
+        self.pos += self.gradient.x_advance;
         
         Some(res)
     }
