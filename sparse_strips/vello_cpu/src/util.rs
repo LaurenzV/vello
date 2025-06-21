@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32};
+use crate::peniko::{BlendMode, Compose, Mix};
 
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.
@@ -87,4 +88,14 @@ impl<S: Simd> Div255Ext for u16x32<S> {
 #[inline(always)]
 pub(crate) fn normalized_mul<S: Simd>(a: u8x32<S>, b: u8x32<S>) -> u16x32<S> {
     (S::widen_u8x32(a.simd, a) * S::widen_u8x32(b.simd, b)).div_255()
+}
+
+pub(crate) trait BlendModeExt {
+    fn is_default(&self) -> bool;
+}
+
+impl BlendModeExt for BlendMode {
+    fn is_default(&self) -> bool {
+        self.mix == Mix::Normal && self.compose == Compose::SrcOver
+    }
 }

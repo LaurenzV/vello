@@ -27,6 +27,7 @@ pub use lowp::U8Kernel;
 use vello_common::fearless_simd::{
     Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16, u8x32,
 };
+use crate::util::BlendModeExt;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
@@ -175,15 +176,13 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
 
-        let default_blend = blend_mode == BlendMode::new(Mix::Normal, Compose::SrcOver);
-
         match fill {
             Paint::Solid(color) => {
                 let color = T::extract_color(*color);
 
                 // If color is completely opaque, we can just directly override
                 // the blend buffer.
-                if color[3] == T::Numeric::ONE && default_blend {
+                if color[3] == T::Numeric::ONE && blend_mode.is_default() {
                     T::fill_buf_solid(self.simd, blend_buf, color);
 
                     return;

@@ -3,7 +3,7 @@ use crate::peniko::{BlendMode, Compose};
 use crate::util::NormalizedMulExt;
 use vello_common::fearless_simd::*;
 
-pub(crate) trait BlendModeExt {
+pub(crate) trait ComposeExt {
     fn compose<S: Simd>(
         &self,
         simd: S,
@@ -13,7 +13,7 @@ pub(crate) trait BlendModeExt {
     ) -> u8x32<S>;
 }
 
-impl BlendModeExt for BlendMode {
+impl ComposeExt for BlendMode {
     fn compose<S: Simd>(
         &self,
         simd: S,
@@ -62,9 +62,9 @@ macro_rules! compose {
 
                 if $sat {
                     simd.narrow_u16x32(
-                        simd.widen_u8x32(src_c.normalized_mul(fa))
+                        (simd.widen_u8x32(src_c.normalized_mul(fa))
                             + simd
-                                .widen_u8x32(fb.normalized_mul(bg_c))
+                                .widen_u8x32(fb.normalized_mul(bg_c)))
                                 .min(u16x32::splat(simd, 255))
                                 .max(u16x32::splat(simd, 0)),
                     )
