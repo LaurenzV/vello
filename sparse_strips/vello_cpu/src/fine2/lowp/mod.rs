@@ -14,8 +14,9 @@ use crate::util::BlendModeExt;
 #[derive(Clone, Copy, Debug)]
 pub struct U8Kernel;
 
-impl FineKernel for U8Kernel {
+impl<S: Simd> FineKernel<S> for U8Kernel {
     type Numeric = u8;
+    type Composite = u8x32<S>;
 
     #[inline]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
@@ -37,7 +38,7 @@ impl FineKernel for U8Kernel {
     }
 
     // Inlining causes performance degradation
-    fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+    fn fill_buf_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         let color =
             u8x64::block_splat(u32x4::splat(simd, u32::from_ne_bytes(color)).reinterpret_u8());
 
@@ -47,7 +48,7 @@ impl FineKernel for U8Kernel {
     }
 
     #[inline(always)]
-    fn fill_buf_arbitrary<S: Simd>(
+    fn fill_buf_arbitrary(
         simd: S,
         target: &mut [Self::Numeric],
         mut src: impl Iterator<Item = f32x16<S>>,
@@ -79,7 +80,7 @@ impl FineKernel for U8Kernel {
     }
 
     #[inline(always)]
-    fn blend_solid<S: Simd>(
+    fn composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
@@ -98,7 +99,7 @@ impl FineKernel for U8Kernel {
         }
     }
 
-    fn blend_shader<S: Simd>(
+    fn composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
@@ -125,7 +126,7 @@ impl FineKernel for U8Kernel {
     }
 
     #[inline(always)]
-    fn alpha_blend_solid<S: Simd>(
+    fn alpha_composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
@@ -146,7 +147,7 @@ impl FineKernel for U8Kernel {
         }
     }
 
-    fn alpha_blend_shader<S: Simd>(
+    fn alpha_composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],

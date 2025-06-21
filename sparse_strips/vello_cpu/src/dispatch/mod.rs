@@ -5,14 +5,16 @@
 pub(crate) mod multi_threaded;
 pub(crate) mod single_threaded;
 
-use crate::RenderMode;
 use crate::kurbo::{Affine, BezPath, Stroke};
 use crate::peniko::{BlendMode, Fill};
 use core::fmt::Debug;
 use vello_common::coarse::Wide;
 use vello_common::encode::EncodedPaint;
+use vello_common::fearless_simd::Simd;
 use vello_common::mask::Mask;
 use vello_common::paint::Paint;
+use crate::fine2::FineKernel;
+use crate::RenderMode;
 
 pub(crate) trait Dispatcher: Debug {
     fn wide(&self) -> &Wide;

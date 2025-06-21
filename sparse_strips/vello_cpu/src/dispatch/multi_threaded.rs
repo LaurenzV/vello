@@ -210,25 +210,7 @@ impl MultiThreadedDispatcher {
         }
     }
 
-    fn rasterize<F: FineKernel>(
-        &self,
-        buffer: &mut [u8],
-        width: u16,
-        height: u16,
-        encoded_paints: &[EncodedPaint],
-    ) {
-        match self.level {
-            Level::Fallback(f) => {
-                self.rasterize_with::<F, Fallback>(f, buffer, width, height, encoded_paints)
-            }
-            #[cfg(target_arch = "aarch64")]
-            Level::Neon(n) => {
-                self.rasterize_with::<F, Neon>(n, buffer, width, height, encoded_paints)
-            }
-        }
-    }
-
-    fn rasterize_with<F: FineKernel, S: Simd>(
+    fn rasterize_with<S: Simd, F: FineKernel<S>>(
         &self,
         simd: S,
         buffer: &mut [u8],
@@ -247,7 +229,7 @@ impl MultiThreadedDispatcher {
                 let y = region.y;
 
                 let mut fine = fines
-                    .get_or(|| RefCell::new(Fine::<F, S>::new(simd)))
+                    .get_or(|| RefCell::new(Fine::<S, F>::new(simd)))
                     .borrow_mut();
 
                 let wtile = wide.get(x, y);
@@ -381,10 +363,26 @@ impl Dispatcher for MultiThreadedDispatcher {
 
         match render_mode {
             RenderMode::OptimizeSpeed => {
-                self.rasterize::<U8Kernel>(buffer, width, height, encoded_paints);
+                match self.level {
+                    Level::Fallback(f) => {
+                        self.rasterize_with::<Fallback, U8Kernel>(f, buffer, width, height, encoded_paints)
+                    }
+                    #[cfg(target_arch = "aarch64")]
+                    Level::Neon(n) => {
+                        self.rasterize_with::<Neon, U8Kernel>(n, buffer, width, height, encoded_paints)
+                    }
+                }
             }
             RenderMode::OptimizeQuality => {
-                self.rasterize::<F32Kernel>(buffer, width, height, encoded_paints);
+                match self.level {
+                    Level::Fallback(f) => {
+                        self.rasterize_with::<Fallback, F32Kernel>(f, buffer, width, height, encoded_paints)
+                    }
+                    #[cfg(target_arch = "aarch64")]
+                    Level::Neon(n) => {
+                        self.rasterize_with::<Neon, F32Kernel>(n, buffer, width, height, encoded_paints)
+                    }
+                }
             }
         }
     }

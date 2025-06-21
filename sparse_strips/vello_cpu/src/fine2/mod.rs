@@ -46,37 +46,62 @@ impl Numeric for u8 {
     const ONE: Self = 255;
 }
 
-pub trait FineKernel: Send + Sync + 'static {
+pub trait CompositeType<N: Numeric, S: Simd>: Copy + Clone + Send + Sync {
+    const LENGTH: usize;
+    
+    fn from_slice(&self, simd: S, slice: &[N]) -> Self;
+}
+
+impl<S: Simd> CompositeType<f32, S> for f32x16<S> {
+    const LENGTH: usize = 16;
+
+    #[inline(always)]
+    fn from_slice(&self, simd: S, slice: &[f32]) -> Self {
+        <f32x16<_> as SimdBase<_, _>>::from_slice(simd, slice)
+    }
+}
+
+impl<S: Simd> CompositeType<u8, S> for u8x32<S> {
+    const LENGTH: usize = 32;
+
+    #[inline(always)]
+    fn from_slice(&self, simd: S, slice: &[u8]) -> Self {
+        <u8x32<_> as SimdBase<_, _>>::from_slice(simd, slice)
+    }
+}
+
+pub trait FineKernel<S: Simd>: Send + Sync + 'static {
     type Numeric: Numeric;
+    type Composite: CompositeType<Self::Numeric, S>;
 
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
-    fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
-    fn fill_buf_arbitrary<S: Simd>(
+    fn fill_buf_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
+    fn fill_buf_arbitrary(
         simd: S,
         target: &mut [Self::Numeric],
         src: impl Iterator<Item = f32x16<S>>,
     );
-    fn blend_solid<S: Simd>(
+    fn composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
     );
-    fn blend_shader<S: Simd>(
+    fn composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
         blend_mode: BlendMode,
     );
-    fn alpha_blend_solid<S: Simd>(
+    fn alpha_composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
         blend_mode: BlendMode,
         alphas: &[u8],
     );
-    fn alpha_blend_shader<S: Simd>(
+    fn alpha_composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
@@ -86,14 +111,14 @@ pub trait FineKernel: Send + Sync + 'static {
 }
 
 #[derive(Debug)]
-pub struct Fine<T: FineKernel, S: Simd> {
+pub struct Fine<S: Simd, T: FineKernel<S>> {
     pub(crate) wide_coords: (u16, u16),
     pub(crate) blend_buf: Vec<ScratchBuf<T::Numeric>>,
     pub(crate) paint_buf: ScratchBuf<T::Numeric>,
     pub(crate) simd: S,
 }
 
-impl<T: FineKernel, S: Simd> Fine<T, S> {
+impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
     pub fn new(simd: S) -> Self {
         Self {
             simd,
@@ -188,7 +213,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     return;
                 }
 
-                T::blend_solid(self.simd, blend_buf, color, blend_mode);
+                T::composite_solid(self.simd, blend_buf, color, blend_mode);
             }
             Paint::Indexed(paint) => {
                 let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
@@ -199,7 +224,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
 
-                fn fill_complex_paint<T: FineKernel, S: Simd>(
+                fn fill_complex_paint<S: Simd, T: FineKernel<S>>(
                     simd: S,
                     color_buf: &mut [T::Numeric],
                     blend_buf: &mut [T::Numeric],
@@ -210,7 +235,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     if has_opacities {
                         T::fill_buf_arbitrary(simd, color_buf, filler);
 
-                        T::blend_shader(simd, blend_buf, color_buf, blend_mode);
+                        T::composite_shader(simd, blend_buf, color_buf, blend_mode);
                     } else {
                         // Similarly to solid colors we can just override the previous values
                         // if all colors in the gradient are fully opaque.
@@ -222,7 +247,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     EncodedPaint::BlurredRoundedRect(b) => {
                         let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
 
-                        fill_complex_paint::<T, S>(
+                        fill_complex_paint::<S, T>(
                             self.simd, color_buf, blend_buf, true, blend_mode, filler,
                         );
                     }
@@ -236,7 +261,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 start_y,
                             );
 
-                            fill_complex_paint::<T, S>(
+                            fill_complex_paint::<S, T>(
                                 self.simd,
                                 color_buf,
                                 blend_buf,
@@ -254,7 +279,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 start_y,
                             );
 
-                            fill_complex_paint::<T, S>(
+                            fill_complex_paint::<S, T>(
                                 self.simd,
                                 color_buf,
                                 blend_buf,
@@ -272,7 +297,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 start_y,
                             );
 
-                            fill_complex_paint::<T, S>(
+                            fill_complex_paint::<S, T>(
                                 self.simd,
                                 color_buf,
                                 blend_buf,
@@ -309,7 +334,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
 
         match fill {
             Paint::Solid(color) => {
-                T::alpha_blend_solid(
+                T::alpha_composite_solid(
                     self.simd,
                     blend_buf,
                     T::extract_color(*color),
@@ -318,7 +343,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 );
             }
             Paint::Indexed(paint) => {
-                fn fill_complex_paint<T: FineKernel, S: Simd>(
+                fn fill_complex_paint<S: Simd, T: FineKernel<S>>(
                     simd: S,
                     color_buf: &mut [T::Numeric],
                     blend_buf: &mut [T::Numeric],
@@ -328,7 +353,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                 ) {
                     T::fill_buf_arbitrary(simd, color_buf, filler);
 
-                    T::alpha_blend_shader(simd, blend_buf, color_buf, blend_mode, alphas);
+                    T::alpha_composite_shader(simd, blend_buf, color_buf, blend_mode, alphas);
                 }
 
                 let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
@@ -343,7 +368,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                     EncodedPaint::BlurredRoundedRect(b) => {
                         let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
 
-                        fill_complex_paint::<T, S>(
+                        fill_complex_paint::<S, T>(
                             self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
                         );
                     }
@@ -357,7 +382,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 start_y,
                             );
 
-                            fill_complex_paint::<T, S>(
+                            fill_complex_paint::<S, T>(
                                 self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
                             );
                         }
@@ -370,7 +395,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 start_y,
                             );
 
-                            fill_complex_paint::<T, S>(
+                            fill_complex_paint::<S, T>(
                                 self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
                             );
                         }
@@ -383,7 +408,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                 start_y,
                             );
 
-                            fill_complex_paint::<T, S>(
+                            fill_complex_paint::<S, T>(
                                 self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
                             );
                         }
@@ -398,7 +423,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
         let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
         let target_buffer = rest.last_mut().unwrap();
 
-        T::blend_shader(self.simd, target_buffer, source_buffer, blend_mode);
+        T::composite_shader(self.simd, target_buffer, source_buffer, blend_mode);
     }
 
     fn clip_fill(&mut self, x: usize, width: usize) {
@@ -410,7 +435,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
         let target_buffer =
             &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
-        T::blend_shader(
+        T::composite_shader(
             self.simd,
             target_buffer,
             source_buffer,
@@ -427,7 +452,7 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
         let target_buffer =
             &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
-        T::alpha_blend_shader(
+        T::alpha_composite_shader(
             self.simd,
             target_buffer,
             source_buffer,

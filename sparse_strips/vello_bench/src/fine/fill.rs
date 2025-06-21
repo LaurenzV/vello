@@ -16,7 +16,7 @@ pub fn fill(c: &mut Criterion) {
 }
 
 #[vello_bench]
-pub fn opaque_short<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+pub fn opaque_short<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 32;
     
@@ -24,7 +24,7 @@ pub fn opaque_short<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine
 }
 
 #[vello_bench]
-pub fn opaque_long<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+pub fn opaque_long<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 256;
 
@@ -32,7 +32,7 @@ pub fn opaque_long<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<
 }
 
 #[vello_bench]
-pub fn transparent_short<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+pub fn transparent_short<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE.with_alpha(0.3)));
     let width = 32;
 
@@ -40,20 +40,20 @@ pub fn transparent_short<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut
 }
 
 #[vello_bench]
-pub fn transparent_long<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+pub fn transparent_long<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE.with_alpha(0.3)));
     let width = 256;
 
     fill_single(&paint, &[], width, b, default_blend(), fine);
 }
 
-pub(crate) fn fill_single<N: FineKernel, S: Simd>(
+pub(crate) fn fill_single<S: Simd, N: FineKernel<S>>(
     paint: &Paint,
     encoded_paints: &[EncodedPaint],
     width: usize,
     b: &mut Bencher<'_>,
     blend_mode: BlendMode,
-    fine: &mut Fine<N, S>,
+    fine: &mut Fine<S, N>,
 ) {
     b.iter(|| {
         fine.fill(0, width, paint, blend_mode, encoded_paints);

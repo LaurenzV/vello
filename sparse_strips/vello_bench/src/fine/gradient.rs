@@ -29,7 +29,7 @@ pub fn gradient(c: &mut Criterion) {
 }
 
 #[vello_bench]
-fn many_stops<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+fn many_stops<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let kind = GradientKind::Linear {
         start: Point::new(128.0, 128.0),
         end: Point::new(134.0, 134.0),
@@ -39,7 +39,7 @@ fn many_stops<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>
 }
 
 #[vello_bench]
-fn transparent<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+fn transparent<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let kind = GradientKind::Linear {
         start: Point::new(128.0, 128.0),
         end: Point::new(134.0, 134.0),
@@ -64,7 +64,7 @@ mod extend {
     use vello_cpu::fine2::{Fine, FineKernel};
     use vello_dev_macros::vello_bench;
 
-    fn extend<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>, extend: peniko::Extend) {
+    fn extend<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>, extend: peniko::Extend) {
         let kind = GradientKind::Linear {
             start: Point::new(128.0, 128.0),
             end: Point::new(134.0, 134.0),
@@ -74,17 +74,17 @@ mod extend {
     }
 
     #[vello_bench]
-    pub(super) fn pad<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+    pub(super) fn pad<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
         extend(b, fine, peniko::Extend::Pad)
     }
 
     #[vello_bench]
-    pub(super) fn reflect<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+    pub(super) fn reflect<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
         extend(b, fine, peniko::Extend::Reflect)
     }
 
     #[vello_bench]
-    pub(super) fn repeat<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+    pub(super) fn repeat<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
         extend(b, fine, peniko::Extend::Repeat)
     }
 }
@@ -101,7 +101,7 @@ mod linear {
     use vello_dev_macros::vello_bench;
 
     #[vello_bench]
-    pub(super) fn opaque<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+    pub(super) fn opaque<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
         let kind = GradientKind::Linear {
             start: Point::new(128.0, 128.0),
             end: Point::new(134.0, 134.0),
@@ -131,7 +131,7 @@ mod radial {
     use vello_dev_macros::vello_bench;
 
     #[vello_bench]
-    pub(super) fn opaque<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+    pub(super) fn opaque<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
         let kind = GradientKind::Radial {
             start_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
             start_radius: 25.0,
@@ -163,7 +163,7 @@ mod sweep {
     use vello_dev_macros::vello_bench;
 
     #[vello_bench]
-    pub(super) fn opaque<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+    pub(super) fn opaque<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
         let kind = GradientKind::Sweep {
             center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
             start_angle: 70.0,
@@ -180,9 +180,9 @@ mod sweep {
     }
 }
 
-fn gradient_base<N: FineKernel, S: Simd>(
+fn gradient_base<S: Simd, N: FineKernel<S>>(
     b: &mut Bencher<'_>,
-    fine: &mut Fine<N, S>,
+    fine: &mut Fine<S, N>,
     extend: peniko::Extend,
     kind: GradientKind,
     stops: ColorStops,

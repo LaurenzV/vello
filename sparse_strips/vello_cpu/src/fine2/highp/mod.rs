@@ -13,8 +13,9 @@ pub(crate) mod rounded_blurred_rect;
 #[derive(Clone, Copy, Debug)]
 pub struct F32Kernel;
 
-impl FineKernel for F32Kernel {
+impl<S: Simd> FineKernel<S> for F32Kernel {
     type Numeric = f32;
+    type Composite = f32x16<S>;
 
     #[inline(always)]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
@@ -44,7 +45,7 @@ impl FineKernel for F32Kernel {
 
     // Not having this tanks performance for some reason.
     #[inline(never)]
-    fn fill_buf_solid<S: Simd>(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+    fn fill_buf_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         let color = f32x16::block_splat(color.simd_into(simd));
 
         for el in target.chunks_exact_mut(16) {
@@ -53,7 +54,7 @@ impl FineKernel for F32Kernel {
     }
 
     #[inline(always)]
-    fn fill_buf_arbitrary<S: Simd>(
+    fn fill_buf_arbitrary(
         _: S,
         target: &mut [Self::Numeric],
         mut src: impl Iterator<Item = f32x16<S>>,
@@ -64,7 +65,7 @@ impl FineKernel for F32Kernel {
     }
 
     #[inline(always)]
-    fn blend_solid<S: Simd>(
+    fn composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
@@ -73,7 +74,7 @@ impl FineKernel for F32Kernel {
         fill::alpha_composite_solid(simd, target, color);
     }
 
-    fn blend_shader<S: Simd>(
+    fn composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
@@ -89,7 +90,7 @@ impl FineKernel for F32Kernel {
     }
 
     #[inline(always)]
-    fn alpha_blend_solid<S: Simd>(
+    fn alpha_composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
@@ -99,7 +100,7 @@ impl FineKernel for F32Kernel {
         strip::alpha_composite_solid(simd, target, color, alphas);
     }
 
-    fn alpha_blend_shader<S: Simd>(
+    fn alpha_composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],

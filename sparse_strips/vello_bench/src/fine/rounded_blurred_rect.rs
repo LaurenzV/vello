@@ -16,18 +16,18 @@ pub fn rounded_blurred_rect(c: &mut Criterion) {
 }
 
 #[vello_bench]
-fn with_transform<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+fn with_transform<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let center = Point::new(WideTile::WIDTH as f64 / 2.0, Tile::HEIGHT as f64 / 2.0);
 
     base(b, fine, Affine::rotate_about(1.0, center));
 }
 
 #[vello_bench]
-fn no_transform<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+fn no_transform<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     base(b, fine, Affine::IDENTITY)
 }
 
-fn base<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>, transform: Affine) {
+fn base<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>, transform: Affine) {
     let mut paints = vec![];
 
     let rect = BlurredRoundedRectangle {

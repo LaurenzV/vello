@@ -18,7 +18,7 @@ pub fn strip(c: &mut Criterion) {
 }
 
 #[vello_bench]
-pub fn solid_short<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+pub fn solid_short<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 8;
 
@@ -26,19 +26,19 @@ pub fn solid_short<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<
 }
 
 #[vello_bench]
-pub fn solid_long<N: FineKernel, S: Simd>(b: &mut Bencher<'_>, fine: &mut Fine<N, S>) {
+pub fn solid_long<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 64;
 
     strip_single(&paint, &[], width, b, fine);
 }
 
-fn strip_single<N: FineKernel, S: Simd>(
+fn strip_single<S: Simd, N: FineKernel<S>>(
     paint: &Paint,
     encoded_paints: &[EncodedPaint],
     width: usize,
     b: &mut Bencher<'_>,
-    fine: &mut Fine<N, S>,
+    fine: &mut Fine<S, N>,
 ) {
     let mut rng = StdRng::from_seed(SEED);
     let mut alphas = vec![];
