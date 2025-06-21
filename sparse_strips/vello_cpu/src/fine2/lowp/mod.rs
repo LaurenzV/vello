@@ -21,6 +21,7 @@ impl FineKernel for U8Kernel {
         color.as_premul_rgba8().to_u8_array()
     }
 
+    // TODO: SIMDify on NEON. ALso make scalar version faster (it was faster in previous main version).
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         for y in 0..Tile::HEIGHT {
             for (x, pixel) in region
