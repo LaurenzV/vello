@@ -493,9 +493,9 @@ pub struct LinearKind;
 /// Focal data for a radial gradient.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FocalData {
-    fr1: f32,
-    f_focal_x: f32,
-    f_is_swapped: bool,
+    pub fr1: f32,
+    pub f_focal_x: f32,
+    pub f_is_swapped: bool,
 }
 
 impl FocalData {

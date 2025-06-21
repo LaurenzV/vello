@@ -24,6 +24,7 @@ use vello_common::fearless_simd::{f32x16, f32x4, f32x8, u8x16, u8x32, Simd, Simd
 use crate::fine2::highp::gradient::GradientFiller;
 use crate::fine2::highp::gradient::linear::SimdLinearKind;
 use crate::fine2::highp::gradient::sweep::SimdSweepKind;
+use crate::fine2::highp::gradient::radial::SimdRadialKind;
 use crate::fine2::highp::rounded_blurred_rect::BlurredRoundedRectFiller;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
@@ -274,6 +275,24 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                     filler
                                 );
                             }
+                            EncodedKind::Radial(r) => {
+                                let filler: GradientFiller<S, SimdRadialKind<S>> = GradientFiller::new(
+                                    self.simd,
+                                    g,
+                                    SimdRadialKind::new(self.simd, r),
+                                    start_x,
+                                    start_y
+                                );
+
+                                fill_complex_paint::<T, S>(
+                                    self.simd,
+                                    color_buf,
+                                    blend_buf,
+                                    g.has_opacities,
+                                    blend_mode,
+                                    filler
+                                );
+                            }
                             _ => unimplemented!()
                         }
                     }
@@ -372,6 +391,24 @@ impl<T: FineKernel, S: Simd> Fine<T, S> {
                                     self.simd,
                                     g,
                                     SimdSweepKind::new(self.simd, s),
+                                    start_x,
+                                    start_y
+                                );
+
+                                fill_complex_paint::<T, S>(
+                                    self.simd,
+                                    color_buf,
+                                    blend_buf,
+                                    blend_mode,
+                                    filler,
+                                    alphas
+                                );
+                            }
+                            EncodedKind::Radial(r) => {
+                                let filler: GradientFiller<S, SimdRadialKind<S>> = GradientFiller::new(
+                                    self.simd,
+                                    g,
+                                    SimdRadialKind::new(self.simd, r),
                                     start_x,
                                     start_y
                                 );

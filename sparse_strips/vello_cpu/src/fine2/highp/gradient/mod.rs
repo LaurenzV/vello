@@ -6,6 +6,7 @@ use crate::kurbo::Point;
 
 pub(crate) mod linear;
 pub(crate) mod sweep;
+pub(crate) mod radial;
 
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a, S: Simd, U: SimdGradientKind<S>> {

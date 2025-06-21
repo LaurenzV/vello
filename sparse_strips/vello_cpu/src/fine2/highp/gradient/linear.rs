@@ -16,15 +16,8 @@ impl<S: Simd> SimdLinearKind<S> {
     }
 }
 
-impl<S: Simd> From<LinearKind> for SimdLinearKind<S> {
-    fn from(_: LinearKind) -> Self {
-        Self {
-            phantom_data: PhantomData::default(),
-        }
-    }
-}
-
 impl<S: Simd> SimdGradientKind<S> for SimdLinearKind<S> {
+    #[inline(always)]
     fn cur_pos(&self, x_pos: f32x4<S>, _: f32x4<S>) -> f32x4<S> {
         x_pos
     }
