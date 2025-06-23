@@ -222,10 +222,10 @@ mod strip {
             base_mask = base_mask * f32x4::splat(s, 1.0 / 255.0);
 
             let res = f32x16::block_splat(base_mask);
-            let zip1 = res.zip1(res);
-            let zip2 = zip1.zip1(zip1);
+            let zip_low = res.zip_low(res);
+            let zip_high = zip_low.zip_low(zip_low);
 
-            zip2
+            zip_high
         };
 
         let inv_src_a_mask_a = one.msub(src_a, mask_a);

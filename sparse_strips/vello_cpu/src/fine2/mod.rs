@@ -501,8 +501,8 @@ pub trait Splat4thExt<S> {
 impl<S: Simd> Splat4thExt<S> for f32x4<S> {
     #[inline(always)]
     fn splat_4th(self) -> Self {
-        let zip1 = self.zip2(self);
-        zip1.zip2(zip1)
+        let zip_low = self.zip_high(self);
+        zip_low.zip_high(zip_low)
     }
 }
 

@@ -329,11 +329,11 @@ fn extract_masks<S: Simd>(simd: S, masks: &[u8]) -> u8x32<S> {
     let m2 = u32x4::splat(simd, u32::from_ne_bytes(masks[4..8].try_into().unwrap()))
         .reinterpret_u8();
 
-    let zipped1 = m1.zip1(m1);
-    let zipped1 = zipped1.zip1(zipped1);
+    let zipped1 = m1.zip_low(m1);
+    let zipped1 = zipped1.zip_low(zipped1);
 
-    let zipped2 = m2.zip1(m2);
-    let zipped2 = zipped2.zip1(zipped2);
+    let zipped2 = m2.zip_low(m2);
+    let zipped2 = zipped2.zip_low(zipped2);
 
     simd.combine_u8x16(zipped1, zipped2)
 }
