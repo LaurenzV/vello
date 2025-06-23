@@ -30,6 +30,7 @@ pub use lowp::U8Kernel;
 use vello_common::fearless_simd::{
     Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16, u8x32, u32x4, u32x8,
 };
+use crate::fine2::shaders::image_nn::SimpleImageFiller;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
@@ -432,7 +433,25 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             );
                         }
                     },
-                    _ => unimplemented!(),
+                    EncodedPaint::Image(i) => {
+                        let filler: SimpleImageFiller<'_, S> =
+                            SimpleImageFiller::new(
+                                self.simd,
+                                i,
+                                start_x,
+                                start_y,
+                            );
+
+                        fill_complex_paint::<S, T>(
+                            self.simd,
+                            color_buf,
+                            blend_buf,
+                            i.has_opacities,
+                            default_blend,
+                            blend_mode,
+                            filler.inline_map(|i| T::Shader::from_u8(self.simd, i)),
+                        );
+                    }
                 }
             }
         }
@@ -585,7 +604,25 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             );
                         }
                     },
-                    _ => unimplemented!(),
+                    EncodedPaint::Image(i) => {
+                        let filler: SimpleImageFiller<'_, S> =
+                            SimpleImageFiller::new(
+                                self.simd,
+                                i,
+                                start_x,
+                                start_y,
+                            );
+
+                        fill_complex_paint::<S, T>(
+                            self.simd,
+                            color_buf,
+                            blend_buf,
+                            default_blend,
+                            blend_mode,
+                            filler.inline_map(|i| T::Shader::from_u8(self.simd, i)),
+                            alphas
+                        );
+                    }
                 }
             }
         }
