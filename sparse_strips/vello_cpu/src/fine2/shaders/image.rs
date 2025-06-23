@@ -1,4 +1,4 @@
-use crate::fine2::{u8_to_f32, PosExt};
+use crate::fine2::{u8_to_f32, PosExt, Splat4thExt};
 use crate::kurbo::Point;
 use vello_common::encode::EncodedImage;
 use vello_common::fearless_simd::{Bytes, Simd, SimdBase, f32x4, u8x16, u32x4, f32x16, SimdFloat};
@@ -213,14 +213,14 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                     extend_simd(
                         self.simd,
                         y_positions + OFFSETS[0],
-                        self.data.image.extends.0,
+                        self.data.image.extends.1,
                         self.data.height,
                         self.data.height_inv,
                     ),
                     extend_simd(
                         self.simd,
                         y_positions + OFFSETS[1],
-                        self.data.image.extends.0,
+                        self.data.image.extends.1,
                         self.data.height,
                         self.data.height_inv,
                     ),
@@ -239,10 +239,53 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                     }
                 }
             }
-            ImageQuality::High => unimplemented!()
+            ImageQuality::High => {
+                // Compare to <https://github.com/google/skia/blob/84ff153b0093fc83f6c77cd10b025c06a12c5604/src/opts/SkRasterPipeline_opts.h#L5030-L5075>.
+                let cx = weights(x_fract);
+                let cy = weights(y_fract);
+
+                // Note in particular that it is guaranteed that, similarly to bilinear filtering,
+                // the sum of all cx*cy is 1.
+
+                // We sample the 4x4 grid around the position we are currently looking at.
+                for (x_idx, x) in [-1.5, -0.5, 0.5, 1.5].into_iter().enumerate() {
+                    for (y_idx, y) in [-1.5, -0.5, 0.5, 1.5].into_iter().enumerate() {
+                        let x_positions = extend_simd(
+                            self.simd,
+                            x_positions + x,
+                            self.data.image.extends.0,
+                            self.data.width,
+                            self.data.width_inv,
+                        );
+                        
+                        let y_positions = extend_simd(
+                            self.simd,
+                            y_positions + y,
+                            self.data.image.extends.1,
+                            self.data.height,
+                            self.data.height_inv,
+                        );
+
+                        let color_sample = sample(x_positions, y_positions);
+                        let w = element_wise_splat(self.simd, cx[x_idx] * cy[y_idx]);
+
+                        interpolated_color = interpolated_color.madd(w, color_sample);
+                        let alphas = interpolated_color.splat_4th();
+                        
+                        // Due to the nature of the cubic filter, it can happen in certain situations
+                        // that one of the color components ends up with a higher value than the
+                        // alpha component, which isn't permissible because the color is
+                        // premultiplied and would lead to overflows when doing source over
+                        // compositing with u8-based values. Because of this, we need to clamp
+                        // to the alpha value.
+                        interpolated_color = interpolated_color
+                            .min(f32x16::splat(self.simd, 1.0))
+                            .max(f32x16::splat(self.simd, 0.0))
+                            .min(alphas);
+                    }
+                }
+            }
         }
-        
-        // TODO: CLamp
 
         self.data.cur_pos += self.data.image.x_advance;
 
