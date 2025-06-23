@@ -1,8 +1,8 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32};
 use crate::peniko::{BlendMode, Compose, Mix};
+use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32};
 
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.

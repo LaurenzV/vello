@@ -1,15 +1,15 @@
 mod compose;
 
-use core::iter;
 use crate::fine::COLOR_COMPONENTS;
 use crate::fine2::FineKernel;
+use crate::fine2::lowp::compose::ComposeExt;
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
+use crate::util::BlendModeExt;
+use core::iter;
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
-use crate::fine2::lowp::compose::ComposeExt;
-use crate::util::BlendModeExt;
 
 #[derive(Clone, Copy, Debug)]
 pub struct U8Kernel;
@@ -80,37 +80,25 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn alpha_composite_solid(
-        simd: S,
-        target: &mut [Self::Numeric],
-        color: [Self::Numeric; 4],
-    ) {
+    fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         fill::alpha_composite_solid(simd, target, color);
     }
 
-    fn alpha_composite_shader(
-        simd: S,
-        target: &mut [Self::Numeric],
-        shader_src: &[Self::Numeric],
-    ) {
+    fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric]) {
         let src_iter = shader_src
             .chunks_exact(32)
             .map(|el| u8x32::from_slice(simd, el));
 
-        fill::alpha_composite_arbitrary(
-            simd,
-            target,
-            src_iter,
-        );
+        fill::alpha_composite_arbitrary(simd, target, src_iter);
     }
 
-    fn blend(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item=Self::Composite>, blend_mode: BlendMode) {
-        fill::blend(
-            simd,
-            target,
-            src,
-            blend_mode
-        );
+    fn blend(
+        simd: S,
+        target: &mut [Self::Numeric],
+        src: impl Iterator<Item = Self::Composite>,
+        blend_mode: BlendMode,
+    ) {
+        fill::blend(simd, target, src, blend_mode);
     }
 
     #[inline(always)]
@@ -139,29 +127,29 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         );
     }
 
-    fn blend_with_alphas(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item=Self::Composite>, blend_mode: BlendMode, alphas: &[u8]) {
-        strip::blend(
-            simd,
-            target,
-            src,
-            blend_mode,
-            alphas,
-        )
+    fn blend_with_alphas(
+        simd: S,
+        target: &mut [Self::Numeric],
+        src: impl Iterator<Item = Self::Composite>,
+        blend_mode: BlendMode,
+        alphas: &[u8],
+    ) {
+        strip::blend(simd, target, src, blend_mode, alphas)
     }
 }
 
 mod fill {
     use crate::fine2::Splat4thExt;
-    use crate::util::normalized_mul;
-    use vello_common::fearless_simd::*;
     use crate::fine2::lowp::compose::ComposeExt;
     use crate::peniko::BlendMode;
+    use crate::util::normalized_mul;
+    use vello_common::fearless_simd::*;
 
     pub(super) fn blend<S: Simd, T: Iterator<Item = u8x32<S>>>(
         simd: S,
         target: &mut [u8],
         src_c: T,
-        blend_mode: BlendMode
+        blend_mode: BlendMode,
     ) {
         let mask = u8x32::splat(simd, 255);
         for (part, src_c) in target.chunks_exact_mut(32).zip(src_c) {
@@ -214,18 +202,18 @@ mod fill {
 
 mod strip {
     use crate::fine2::Splat4thExt;
-    use crate::util::{Div255Ext, normalized_mul};
-    use vello_common::fearless_simd::*;
     use crate::fine2::lowp::compose::ComposeExt;
     use crate::fine2::lowp::extract_masks;
     use crate::peniko::BlendMode;
+    use crate::util::{Div255Ext, normalized_mul};
+    use vello_common::fearless_simd::*;
 
     pub(super) fn blend<S: Simd, T: Iterator<Item = u8x32<S>>>(
         simd: S,
         target: &mut [u8],
         src_c: T,
         blend_mode: BlendMode,
-        alphas: &[u8]
+        alphas: &[u8],
     ) {
         for ((bg_part, masks), src_c) in target
             .chunks_exact_mut(32)
@@ -238,7 +226,7 @@ mod strip {
             bg_part.copy_from_slice(&res.val);
         }
     }
-    
+
     #[inline(always)]
     pub(super) fn alpha_composite_solid<S: Simd>(
         s: S,
@@ -297,10 +285,10 @@ mod strip {
 
 #[inline(always)]
 fn extract_masks<S: Simd>(simd: S, masks: &[u8]) -> u8x32<S> {
-    let m1 = u32x4::splat(simd, u32::from_ne_bytes(masks[0..4].try_into().unwrap()))
-        .reinterpret_u8();
-    let m2 = u32x4::splat(simd, u32::from_ne_bytes(masks[4..8].try_into().unwrap()))
-        .reinterpret_u8();
+    let m1 =
+        u32x4::splat(simd, u32::from_ne_bytes(masks[0..4].try_into().unwrap())).reinterpret_u8();
+    let m2 =
+        u32x4::splat(simd, u32::from_ne_bytes(masks[4..8].try_into().unwrap())).reinterpret_u8();
 
     let zipped1 = m1.zip_low(m1);
     let zipped1 = zipped1.zip_low(zipped1);

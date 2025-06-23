@@ -167,7 +167,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
             || input_fn_name_str.contains("mask")
             || input_fn_name_str.contains("mix")
     };
-    
+
     let empty_snippet = quote! {};
     let ignore_snippet = if let Some(reason) = ignore_reason {
         quote! {#[ignore = #reason]}

@@ -63,10 +63,9 @@ macro_rules! compose {
                 if $sat {
                     simd.narrow_u16x32(
                         (simd.widen_u8x32(src_c.normalized_mul(fa))
-                            + simd
-                                .widen_u8x32(fb.normalized_mul(bg_c)))
-                                .min(u16x32::splat(simd, 255))
-                                .max(u16x32::splat(simd, 0)),
+                            + simd.widen_u8x32(fb.normalized_mul(bg_c)))
+                        .min(u16x32::splat(simd, 255))
+                        .max(u16x32::splat(simd, 0)),
                     )
                 } else {
                     src_c.normalized_mul(fa) + fb.normalized_mul(bg_c)
@@ -148,4 +147,9 @@ compose!(
     |_, al_s: u8x32<S>, _| al_s,
     false
 );
-compose!(Plus, |simd, _, _| u8x32::splat( simd, 255), |simd, _, _| u8x32::splat( simd, 255), true);
+compose!(
+    Plus,
+    |simd, _, _| u8x32::splat(simd, 255),
+    |simd, _, _| u8x32::splat(simd, 255),
+    true
+);

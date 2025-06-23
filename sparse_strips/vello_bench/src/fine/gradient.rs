@@ -23,7 +23,7 @@ pub fn gradient(c: &mut Criterion) {
     extend::pad(c);
     extend::repeat(c);
     extend::reflect(c);
-    
+
     many_stops(c);
     transparent(c);
 }
@@ -64,7 +64,11 @@ mod extend {
     use vello_cpu::fine2::{Fine, FineKernel};
     use vello_dev_macros::vello_bench;
 
-    fn extend<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>, extend: peniko::Extend) {
+    fn extend<S: Simd, N: FineKernel<S>>(
+        b: &mut Bencher<'_>,
+        fine: &mut Fine<S, N>,
+        extend: peniko::Extend,
+    ) {
         let kind = GradientKind::Linear {
             start: Point::new(128.0, 128.0),
             end: Point::new(134.0, 134.0),

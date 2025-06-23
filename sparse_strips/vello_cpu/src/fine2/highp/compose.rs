@@ -61,8 +61,8 @@ macro_rules! compose {
 
                 if $sat {
                     (src_c * fa + fb * bg_c)
-                    .min(f32x16::splat(simd, 1.0))
-                    .max(f32x16::splat(simd, 0.0))
+                        .min(f32x16::splat(simd, 1.0))
+                        .max(f32x16::splat(simd, 0.0))
                 } else {
                     src_c * fa + fb * bg_c
                 }
@@ -143,4 +143,9 @@ compose!(
     |_, al_s: f32x16<S>, _| al_s,
     false
 );
-compose!(Plus, |simd, _, _| f32x16::splat( simd, 1.0), |simd, _, _| f32x16::splat( simd, 1.0), true);
+compose!(
+    Plus,
+    |simd, _, _| f32x16::splat(simd, 1.0),
+    |simd, _, _| f32x16::splat(simd, 1.0),
+    true
+);

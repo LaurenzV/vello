@@ -19,7 +19,7 @@ pub fn fill(c: &mut Criterion) {
 pub fn opaque_short<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = 32;
-    
+
     fill_single(&paint, &[], width, b, default_blend(), fine);
 }
 
