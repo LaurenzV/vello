@@ -99,14 +99,26 @@ pub struct Region<'a> {
 }
 
 impl<'a> Region<'a> {
-    pub(crate) fn new(areas: [&'a mut [u8]; Tile::HEIGHT as usize], x: u16, y: u16, width: u16, height: u16) -> Self {
-        Self { areas, x, y, width, height }
+    pub(crate) fn new(
+        areas: [&'a mut [u8]; Tile::HEIGHT as usize],
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+    ) -> Self {
+        Self {
+            areas,
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     pub(crate) fn row_mut(&mut self, y: u16) -> &mut [u8] {
         self.areas[usize::from(y)]
     }
-    
+
     pub fn areas(&mut self) -> &mut [&'a mut [u8]; Tile::HEIGHT as usize] {
         &mut self.areas
     }

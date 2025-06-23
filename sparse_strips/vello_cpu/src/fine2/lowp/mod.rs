@@ -1,8 +1,8 @@
 mod compose;
 
-use crate::fine2::{COLOR_COMPONENTS, SCRATCH_BUF_SIZE};
 use crate::fine2::FineKernel;
 use crate::fine2::lowp::compose::ComposeExt;
+use crate::fine2::{COLOR_COMPONENTS, SCRATCH_BUF_SIZE};
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 use crate::util::BlendModeExt;
@@ -29,7 +29,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         if region.width != WideTile::WIDTH || region.height != Tile::HEIGHT {
             pack(region, blend_buf);
-        }   else {
+        } else {
             pack_block(region, blend_buf);
         }
     }
@@ -45,11 +45,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn copy_f32_iter(
-        _: S,
-        target: &mut [Self::Numeric],
-        mut src: impl Iterator<Item = u8x16<S>>,
-    ) {
+    fn copy_f32_iter(_: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item = u8x16<S>>) {
         for el in target.chunks_exact_mut(16) {
             el.copy_from_slice(&src.next().unwrap()[..])
         }
@@ -290,14 +286,11 @@ fn pack(region: &mut Region<'_>, blend_buf: &[u8]) {
 }
 
 #[inline(always)]
-fn pack_block(
-    region: &mut Region<'_>,
-    mut in_buf: &[u8],
-) {
+fn pack_block(region: &mut Region<'_>, mut in_buf: &[u8]) {
     use core::arch::aarch64::*;
-    
+
     in_buf = &in_buf[..SCRATCH_BUF_SIZE];
-    
+
     const CHUNK_LENGTH: usize = 64;
     const SLICE_WIDTH: usize = WideTile::WIDTH as usize * COLOR_COMPONENTS;
 
@@ -317,11 +310,23 @@ fn pack_block(
         // TODO: Extract into fearless_simd
         unsafe {
             let loaded = vld4q_u32(casted.as_ptr());
-            
-            vst1q_u8(dest_slices[0][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.0));
-            vst1q_u8(dest_slices[1][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.1));
-            vst1q_u8(dest_slices[2][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.2));
-            vst1q_u8(dest_slices[3][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.3));
+
+            vst1q_u8(
+                dest_slices[0][dest_idx..][..16].as_mut_ptr(),
+                vreinterpretq_u8_u32(loaded.0),
+            );
+            vst1q_u8(
+                dest_slices[1][dest_idx..][..16].as_mut_ptr(),
+                vreinterpretq_u8_u32(loaded.1),
+            );
+            vst1q_u8(
+                dest_slices[2][dest_idx..][..16].as_mut_ptr(),
+                vreinterpretq_u8_u32(loaded.2),
+            );
+            vst1q_u8(
+                dest_slices[3][dest_idx..][..16].as_mut_ptr(),
+                vreinterpretq_u8_u32(loaded.3),
+            );
         }
     }
 }

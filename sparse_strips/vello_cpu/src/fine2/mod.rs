@@ -23,6 +23,7 @@ use crate::fine2::shaders::gradient::GradientFiller;
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
+use crate::fine2::shaders::image_nn::SimpleImageFiller;
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::{BlendModeExt, InlineMapExt};
 pub use highp::F32Kernel;
@@ -30,7 +31,6 @@ pub use lowp::U8Kernel;
 use vello_common::fearless_simd::{
     Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16, u8x32, u32x4, u32x8,
 };
-use crate::fine2::shaders::image_nn::SimpleImageFiller;
 
 pub type ScratchBuf<F> = [F; SCRATCH_BUF_SIZE];
 
@@ -103,7 +103,8 @@ pub(crate) fn f32_to_u8<S: Simd>(val: f32x16<S>) -> u8x16<S> {
         val.val[13] as u8,
         val.val[14] as u8,
         val.val[15] as u8,
-    ].simd_into(val.simd)
+    ]
+    .simd_into(val.simd)
 }
 
 #[inline(always)]
@@ -126,7 +127,8 @@ pub(crate) fn u8_to_f32<S: Simd>(val: u8x16<S>) -> f32x16<S> {
         val.val[13] as f32,
         val.val[14] as f32,
         val.val[15] as f32,
-    ].simd_into(val.simd)
+    ]
+    .simd_into(val.simd)
 }
 
 pub trait CompositeType<N: Numeric, S: Simd>: Copy + Clone + Send + Sync {
@@ -172,7 +174,11 @@ pub trait FineKernel<S: Simd>: Send + Sync + 'static {
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
     fn copy_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
-    fn copy_f32_iter(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item = Self::Shader>);
+    fn copy_f32_iter(
+        simd: S,
+        target: &mut [Self::Numeric],
+        src: impl Iterator<Item = Self::Shader>,
+    );
     fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
     fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric]);
     fn blend(
@@ -262,8 +268,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                 );
             }
             Cmd::PushBuf => {
-                self.blend_buf
-                    .push([T::Numeric::ZERO; SCRATCH_BUF_SIZE]);
+                self.blend_buf.push([T::Numeric::ZERO; SCRATCH_BUF_SIZE]);
             }
             Cmd::PopBuf => {
                 self.blend_buf.pop();
@@ -325,7 +330,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
-                
+
                 fn fill_complex_paint<S: Simd, T: FineKernel<S>>(
                     simd: S,
                     color_buf: &mut [T::Numeric],
@@ -435,12 +440,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     },
                     EncodedPaint::Image(i) => {
                         let filler: SimpleImageFiller<'_, S> =
-                            SimpleImageFiller::new(
-                                self.simd,
-                                i,
-                                start_x,
-                                start_y,
-                            );
+                            SimpleImageFiller::new(self.simd, i, start_x, start_y);
 
                         fill_complex_paint::<S, T>(
                             self.simd,
@@ -606,12 +606,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     },
                     EncodedPaint::Image(i) => {
                         let filler: SimpleImageFiller<'_, S> =
-                            SimpleImageFiller::new(
-                                self.simd,
-                                i,
-                                start_x,
-                                start_y,
-                            );
+                            SimpleImageFiller::new(self.simd, i, start_x, start_y);
 
                         fill_complex_paint::<S, T>(
                             self.simd,
@@ -620,7 +615,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             default_blend,
                             blend_mode,
                             filler.inline_map(|i| T::Shader::from_u8(self.simd, i)),
-                            alphas
+                            alphas,
                         );
                     }
                 }
