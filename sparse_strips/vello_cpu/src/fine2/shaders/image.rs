@@ -316,9 +316,15 @@ pub(crate) fn extend_simd<S: Simd>(
     max: f32x4<S>,
     inv_max: f32x4<S>,
 ) -> f32x4<S> {
+    // We cannot chose f32::EPSILON here because for example 30.0 - f32::EPSILON is still 30.0.
+    // This bias should be large enough for all numbers that we support (i.e. <= u16::MAX).
     let bias = f32x4::splat(simd, 0.01);
 
     match extend {
+        // Note that max should be exclusive, so subtract a small bias to enforce that.
+        // Otherwise, we might sample out-of-bounds pixels.
+        // Also note that we intentionally don't use `clamp` here, because it's slower than
+        // doing `min` + `max`.
         crate::peniko::Extend::Pad => val.min(max - bias).max(f32x4::splat(simd, 0.0)),
         crate::peniko::Extend::Repeat => val.msub((val * inv_max).floor(), max),
         // <https://github.com/google/skia/blob/220738774f7a0ce4a6c7bd17519a336e5e5dea5b/src/opts/SkRasterPipeline_opts.h#L3274-L3290>
@@ -331,6 +337,9 @@ pub(crate) fn extend_simd<S: Simd>(
             let bias_in_ulps = s.trunc();
 
             let m_bits = u32x4::from_bytes(m.to_bytes());
+            // This would yield NaN if `m` is 0 and `bias_in_ulps` > 0, but since
+            // our `max` is always an integer number, u and s must also be an integer number
+            // and thus `m_bits` must be 0.
             let biased_bits = m_bits.wrapping_sub(bias_in_ulps.cvt_u32());
             f32x4::from_bytes(biased_bits.to_bytes())
         }
