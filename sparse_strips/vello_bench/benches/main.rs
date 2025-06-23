@@ -11,7 +11,7 @@ criterion_group!(fine_strip, fine::strip);
 // criterion_group!(fine_pack, fine::pack);
 criterion_group!(fine_gradient, fine::gradient);
 criterion_group!(fine_rounded_blurred_rect, fine::rounded_blurred_rect);
-// criterion_group!(fine_blend, fine::blend);
+criterion_group!(fine_blend, fine::blend);
 // criterion_group!(fine_image, fine::image);
 criterion_group!(tile, tile::tile);
 criterion_group!(render_strips, strip::render_strips);
@@ -23,6 +23,6 @@ criterion_main!(
     // fine_pack,
     fine_gradient,
     // fine_rounded_blurred_rect,
-    // fine_blend,
+    fine_blend,
     // fine_image
 );

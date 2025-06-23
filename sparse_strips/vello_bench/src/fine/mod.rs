@@ -1,4 +1,4 @@
-// mod blend;
+mod blend;
 // mod clear;
 pub(crate) mod fill;
 // mod image;
@@ -6,7 +6,7 @@ mod gradient;
 mod rounded_blurred_rect;
 mod strip;
 
-// pub use blend::*;
+pub use blend::*;
 // pub use clear::*;
 pub use fill::*;
 pub use gradient::*;
