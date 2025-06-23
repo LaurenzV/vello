@@ -8,7 +8,7 @@ use vello_common::kurbo::{Point, Vec2};
 use vello_common::peniko::{Extend, ImageQuality};
 
 #[derive(Debug)]
-pub(crate) struct SimpleImageFiller<'a, S: Simd> {
+pub(crate) struct ImageFillerData<'a, S: Simd> {
     cur_pos: Point,
     image: &'a EncodedImage,
     x_advances: (f32, f32),
@@ -17,12 +17,15 @@ pub(crate) struct SimpleImageFiller<'a, S: Simd> {
     height_inv: f32x4<S>,
     width: f32x4<S>,
     width_inv: f32x4<S>,
-    y_positions: f32x4<S>,
-    simd: S,
 }
 
-impl<'a, S: Simd> SimpleImageFiller<'a, S> {
-    pub(crate) fn new(simd: S, image: &'a EncodedImage, start_x: u16, start_y: u16) -> Self {
+impl<'a, S: Simd> ImageFillerData<'a, S> {
+    pub(crate) fn new(
+        simd: S,
+        image: &'a EncodedImage,
+        start_x: u16,
+        start_y: u16,
+    ) -> Self {
         let width = image.pixmap.width() as f32;
         let height = image.pixmap.height() as f32;
         let start_pos = image.transform * Point::new(f64::from(start_x), f64::from(start_y));
@@ -35,24 +38,41 @@ impl<'a, S: Simd> SimpleImageFiller<'a, S> {
         let x_advances = (image.x_advance.x as f32, image.x_advance.y as f32);
         let y_advances = (image.y_advance.x as f32, image.y_advance.y as f32);
 
-        let y_positions = extend_simd(
-            simd,
-            f32x4::splat_col_pos(simd, start_pos.y as f32, x_advances.1, y_advances.1),
-            image.extends.1,
-            height,
-            height_inv,
-        );
-
         Self {
             cur_pos: start_pos,
             x_advances,
             y_advances,
             image,
-            y_positions,
             width,
             height,
             width_inv,
             height_inv,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct SimpleImageFiller<'a, S: Simd> {
+    data: ImageFillerData<'a, S>,
+    y_positions: f32x4<S>,
+    simd: S,
+}
+
+impl<'a, S: Simd> SimpleImageFiller<'a, S> {
+    pub(crate) fn new(simd: S, image: &'a EncodedImage, start_x: u16, start_y: u16) -> Self {
+        let data = ImageFillerData::new(simd, image, start_x, start_y);
+
+        let y_positions = extend_simd(
+            simd,
+            f32x4::splat_col_pos(simd, data.cur_pos.y as f32, data.x_advances.1, data.y_advances.1),
+            image.extends.1,
+            data.height,
+            data.height_inv,
+        );
+
+        Self {
+            data,
+            y_positions,
             simd,
         }
     }
@@ -65,15 +85,16 @@ impl<S: Simd> Iterator for SimpleImageFiller<'_, S> {
     fn next(&mut self) -> Option<Self::Item> {
         let x_pos = extend_simd(
             self.simd,
-            f32x4::splat_col_pos(self.simd, self.cur_pos.x as f32, self.x_advances.0, self.y_advances.0),
-            self.image.extends.0,
-            self.width,
-            self.width_inv,
+            f32x4::splat_col_pos(self.simd, self.data.cur_pos.x as f32, self.data.x_advances.0, self.data.y_advances.0),
+            self.data.image.extends.0,
+            self.data.width,
+            self.data.width_inv,
         );
         
         macro_rules! sample {
             ($idx:expr) => {
                 self
+                .data
             .image
             .pixmap
             .sample(x_pos.val[$idx] as u16, self.y_positions.val[$idx] as u16)
@@ -88,7 +109,7 @@ impl<S: Simd> Iterator for SimpleImageFiller<'_, S> {
             sample!(3),
         ]).reinterpret_u8();
 
-        self.cur_pos += self.image.x_advance;
+        self.data.cur_pos += self.data.image.x_advance;
         
         Some(samples)
     }
