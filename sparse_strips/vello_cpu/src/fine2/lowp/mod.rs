@@ -319,21 +319,29 @@ fn pack_fast(
     
     in_buf = &in_buf[..SCRATCH_BUF_SIZE];
     
-    const LENGTH: usize = 64;
+    const CHUNK_LENGTH: usize = 64;
+    const SLICE_WIDTH: usize = WideTile::WIDTH as usize * COLOR_COMPONENTS;
 
-    let dest_slices = region.areas();
+    let region_areas = region.areas();
+    let [s1, s2, s3, s4] = region_areas;
+    let dest_slices: &mut [&mut [u8; SLICE_WIDTH]; 4] = &mut [
+        (*s1).try_into().unwrap(),
+        (*s2).try_into().unwrap(),
+        (*s3).try_into().unwrap(),
+        (*s4).try_into().unwrap(),
+    ];
 
-    for (idx, col) in in_buf.chunks_exact(LENGTH).enumerate() {
-        let dest_idx = idx * LENGTH / 4;
+    for (idx, col) in in_buf.chunks_exact(CHUNK_LENGTH).enumerate() {
+        let dest_idx = idx * CHUNK_LENGTH / 4;
 
         let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
         unsafe {
             let loaded = vld4q_u32(casted.as_ptr());
             
-            vst1q_u8(dest_slices[0][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.0));
-            vst1q_u8(dest_slices[1][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.1));
-            vst1q_u8(dest_slices[2][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.2));
-            vst1q_u8(dest_slices[3][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.3));
+            vst1q_u8(dest_slices[0][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.0));
+            vst1q_u8(dest_slices[1][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.1));
+            vst1q_u8(dest_slices[2][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.2));
+            vst1q_u8(dest_slices[3][dest_idx..][..16].as_mut_ptr(), vreinterpretq_u8_u32(loaded.3));
         }
     }
 }
