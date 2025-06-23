@@ -28,9 +28,9 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     #[inline(always)]
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         if region.width != WideTile::WIDTH || region.height != Tile::HEIGHT {
-            pack_scalar(region, blend_buf);
+            pack(region, blend_buf);
         }   else {
-            pack_fast(region, blend_buf);
+            pack_block(region, blend_buf);
         }
     }
 
@@ -297,7 +297,7 @@ fn extract_masks<S: Simd>(simd: S, masks: &[u8]) -> u8x32<S> {
 }
 
 #[inline(always)]
-fn pack_scalar(region: &mut Region<'_>, blend_buf: &[u8]) {
+fn pack(region: &mut Region<'_>, blend_buf: &[u8]) {
     for y in 0..Tile::HEIGHT {
         for (x, pixel) in region
             .row_mut(y)
@@ -310,8 +310,8 @@ fn pack_scalar(region: &mut Region<'_>, blend_buf: &[u8]) {
     }
 }
 
-#[inline(never)]
-fn pack_fast(
+#[inline(always)]
+fn pack_block(
     region: &mut Region<'_>,
     mut in_buf: &[u8],
 ) {
@@ -335,6 +335,7 @@ fn pack_fast(
         let dest_idx = idx * CHUNK_LENGTH / 4;
 
         let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
+        // TODO: Extract into fearless_simd
         unsafe {
             let loaded = vld4q_u32(casted.as_ptr());
             
