@@ -1,8 +1,10 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::peniko::{BlendMode, Compose, Mix};
+use vello_common::encode::EncodedImage;
+use crate::peniko::{BlendMode, Compose, ImageQuality, Mix};
 use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32};
+use vello_common::math::FloatExt;
 
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.
@@ -135,3 +137,18 @@ pub(crate) trait InlineMapExt: Iterator + Sized {
 
 // Implement for all iterators
 impl<I: Iterator> InlineMapExt for I {}
+
+pub(crate) trait EncodedImageExt {
+    fn has_skew(&self) -> bool;
+    fn nearest_neighbor(&self) -> bool;
+}
+
+impl EncodedImageExt for EncodedImage {
+    fn has_skew(&self) -> bool {
+        !(self.x_advance.y as f32).is_nearly_zero() || !(self.y_advance.x as f32).is_nearly_zero()  
+    }
+
+    fn nearest_neighbor(&self) -> bool {
+        self.quality == ImageQuality::Low
+    }
+}

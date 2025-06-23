@@ -14,7 +14,7 @@ use vello_cpu::fine2::{Fine, FineKernel};
 pub fn image(c: &mut Criterion) {
     transform::none(c);
     transform::scale(c);
-    // transform::rotate(c);
+    transform::rotate(c);
 
     quality::low(c);
     // quality::medium(c);
