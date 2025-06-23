@@ -61,6 +61,7 @@ impl<'a, S: Simd> SimpleImageFiller<'a, S> {
 impl<S: Simd> Iterator for SimpleImageFiller<'_, S> {
     type Item = u8x16<S>;
 
+    #[inline(always)]   
     fn next(&mut self) -> Option<Self::Item> {
         let x_pos = extend_simd(
             self.simd,
