@@ -23,7 +23,7 @@ use crate::fine2::shaders::gradient::GradientFiller;
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
-use crate::fine2::shaders::image::ImageFiller;
+use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller};
 use crate::fine2::shaders::image::SimpleImageFiller;
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::{BlendModeExt, EncodedImageExt, InlineMapExt};
@@ -440,7 +440,20 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                         }
                     },
                     EncodedPaint::Image(i) => match (i.has_skew(), i.nearest_neighbor()) {
-                        (_, false) => unimplemented!(),
+                        (_, false) => {
+                            let filler: FilteredImageFiller<'_, S> =
+                                FilteredImageFiller::new(self.simd, i, start_x, start_y);
+
+                            fill_complex_paint::<S, T>(
+                                self.simd,
+                                color_buf,
+                                blend_buf,
+                                i.has_opacities,
+                                default_blend,
+                                blend_mode,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
+                            );
+                        },
                         (false, true) => {
                             let filler: SimpleImageFiller<'_, S> =
                                 SimpleImageFiller::new(self.simd, i, start_x, start_y);
@@ -623,7 +636,20 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                         }
                     },
                     EncodedPaint::Image(i) => match (i.has_skew(), i.nearest_neighbor()) {
-                        (_, false) => unimplemented!(),
+                        (_, false) => {
+                            let filler: FilteredImageFiller<'_, S> =
+                                FilteredImageFiller::new(self.simd, i, start_x, start_y);
+
+                            fill_complex_paint::<S, T>(
+                                self.simd,
+                                color_buf,
+                                blend_buf,
+                                default_blend,
+                                blend_mode,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
+                                alphas,
+                            );
+                        },
                         (false, true) => {
                             let filler: SimpleImageFiller<'_, S> =
                                 SimpleImageFiller::new(self.simd, i, start_x, start_y);

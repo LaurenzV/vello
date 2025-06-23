@@ -17,7 +17,7 @@ pub fn image(c: &mut Criterion) {
     transform::rotate(c);
 
     quality::low(c);
-    // quality::medium(c);
+    quality::medium(c);
     // quality::high(c);
 
     extend::pad(c);
