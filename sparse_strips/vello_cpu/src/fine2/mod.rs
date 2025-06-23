@@ -6,6 +6,7 @@ use crate::region::Region;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::Debug;
+use core::iter;
 use vello_common::coarse::{Cmd, WideTile};
 use vello_common::encode::{EncodedKind, EncodedPaint};
 use vello_common::paint::{Paint, PremulColor};
@@ -47,20 +48,20 @@ impl Numeric for u8 {
 pub trait CompositeType<N: Numeric, S: Simd>: Copy + Clone + Send + Sync {
     const LENGTH: usize;
     
-    fn from_slice(&self, simd: S, slice: &[N]) -> Self;
-    fn from_color(&self, simd: S, color: [N; 4]) -> Self;
+    fn from_slice(simd: S, slice: &[N]) -> Self;
+    fn from_color(simd: S, color: [N; 4]) -> Self;
 }
 
 impl<S: Simd> CompositeType<f32, S> for f32x16<S> {
     const LENGTH: usize = 16;
 
     #[inline(always)]
-    fn from_slice(&self, simd: S, slice: &[f32]) -> Self {
+    fn from_slice(simd: S, slice: &[f32]) -> Self {
         <f32x16<_> as SimdBase<_, _>>::from_slice(simd, slice)
     }
 
     #[inline(always)]
-    fn from_color(&self, simd: S, color: [f32; 4]) -> Self {
+    fn from_color(simd: S, color: [f32; 4]) -> Self {
         f32x16::block_splat(f32x4::from_slice(simd, &color[..]))
     }
 }
@@ -69,12 +70,12 @@ impl<S: Simd> CompositeType<u8, S> for u8x32<S> {
     const LENGTH: usize = 32;
 
     #[inline(always)]
-    fn from_slice(&self, simd: S, slice: &[u8]) -> Self {
+    fn from_slice(simd: S, slice: &[u8]) -> Self {
         <u8x32<_> as SimdBase<_, _>>::from_slice(simd, slice)
     }
 
     #[inline(always)]
-    fn from_color(&self, simd: S, color: [u8; 4]) -> Self {
+    fn from_color(simd: S, color: [u8; 4]) -> Self {
         u32x8::block_splat(u32x4::splat(simd, u32::from_ne_bytes(color))).reinterpret_u8()
     }
 }
@@ -91,29 +92,38 @@ pub trait FineKernel<S: Simd>: Send + Sync + 'static {
         target: &mut [Self::Numeric],
         src: impl Iterator<Item = f32x16<S>>,
     );
-    fn composite_solid(
+    fn alpha_composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
-        blend_mode: BlendMode,
     );
-    fn composite_shader(
+    fn alpha_composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
+    );
+    fn blend(
+        simd: S,
+        target: &mut [Self::Numeric],
+        src: impl Iterator<Item = Self::Composite>,
         blend_mode: BlendMode,
     );
-    fn composite_solid_with_alphas(
+    fn alpha_composite_solid_with_alphas(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
-        blend_mode: BlendMode,
         alphas: &[u8],
     );
-    fn composite_shader_with_alphas(
+    fn alpha_composite_shader_with_alphas(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
+        alphas: &[u8],
+    );
+    fn blend_with_alphas(
+        simd: S,
+        target: &mut [Self::Numeric],
+        src: impl Iterator<Item = Self::Composite>,
         blend_mode: BlendMode,
         alphas: &[u8],
     );
@@ -209,6 +219,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
     ) {
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
+        let default_blend = blend_mode.is_default();
 
         match fill {
             Paint::Solid(color) => {
@@ -216,13 +227,17 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
                 // If color is completely opaque, we can just directly override
                 // the blend buffer.
-                if color[3] == T::Numeric::ONE && blend_mode.is_default() {
+                if color[3] == T::Numeric::ONE && default_blend {
                     T::copy_solid(self.simd, blend_buf, color);
 
                     return;
                 }
 
-                T::composite_solid(self.simd, blend_buf, color, blend_mode);
+                if default_blend {
+                    T::alpha_composite_solid(self.simd, blend_buf, color);
+                }   else {
+                    T::blend(self.simd, blend_buf, iter::repeat(T::Composite::from_color(self.simd, color)), blend_mode);
+                }
             }
             Paint::Indexed(paint) => {
                 let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
@@ -238,13 +253,18 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     color_buf: &mut [T::Numeric],
                     blend_buf: &mut [T::Numeric],
                     has_opacities: bool,
+                    default_blend: bool,
                     blend_mode: BlendMode,
                     filler: impl Iterator<Item = f32x16<S>>,
                 ) {
                     if has_opacities {
                         T::copy_f32_iter(simd, color_buf, filler);
 
-                        T::composite_shader(simd, blend_buf, color_buf, blend_mode);
+                        if default_blend {
+                            T::alpha_composite_shader(simd, blend_buf, color_buf);
+                        }   else {
+                            T::blend(simd, blend_buf, color_buf.chunks_exact(T::Composite::LENGTH).map(|s| T::Composite::from_slice(simd, s)), blend_mode);
+                        }
                     } else {
                         // Similarly to solid colors we can just override the previous values
                         // if all colors in the gradient are fully opaque.
@@ -257,7 +277,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                         let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
 
                         fill_complex_paint::<S, T>(
-                            self.simd, color_buf, blend_buf, true, blend_mode, filler,
+                            self.simd, color_buf, blend_buf, true,  default_blend, blend_mode, filler,
                         );
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
@@ -274,7 +294,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
-                                g.has_opacities,
+                                g.has_opacities, default_blend, 
                                 blend_mode,
                                 filler,
                             );
@@ -292,7 +312,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
-                                g.has_opacities,
+                                g.has_opacities, default_blend, 
                                 blend_mode,
                                 filler,
                             );
@@ -310,7 +330,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
-                                g.has_opacities,
+                                g.has_opacities, default_blend,
                                 blend_mode,
                                 filler,
                             );
@@ -340,29 +360,40 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
+        let default_blend = blend_mode.is_default();
 
         match fill {
             Paint::Solid(color) => {
-                T::composite_solid_with_alphas(
-                    self.simd,
-                    blend_buf,
-                    T::extract_color(*color),
-                    blend_mode,
-                    alphas,
-                );
+                let color = T::extract_color(*color);
+                
+                if default_blend {
+                    T::alpha_composite_solid_with_alphas(
+                        self.simd,
+                        blend_buf,
+                        color,
+                        alphas,
+                    );
+                }   else {
+                    T::blend_with_alphas(self.simd, blend_buf, iter::repeat(T::Composite::from_color(self.simd, color)), blend_mode, alphas);
+                }
             }
             Paint::Indexed(paint) => {
                 fn fill_complex_paint<S: Simd, T: FineKernel<S>>(
                     simd: S,
                     color_buf: &mut [T::Numeric],
                     blend_buf: &mut [T::Numeric],
+                    default_blend: bool,
                     blend_mode: BlendMode,
                     filler: impl Iterator<Item = f32x16<S>>,
                     alphas: &[u8],
                 ) {
                     T::copy_f32_iter(simd, color_buf, filler);
 
-                    T::composite_shader_with_alphas(simd, blend_buf, color_buf, blend_mode, alphas);
+                    if default_blend {
+                        T::alpha_composite_shader_with_alphas(simd, blend_buf, color_buf, alphas);
+                    }   else {
+                        T::blend_with_alphas(simd, blend_buf, color_buf.chunks_exact(T::Composite::LENGTH).map(|s| T::Composite::from_slice(simd, s)), blend_mode, alphas);
+                    }
                 }
 
                 let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
@@ -378,7 +409,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                         let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
 
                         fill_complex_paint::<S, T>(
-                            self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
+                            self.simd, color_buf, blend_buf, default_blend, blend_mode, filler, alphas,
                         );
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
@@ -392,7 +423,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             );
 
                             fill_complex_paint::<S, T>(
-                                self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
+                                self.simd, color_buf, blend_buf, default_blend, blend_mode, filler, alphas,
                             );
                         }
                         EncodedKind::Sweep(s) => {
@@ -405,7 +436,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             );
 
                             fill_complex_paint::<S, T>(
-                                self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
+                                self.simd, color_buf, blend_buf, default_blend, blend_mode, filler, alphas,
                             );
                         }
                         EncodedKind::Radial(r) => {
@@ -418,7 +449,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             );
 
                             fill_complex_paint::<S, T>(
-                                self.simd, color_buf, blend_buf, blend_mode, filler, alphas,
+                                self.simd, color_buf, blend_buf, default_blend, blend_mode, filler, alphas,
                             );
                         }
                     },
@@ -432,7 +463,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         let (source_buffer, rest) = self.blend_buf.split_last_mut().unwrap();
         let target_buffer = rest.last_mut().unwrap();
 
-        T::composite_shader(self.simd, target_buffer, source_buffer, blend_mode);
+        T::blend(self.simd, target_buffer, source_buffer.chunks_exact(T::Composite::LENGTH).map(|s| T::Composite::from_slice(self.simd, s)), blend_mode);
     }
 
     fn clip_fill(&mut self, x: usize, width: usize) {
@@ -444,11 +475,10 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         let target_buffer =
             &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
-        T::composite_shader(
+        T::alpha_composite_shader(
             self.simd,
             target_buffer,
             source_buffer,
-            BlendMode::new(Mix::Normal, Compose::SrcOver),
         );
     }
 
@@ -461,11 +491,10 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         let target_buffer =
             &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
-        T::composite_shader_with_alphas(
+        T::alpha_composite_shader_with_alphas(
             self.simd,
             target_buffer,
             source_buffer,
-            BlendMode::new(Mix::Normal, Compose::SrcOver),
             alphas,
         );
     }

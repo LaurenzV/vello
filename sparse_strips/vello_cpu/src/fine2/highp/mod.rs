@@ -65,20 +65,18 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
     }
 
     #[inline(always)]
-    fn composite_solid(
+    fn alpha_composite_solid(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
-        _: BlendMode,
     ) {
         fill::alpha_composite_solid(simd, target, color);
     }
 
-    fn composite_shader(
+    fn alpha_composite_shader(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
-        _: BlendMode,
     ) {
         fill::alpha_composite_arbitrary(
             simd,
@@ -89,22 +87,29 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
         );
     }
 
+    fn blend(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item=Self::Composite>, _: BlendMode) {
+        // TODO: Impl blend
+        fill::alpha_composite_arbitrary(
+            simd,
+            target,
+            src,
+        );
+    }
+
     #[inline(always)]
-    fn composite_solid_with_alphas(
+    fn alpha_composite_solid_with_alphas(
         simd: S,
         target: &mut [Self::Numeric],
         color: [Self::Numeric; 4],
-        _: BlendMode,
         alphas: &[u8],
     ) {
         strip::alpha_composite_solid(simd, target, color, alphas);
     }
 
-    fn composite_shader_with_alphas(
+    fn alpha_composite_shader_with_alphas(
         simd: S,
         target: &mut [Self::Numeric],
         shader_src: &[Self::Numeric],
-        _: BlendMode,
         alphas: &[u8],
     ) {
         strip::alpha_composite_arbitrary(
@@ -113,6 +118,15 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
             shader_src
                 .chunks_exact(16)
                 .map(|el| f32x16::from_slice(simd, el)),
+            alphas,
+        );
+    }
+
+    fn blend_with_alphas(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item=Self::Composite>, _: BlendMode, alphas: &[u8]) {
+        strip::alpha_composite_arbitrary(
+            simd,
+            target,
+            src,
             alphas,
         );
     }
