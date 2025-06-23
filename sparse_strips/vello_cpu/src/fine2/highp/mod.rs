@@ -9,6 +9,7 @@ use vello_common::tile::Tile;
 
 pub(crate) mod gradient;
 pub(crate) mod rounded_blurred_rect;
+pub(crate) mod compose;
 
 #[derive(Clone, Copy, Debug)]
 pub struct F32Kernel;
