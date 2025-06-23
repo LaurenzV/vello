@@ -18,11 +18,11 @@ criterion_group!(render_strips, strip::render_strips);
 criterion_main!(
     // tile,
     // render_strips,
-    fine_solid,
-    fine_strip,
-    fine_pack,
+    // fine_solid,
+    // fine_strip,
+    // fine_pack,
     fine_gradient,
     // fine_rounded_blurred_rect,
-    fine_blend,
+    // fine_blend,
     // fine_image
 );

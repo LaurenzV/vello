@@ -23,7 +23,7 @@ use crate::fine2::highp::gradient::linear::SimdLinearKind;
 use crate::fine2::highp::gradient::radial::SimdRadialKind;
 use crate::fine2::highp::gradient::sweep::SimdSweepKind;
 use crate::fine2::highp::rounded_blurred_rect::BlurredRoundedRectFiller;
-use crate::util::BlendModeExt;
+use crate::util::{BlendModeExt, InlineMapExt};
 pub use highp::F32Kernel;
 pub use lowp::U8Kernel;
 use vello_common::fearless_simd::{
@@ -45,6 +45,76 @@ impl Numeric for f32 {
 impl Numeric for u8 {
     const ZERO: Self = 0;
     const ONE: Self = 255;
+}
+
+pub trait ShaderType<S: Simd>: Copy + Clone + Send + Sync {
+    fn from_f32(simd: S, val: f32x16<S>) -> Self;
+    fn from_u8(simd: S, val: u8x16<S>) -> Self;
+}
+
+impl<S: Simd> ShaderType<S> for f32x16<S> {
+    #[inline(always)]
+    fn from_f32(_: S, val: f32x16<S>) -> Self {
+        val
+    }
+
+    #[inline(always)]
+    fn from_u8(simd: S, val: u8x16<S>) -> Self {
+        let converted: f32x16<_> = [
+            val.val[0] as f32,
+            val.val[1] as f32,
+            val.val[2] as f32,
+            val.val[3] as f32,
+            val.val[4] as f32,
+            val.val[5] as f32,
+            val.val[6] as f32,
+            val.val[7] as f32,
+            val.val[8] as f32,
+            val.val[9] as f32,
+            val.val[10] as f32,
+            val.val[11] as f32,
+            val.val[12] as f32,
+            val.val[13] as f32,
+            val.val[14] as f32,
+            val.val[15] as f32,
+        ].simd_into(simd);
+        
+        converted * f32x16::splat(simd, 1.0 / 255.0)
+    }
+}
+
+impl<S: Simd> ShaderType<S> for u8x16<S> {
+    #[inline(always)]
+    fn from_f32(simd: S, val: f32x16<S>) -> Self {
+        let v1 = f32x16::splat(simd, 255.0);
+        let v2 = f32x16::splat(simd, 0.5);
+        let mulled = v2.madd(v1, val);
+
+        // TODO: SIMDify
+        [
+            mulled.val[0] as u8,
+            mulled.val[1] as u8,
+            mulled.val[2] as u8,
+            mulled.val[3] as u8,
+            mulled.val[4] as u8,
+            mulled.val[5] as u8,
+            mulled.val[6] as u8,
+            mulled.val[7] as u8,
+            mulled.val[8] as u8,
+            mulled.val[9] as u8,
+            mulled.val[10] as u8,
+            mulled.val[11] as u8,
+            mulled.val[12] as u8,
+            mulled.val[13] as u8,
+            mulled.val[14] as u8,
+            mulled.val[15] as u8,
+        ].simd_into(simd)
+    }
+
+    #[inline(always)]
+    fn from_u8(_: S, val: u8x16<S>) -> Self {
+        val
+    }
 }
 
 pub trait CompositeType<N: Numeric, S: Simd>: Copy + Clone + Send + Sync {
@@ -85,11 +155,12 @@ impl<S: Simd> CompositeType<u8, S> for u8x32<S> {
 pub trait FineKernel<S: Simd>: Send + Sync + 'static {
     type Numeric: Numeric;
     type Composite: CompositeType<Self::Numeric, S>;
+    type Shader: ShaderType<S>;
 
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
     fn copy_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
-    fn copy_f32_iter(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item = f32x16<S>>);
+    fn copy_f32_iter(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item = Self::Shader>);
     fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
     fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric]);
     fn blend(
@@ -242,7 +313,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
-
+                
                 fn fill_complex_paint<S: Simd, T: FineKernel<S>>(
                     simd: S,
                     color_buf: &mut [T::Numeric],
@@ -250,7 +321,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     has_opacities: bool,
                     default_blend: bool,
                     blend_mode: BlendMode,
-                    filler: impl Iterator<Item = f32x16<S>>,
+                    filler: impl Iterator<Item = T::Shader>,
                 ) {
                     if has_opacities {
                         T::copy_f32_iter(simd, color_buf, filler);
@@ -285,7 +356,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             true,
                             default_blend,
                             blend_mode,
-                            filler,
+                            filler.map(|i| T::Shader::from_f32(self.simd, i)),
                         );
                     }
                     EncodedPaint::Gradient(g) => match &g.kind {
@@ -306,7 +377,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 g.has_opacities,
                                 default_blend,
                                 blend_mode,
-                                filler,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                             );
                         }
                         EncodedKind::Sweep(s) => {
@@ -326,7 +397,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 g.has_opacities,
                                 default_blend,
                                 blend_mode,
-                                filler,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                             );
                         }
                         EncodedKind::Radial(r) => {
@@ -346,7 +417,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 g.has_opacities,
                                 default_blend,
                                 blend_mode,
-                                filler,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                             );
                         }
                     },
@@ -399,7 +470,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     blend_buf: &mut [T::Numeric],
                     default_blend: bool,
                     blend_mode: BlendMode,
-                    filler: impl Iterator<Item = f32x16<S>>,
+                    filler: impl Iterator<Item = T::Shader>,
                     alphas: &[u8],
                 ) {
                     T::copy_f32_iter(simd, color_buf, filler);
@@ -437,7 +508,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             blend_buf,
                             default_blend,
                             blend_mode,
-                            filler,
+                            filler.map(|i| T::Shader::from_f32(self.simd, i)),
                             alphas,
                         );
                     }
@@ -458,7 +529,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 blend_buf,
                                 default_blend,
                                 blend_mode,
-                                filler,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                                 alphas,
                             );
                         }
@@ -478,7 +549,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 blend_buf,
                                 default_blend,
                                 blend_mode,
-                                filler,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                                 alphas,
                             );
                         }
@@ -498,7 +569,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 blend_buf,
                                 default_blend,
                                 blend_mode,
-                                filler,
+                                filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                                 alphas,
                             );
                         }

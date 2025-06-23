@@ -18,13 +18,13 @@ pub struct U8Kernel;
 impl<S: Simd> FineKernel<S> for U8Kernel {
     type Numeric = u8;
     type Composite = u8x32<S>;
+    type Shader = u8x16<S>;
 
     #[inline]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
         color.as_premul_rgba8().to_u8_array()
     }
 
-    // TODO: SIMDify on NEON. ALso make scalar version faster (it was faster in previous main version).
     #[inline(always)]
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         if region.width != WideTile::WIDTH || region.height != Tile::HEIGHT {
@@ -46,33 +46,12 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
 
     #[inline(always)]
     fn copy_f32_iter(
-        simd: S,
+        _: S,
         target: &mut [Self::Numeric],
-        mut src: impl Iterator<Item = f32x16<S>>,
+        mut src: impl Iterator<Item = u8x16<S>>,
     ) {
         for el in target.chunks_exact_mut(16) {
-            let next = src.next().unwrap();
-            let mulled = f32x16::splat(simd, 0.5).madd(next, f32x16::splat(simd, 255.0));
-
-            // TODO: SIMDify
-            el.copy_from_slice(&[
-                mulled.val[0] as u8,
-                mulled.val[1] as u8,
-                mulled.val[2] as u8,
-                mulled.val[3] as u8,
-                mulled.val[4] as u8,
-                mulled.val[5] as u8,
-                mulled.val[6] as u8,
-                mulled.val[7] as u8,
-                mulled.val[8] as u8,
-                mulled.val[9] as u8,
-                mulled.val[10] as u8,
-                mulled.val[11] as u8,
-                mulled.val[12] as u8,
-                mulled.val[13] as u8,
-                mulled.val[14] as u8,
-                mulled.val[15] as u8,
-            ])
+            el.copy_from_slice(&src.next().unwrap()[..])
         }
     }
 

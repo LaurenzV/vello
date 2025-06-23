@@ -99,3 +99,39 @@ impl BlendModeExt for BlendMode {
         self.mix == Mix::Normal && self.compose == Compose::SrcOver
     }
 }
+
+pub(crate) struct InlineMap<I, F> {
+    iter: I,
+    f: F,
+}
+
+impl<I, F, T, U> Iterator for InlineMap<I, F>
+where
+    I: Iterator<Item = T>,
+    F: FnMut(T) -> U,
+{
+    type Item = U;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(&mut self.f)
+    }
+
+    #[inline(always)]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+pub(crate) trait InlineMapExt: Iterator + Sized {
+    #[inline(always)]
+    fn inline_map<U, F>(self, f: F) -> InlineMap<Self, F>
+    where
+        F: FnMut(Self::Item) -> U,
+    {
+        InlineMap { iter: self, f }
+    }
+}
+
+// Implement for all iterators
+impl<I: Iterator> InlineMapExt for I {}

@@ -17,6 +17,7 @@ pub struct F32Kernel;
 impl<S: Simd> FineKernel<S> for F32Kernel {
     type Numeric = f32;
     type Composite = f32x16<S>;
+    type Shader = f32x16<S>;
 
     #[inline(always)]
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4] {
