@@ -1,12 +1,13 @@
 mod compose;
 
-use crate::fine2::COLOR_COMPONENTS;
+use crate::fine2::{COLOR_COMPONENTS, SCRATCH_BUF_SIZE};
 use crate::fine2::FineKernel;
 use crate::fine2::lowp::compose::ComposeExt;
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 use crate::util::BlendModeExt;
-use core::iter;
+use bytemuck::cast_slice;
+use vello_common::coarse::WideTile;
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
@@ -26,15 +27,10 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     // TODO: SIMDify on NEON. ALso make scalar version faster (it was faster in previous main version).
     #[inline(always)]
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
-        for y in 0..Tile::HEIGHT {
-            for (x, pixel) in region
-                .row_mut(y)
-                .chunks_exact_mut(COLOR_COMPONENTS)
-                .enumerate()
-            {
-                let idx = COLOR_COMPONENTS * (usize::from(Tile::HEIGHT) * x + usize::from(y));
-                pixel.copy_from_slice(&blend_buf[idx..][..COLOR_COMPONENTS]);
-            }
+        if region.width != WideTile::WIDTH || region.height != Tile::HEIGHT {
+            pack_scalar(region, blend_buf);
+        }   else {
+            pack_fast(region, blend_buf);
         }
     }
 
@@ -298,4 +294,53 @@ fn extract_masks<S: Simd>(simd: S, masks: &[u8]) -> u8x32<S> {
     let zipped2 = zipped2.zip_low(zipped2);
 
     simd.combine_u8x16(zipped1, zipped2)
+}
+
+#[inline(always)]
+fn pack_scalar(region: &mut Region<'_>, blend_buf: &[u8]) {
+    for y in 0..Tile::HEIGHT {
+        for (x, pixel) in region
+            .row_mut(y)
+            .chunks_exact_mut(COLOR_COMPONENTS)
+            .enumerate()
+        {
+            let idx = COLOR_COMPONENTS * (usize::from(Tile::HEIGHT) * x + usize::from(y));
+            pixel.copy_from_slice(&blend_buf[idx..][..COLOR_COMPONENTS]);
+        }
+    }
+}
+
+#[inline(never)]
+fn pack_fast(
+    region: &mut Region<'_>,
+    mut in_buf: &[u8],
+) {
+    use core::arch::aarch64::*;
+    
+    in_buf = &in_buf[..SCRATCH_BUF_SIZE];
+    
+    const LENGTH: usize = 64;
+
+    let dest_slices = region.areas();
+
+    for (idx, col) in in_buf.chunks_exact(LENGTH).enumerate() {
+        let dest_idx = idx * LENGTH / 4;
+
+        let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
+        unsafe {
+            let loaded = vld4q_u32(casted.as_ptr());
+            let reinterpreted = [
+                vreinterpretq_u8_u32(loaded.0),
+                vreinterpretq_u8_u32(loaded.1),
+                vreinterpretq_u8_u32(loaded.2),
+                vreinterpretq_u8_u32(loaded.3),
+            ];
+
+            for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
+                let target: &mut [u8; 16] =
+                    (&mut dest[dest_idx..][..16]).try_into().unwrap();
+                vst1q_u8(target.as_mut_ptr(), src)
+            }
+        }
+    }
 }
