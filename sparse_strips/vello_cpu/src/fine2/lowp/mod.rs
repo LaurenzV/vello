@@ -329,18 +329,11 @@ fn pack_fast(
         let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
         unsafe {
             let loaded = vld4q_u32(casted.as_ptr());
-            let reinterpreted = [
-                vreinterpretq_u8_u32(loaded.0),
-                vreinterpretq_u8_u32(loaded.1),
-                vreinterpretq_u8_u32(loaded.2),
-                vreinterpretq_u8_u32(loaded.3),
-            ];
-
-            for (dest, src) in dest_slices.iter_mut().zip(reinterpreted) {
-                let target: &mut [u8; 16] =
-                    (&mut dest[dest_idx..][..16]).try_into().unwrap();
-                vst1q_u8(target.as_mut_ptr(), src)
-            }
+            
+            vst1q_u8(dest_slices[0][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.0));
+            vst1q_u8(dest_slices[1][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.1));
+            vst1q_u8(dest_slices[2][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.2));
+            vst1q_u8(dest_slices[3][dest_idx..].as_mut_ptr(), vreinterpretq_u8_u32(loaded.3));
         }
     }
 }
