@@ -1,0 +1,116 @@
+// Copyright 2025 the Vello Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use crate::fine2::{PosExt, COLOR_COMPONENTS, TILE_HEIGHT_COMPONENTS};
+use vello_common::encode::EncodedImage;
+use vello_common::fearless_simd::{f32x16, f32x4, u32x4, u8x16, Simd, SimdBase};
+use vello_common::kurbo::{Point, Vec2};
+use vello_common::peniko::{Extend, ImageQuality};
+
+#[derive(Debug)]
+pub(crate) struct SimpleImageFiller<'a, S: Simd> {
+    cur_pos: Point,
+    image: &'a EncodedImage,
+    x_advances: (f32, f32),
+    y_advances: (f32, f32),
+    height: f32x4<S>,
+    height_inv: f32x4<S>,
+    width: f32x4<S>,
+    width_inv: f32x4<S>,
+    y_positions: f32x4<S>,
+    simd: S,
+}
+
+impl<'a, S: Simd> SimpleImageFiller<'a, S> {
+    pub(crate) fn new(simd: S, image: &'a EncodedImage, start_x: u16, start_y: u16) -> Self {
+        let width = image.pixmap.width() as f32;
+        let height = image.pixmap.height() as f32;
+        let start_pos = image.transform * Point::new(f64::from(start_x), f64::from(start_y));
+
+        let width_inv = f32x4::splat(simd, 1.0 / width);
+        let height_inv = f32x4::splat(simd, 1.0 / height);
+        let width = f32x4::splat(simd, width);
+        let height = f32x4::splat(simd, height);
+
+        let x_advances = (image.x_advance.x as f32, image.x_advance.y as f32);
+        let y_advances = (image.y_advance.x as f32, image.y_advance.y as f32);
+
+        let y_positions = extend_simd(
+            simd,
+            f32x4::splat_col_pos(simd, start_pos.y as f32, x_advances.1, y_advances.1),
+            image.extends.1,
+            height,
+            height_inv,
+        );
+
+        Self {
+            cur_pos: start_pos,
+            x_advances,
+            y_advances,
+            image,
+            y_positions,
+            width,
+            height,
+            width_inv,
+            height_inv,
+            simd,
+        }
+    }
+}
+
+impl<S: Simd> Iterator for SimpleImageFiller<'_, S> {
+    type Item = u8x16<S>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let x_pos = extend_simd(
+            self.simd,
+            f32x4::splat_col_pos(self.simd, self.cur_pos.x as f32, self.x_advances.0, self.y_advances.0),
+            self.image.extends.0,
+            self.width,
+            self.width_inv,
+        );
+        
+        macro_rules! sample {
+            ($idx:expr) => {
+                self
+            .image
+            .pixmap
+            .sample(x_pos.val[$idx] as u16, self.y_positions.val[$idx] as u16)
+                .to_u32()
+            };
+        }
+        
+        let samples = u32x4::from_slice(self.simd, &[
+            sample!(0),
+            sample!(1),
+            sample!(2),
+            sample!(3),
+        ]).reinterpret_u8();
+
+        self.cur_pos += self.image.x_advance;
+        
+        Some(samples)
+    }
+}
+
+#[inline(always)]
+fn extend_simd<S: Simd>(simd: S, val: f32x4<S>, extend: Extend, max: f32x4<S>, inv_max: f32x4<S>) -> f32x4<S> {
+    let bias = f32x4::splat(simd, 0.01);
+
+    match extend {
+        Extend::Pad => val.min(max - bias).max(f32x4::splat(simd, 0.0)),
+        Extend::Repeat => val - (val * inv_max).floor() * max,
+        // <https://github.com/google/skia/blob/220738774f7a0ce4a6c7bd17519a336e5e5dea5b/src/opts/SkRasterPipeline_opts.h#L3274-L3290>
+        Extend::Reflect => {
+            let u = val - (val * inv_max * f32x4::splat(simd, 0.5)).floor() * f32x4::splat(simd, 2.0) * max;
+            let s = (u * inv_max).floor();
+            let m = u - f32x4::splat(simd, 2.0) * s * (u - max);
+
+            let bias_in_ulps = s.trunc();
+
+            let m_bits = m.reinterpret();
+            let biased_bits = m_bits.wrapping_sub(bias_in_ulps.to_integer());
+            biased_bits.reinterpret()
+        }
+    }
+}

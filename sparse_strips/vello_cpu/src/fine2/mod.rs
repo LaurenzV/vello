@@ -61,25 +61,7 @@ impl<S: Simd> ShaderType<S> for f32x16<S> {
 
     #[inline(always)]
     fn from_u8(simd: S, val: u8x16<S>) -> Self {
-        let converted: f32x16<_> = [
-            val.val[0] as f32,
-            val.val[1] as f32,
-            val.val[2] as f32,
-            val.val[3] as f32,
-            val.val[4] as f32,
-            val.val[5] as f32,
-            val.val[6] as f32,
-            val.val[7] as f32,
-            val.val[8] as f32,
-            val.val[9] as f32,
-            val.val[10] as f32,
-            val.val[11] as f32,
-            val.val[12] as f32,
-            val.val[13] as f32,
-            val.val[14] as f32,
-            val.val[15] as f32,
-        ].simd_into(simd);
-        
+        let converted = u8_to_f32(val);
         converted * f32x16::splat(simd, 1.0 / 255.0)
     }
 }
@@ -91,31 +73,59 @@ impl<S: Simd> ShaderType<S> for u8x16<S> {
         let v2 = f32x16::splat(simd, 0.5);
         let mulled = v2.madd(v1, val);
 
-        // TODO: SIMDify
-        [
-            mulled.val[0] as u8,
-            mulled.val[1] as u8,
-            mulled.val[2] as u8,
-            mulled.val[3] as u8,
-            mulled.val[4] as u8,
-            mulled.val[5] as u8,
-            mulled.val[6] as u8,
-            mulled.val[7] as u8,
-            mulled.val[8] as u8,
-            mulled.val[9] as u8,
-            mulled.val[10] as u8,
-            mulled.val[11] as u8,
-            mulled.val[12] as u8,
-            mulled.val[13] as u8,
-            mulled.val[14] as u8,
-            mulled.val[15] as u8,
-        ].simd_into(simd)
+        f32_to_u8(mulled)
     }
 
     #[inline(always)]
     fn from_u8(_: S, val: u8x16<S>) -> Self {
         val
     }
+}
+
+#[inline(always)]
+pub(crate) fn f32_to_u8<S: Simd>(val: f32x16<S>) -> u8x16<S> {
+    // TODO: SIMDify
+    [
+        val.val[0] as u8,
+        val.val[1] as u8,
+        val.val[2] as u8,
+        val.val[3] as u8,
+        val.val[4] as u8,
+        val.val[5] as u8,
+        val.val[6] as u8,
+        val.val[7] as u8,
+        val.val[8] as u8,
+        val.val[9] as u8,
+        val.val[10] as u8,
+        val.val[11] as u8,
+        val.val[12] as u8,
+        val.val[13] as u8,
+        val.val[14] as u8,
+        val.val[15] as u8,
+    ].simd_into(val.simd)
+}
+
+#[inline(always)]
+pub(crate) fn u8_to_f32<S: Simd>(val: u8x16<S>) -> f32x16<S> {
+    // TODO: SIMDify
+    [
+        val.val[0] as f32,
+        val.val[1] as f32,
+        val.val[2] as f32,
+        val.val[3] as f32,
+        val.val[4] as f32,
+        val.val[5] as f32,
+        val.val[6] as f32,
+        val.val[7] as f32,
+        val.val[8] as f32,
+        val.val[9] as f32,
+        val.val[10] as f32,
+        val.val[11] as f32,
+        val.val[12] as f32,
+        val.val[13] as f32,
+        val.val[14] as f32,
+        val.val[15] as f32,
+    ].simd_into(val.simd)
 }
 
 pub trait CompositeType<N: Numeric, S: Simd>: Copy + Clone + Send + Sync {
