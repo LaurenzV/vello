@@ -189,27 +189,49 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                 // Note that the sum of all cx*cy combinations also yields 1.0 again
                 // (modulo some floating point number impreciseness), ensuring the
                 // colors stay in range.
-
-                // We sample the corners rectangle that covers our current position.
-                for (x_idx, x) in [-0.5, 0.5].into_iter().enumerate() {
-                    let x_positions = extend_simd(
+                
+                const OFFSETS: [f32; 2] = [-0.5, 0.5];
+                
+                let x_positions = [
+                    extend_simd(
                         self.simd,
-                        x_positions + x,
+                        x_positions + OFFSETS[0],
                         self.data.image.extends.0,
                         self.data.width,
                         self.data.width_inv,
-                    );
-                    
-                    for (y_idx, y) in [-0.5, 0.5].into_iter().enumerate() {
-                        
+                    ),
+                    extend_simd(
+                        self.simd,
+                        x_positions + OFFSETS[1],
+                        self.data.image.extends.0,
+                        self.data.width,
+                        self.data.width_inv,
+                    ),
+                ];
 
-                        let y_positions = extend_simd(
-                            self.simd,
-                            y_positions + y,
-                            self.data.image.extends.1,
-                            self.data.height,
-                            self.data.height_inv,
-                        );
+                let y_positions = [
+                    extend_simd(
+                        self.simd,
+                        y_positions + OFFSETS[0],
+                        self.data.image.extends.0,
+                        self.data.height,
+                        self.data.height_inv,
+                    ),
+                    extend_simd(
+                        self.simd,
+                        y_positions + OFFSETS[1],
+                        self.data.image.extends.0,
+                        self.data.height,
+                        self.data.height_inv,
+                    ),
+                ];
+
+                // We sample the corners rectangle that covers our current position.
+                for x_idx in 0..2 {
+                    let x_positions = x_positions[x_idx];
+                    
+                    for y_idx in 0..2 {
+                        let y_positions = y_positions[y_idx];
                         let color_sample = sample(x_positions, y_positions);
                         let w = cx[x_idx] * cy[y_idx];
                         
