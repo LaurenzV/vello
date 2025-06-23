@@ -3,7 +3,7 @@
 
 use crate::fine2::{PosExt, COLOR_COMPONENTS, TILE_HEIGHT_COMPONENTS};
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{f32x16, f32x4, u32x4, u8x16, Simd, SimdBase};
+use vello_common::fearless_simd::{f32x16, f32x4, u32x4, u8x16, Bytes, Simd, SimdBase};
 use vello_common::kurbo::{Point, Vec2};
 use vello_common::peniko::{Extend, ImageQuality};
 
@@ -108,9 +108,9 @@ fn extend_simd<S: Simd>(simd: S, val: f32x4<S>, extend: Extend, max: f32x4<S>, i
 
             let bias_in_ulps = s.trunc();
 
-            let m_bits = m.reinterpret();
-            let biased_bits = m_bits.wrapping_sub(bias_in_ulps.to_integer());
-            biased_bits.reinterpret()
+            let m_bits = u32x4::from_bytes(m.to_bytes());
+            let biased_bits = m_bits.wrapping_sub(bias_in_ulps.cvt_u32());
+            f32x4::from_bytes(biased_bits.to_bytes())
         }
     }
 }
