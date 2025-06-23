@@ -23,7 +23,7 @@ use crate::fine2::shaders::gradient::GradientFiller;
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
-use crate::fine2::shaders::image_nn::SimpleImageFiller;
+use crate::fine2::shaders::image_simple::SimpleImageFiller;
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::{BlendModeExt, InlineMapExt};
 pub use highp::F32Kernel;
