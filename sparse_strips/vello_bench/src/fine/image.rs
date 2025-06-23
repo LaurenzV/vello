@@ -36,7 +36,11 @@ mod extend {
     use vello_cpu::fine2::{Fine, FineKernel};
     use vello_dev_macros::vello_bench;
 
-    fn extend_base<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>, extend: peniko::Extend) {
+    fn extend_base<S: Simd, T: FineKernel<S>>(
+        b: &mut Bencher<'_>,
+        fine: &mut Fine<S, T>,
+        extend: peniko::Extend,
+    ) {
         let im = get_small_image(extend, ImageQuality::Low);
         image_base(
             b,
@@ -72,7 +76,11 @@ mod quality {
     use vello_cpu::fine2::{Fine, FineKernel};
     use vello_dev_macros::vello_bench;
 
-    fn quality_base<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>, quality: ImageQuality) {
+    fn quality_base<S: Simd, T: FineKernel<S>>(
+        b: &mut Bencher<'_>,
+        fine: &mut Fine<S, T>,
+        quality: ImageQuality,
+    ) {
         let im = get_colr_image(peniko::Extend::Pad, quality);
         image_base(b, fine, im, Affine::scale(3.0))
     }

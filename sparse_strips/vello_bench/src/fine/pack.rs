@@ -20,7 +20,7 @@ pub fn pack_block<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fin
         regions.update_regions(|region| {
             fine.pack(region);
         });
-        
+
         std::hint::black_box(&regions);
     });
 }
@@ -34,7 +34,7 @@ pub fn pack_regular<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut F
         regions.update_regions(|region| {
             fine.pack(region);
         });
-        
+
         std::hint::black_box(&regions);
     });
 }

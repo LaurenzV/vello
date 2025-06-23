@@ -186,7 +186,11 @@ fn plus_lighter<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<
     base(b, fine, BlendMode::new(Mix::Normal, Compose::PlusLighter));
 }
 
-fn base<S: Simd, T: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, T>, blend_mode: BlendMode) {
+fn base<S: Simd, T: FineKernel<S>>(
+    b: &mut Bencher<'_>,
+    fine: &mut Fine<S, T>,
+    blend_mode: BlendMode,
+) {
     let paint = Paint::Solid(PremulColor::from_alpha_color(ROYAL_BLUE));
     let width = WideTile::WIDTH as usize;
 

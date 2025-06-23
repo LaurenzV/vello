@@ -1,8 +1,8 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use vello_common::encode::EncodedImage;
 use crate::peniko::{BlendMode, Compose, ImageQuality, Mix};
+use vello_common::encode::EncodedImage;
 use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32};
 use vello_common::math::FloatExt;
 
@@ -145,7 +145,7 @@ pub(crate) trait EncodedImageExt {
 
 impl EncodedImageExt for EncodedImage {
     fn has_skew(&self) -> bool {
-        !(self.x_advance.y as f32).is_nearly_zero() || !(self.y_advance.x as f32).is_nearly_zero()  
+        !(self.x_advance.y as f32).is_nearly_zero() || !(self.y_advance.x as f32).is_nearly_zero()
     }
 
     fn nearest_neighbor(&self) -> bool {
