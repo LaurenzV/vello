@@ -9,14 +9,14 @@ use vello_common::peniko::{Extend, ImageQuality};
 
 #[derive(Debug)]
 pub(crate) struct ImageFillerData<'a, S: Simd> {
-    cur_pos: Point,
-    image: &'a EncodedImage,
-    x_advances: (f32, f32),
-    y_advances: (f32, f32),
-    height: f32x4<S>,
-    height_inv: f32x4<S>,
-    width: f32x4<S>,
-    width_inv: f32x4<S>,
+    pub(crate) cur_pos: Point,
+    pub(crate) image: &'a EncodedImage,
+    pub(crate) x_advances: (f32, f32),
+    pub(crate) y_advances: (f32, f32),
+    pub(crate) height: f32x4<S>,
+    pub(crate) height_inv: f32x4<S>,
+    pub(crate) width: f32x4<S>,
+    pub(crate) width_inv: f32x4<S>,
 }
 
 impl<'a, S: Simd> ImageFillerData<'a, S> {
@@ -96,19 +96,7 @@ impl<S: Simd> Iterator for SimpleImageFiller<'_, S> {
             self.data.width_inv,
         );
 
-        macro_rules! sample {
-            ($idx:expr) => {
-                self.data
-                    .image
-                    .pixmap
-                    .sample(x_pos.val[$idx] as u16, self.y_positions.val[$idx] as u16)
-                    .to_u32()
-            };
-        }
-
-        let samples =
-            u32x4::from_slice(self.simd, &[sample!(0), sample!(1), sample!(2), sample!(3)])
-                .reinterpret_u8();
+        let samples = sample(self.simd, &self.data, x_pos, self.y_positions);
 
         self.data.cur_pos += self.data.image.x_advance;
 
@@ -117,7 +105,23 @@ impl<S: Simd> Iterator for SimpleImageFiller<'_, S> {
 }
 
 #[inline(always)]
-fn extend_simd<S: Simd>(
+pub(crate) fn sample<S: Simd>(simd: S, data: &ImageFillerData<S>, x_positions: f32x4<S>, y_positions: f32x4<S>) -> u8x16<S> {
+    macro_rules! sample {
+            ($idx:expr) => {
+                data
+                    .image
+                    .pixmap
+                    .sample(x_positions.val[$idx] as u16, y_positions.val[$idx] as u16)
+                    .to_u32()
+            };
+        }
+
+     u32x4::from_slice(simd, &[sample!(0), sample!(1), sample!(2), sample!(3)])
+            .reinterpret_u8()
+}
+
+#[inline(always)]
+pub(crate) fn extend_simd<S: Simd>(
     simd: S,
     val: f32x4<S>,
     extend: Extend,
