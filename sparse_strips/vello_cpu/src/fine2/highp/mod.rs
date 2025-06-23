@@ -178,6 +178,7 @@ mod strip {
     use crate::fine2::Splat4thExt;
     use crate::util::normalized_mul;
     use vello_common::fearless_simd::*;
+    use crate::fine2::highp::extract_masks;
 
     #[inline(always)]
     pub(super) fn alpha_composite_solid<S: Simd>(
@@ -224,25 +225,7 @@ mod strip {
         one: f32x16<S>,
     ) {
         let bg_c = f32x16::from_slice(s, target);
-
-        let mask_a = {
-            let mut base_mask = [
-                masks[0] as f32,
-                masks[1] as f32,
-                masks[2] as f32,
-                masks[3] as f32,
-            ]
-            .simd_into(s);
-
-            base_mask = base_mask * f32x4::splat(s, 1.0 / 255.0);
-
-            let res = f32x16::block_splat(base_mask);
-            let zip_low = res.zip_low(res);
-            let zip_high = zip_low.zip_low(zip_low);
-
-            zip_high
-        };
-
+        let mask_a = extract_masks(s, masks);
         let inv_src_a_mask_a = one.msub(src_a, mask_a);
 
         let res = (src_c * mask_a).madd(bg_c, inv_src_a_mask_a);
@@ -270,4 +253,23 @@ fn element_wise_splat<S: Simd>(simd: S, input: f32x4<S>) -> f32x16<S> {
             f32x4::splat(simd, input.val[3]),
         ),
     )
+}
+
+#[inline(always)]
+fn extract_masks<S: Simd>(simd: S, masks: &[u8]) -> f32x16<S> {
+    let mut base_mask = [
+        masks[0] as f32,
+        masks[1] as f32,
+        masks[2] as f32,
+        masks[3] as f32,
+    ]
+        .simd_into(simd);
+
+    base_mask = base_mask * f32x4::splat(simd, 1.0 / 255.0);
+
+    let res = f32x16::block_splat(base_mask);
+    let zip_low = res.zip_low(res);
+    let zip_high = zip_low.zip_low(zip_low);
+
+    zip_high
 }
