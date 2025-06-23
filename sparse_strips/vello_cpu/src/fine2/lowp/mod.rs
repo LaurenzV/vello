@@ -38,7 +38,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     // Inlining causes performance degradation
-    fn fill_buf_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
+    fn copy_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
         let color =
             u8x64::block_splat(u32x4::splat(simd, u32::from_ne_bytes(color)).reinterpret_u8());
 
@@ -48,7 +48,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn fill_buf_arbitrary(
+    fn copy_f32_iter(
         simd: S,
         target: &mut [Self::Numeric],
         mut src: impl Iterator<Item = f32x16<S>>,

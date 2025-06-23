@@ -85,8 +85,8 @@ pub trait FineKernel<S: Simd>: Send + Sync + 'static {
 
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
-    fn fill_buf_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
-    fn fill_buf_arbitrary(
+    fn copy_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
+    fn copy_f32_iter(
         simd: S,
         target: &mut [Self::Numeric],
         src: impl Iterator<Item = f32x16<S>>,
@@ -145,7 +145,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         let converted_color = T::extract_color(premul_color);
         let blend_buf = self.blend_buf.last_mut().unwrap();
 
-        T::fill_buf_solid(self.simd, blend_buf, converted_color);
+        T::copy_solid(self.simd, blend_buf, converted_color);
     }
 
     pub fn pack(&self, region: &mut Region<'_>) {
@@ -217,7 +217,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                 // If color is completely opaque, we can just directly override
                 // the blend buffer.
                 if color[3] == T::Numeric::ONE && blend_mode.is_default() {
-                    T::fill_buf_solid(self.simd, blend_buf, color);
+                    T::copy_solid(self.simd, blend_buf, color);
 
                     return;
                 }
@@ -242,13 +242,13 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     filler: impl Iterator<Item = f32x16<S>>,
                 ) {
                     if has_opacities {
-                        T::fill_buf_arbitrary(simd, color_buf, filler);
+                        T::copy_f32_iter(simd, color_buf, filler);
 
                         T::composite_shader(simd, blend_buf, color_buf, blend_mode);
                     } else {
                         // Similarly to solid colors we can just override the previous values
                         // if all colors in the gradient are fully opaque.
-                        T::fill_buf_arbitrary(simd, blend_buf, filler);
+                        T::copy_f32_iter(simd, blend_buf, filler);
                     }
                 }
 
@@ -360,7 +360,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     filler: impl Iterator<Item = f32x16<S>>,
                     alphas: &[u8],
                 ) {
-                    T::fill_buf_arbitrary(simd, color_buf, filler);
+                    T::copy_f32_iter(simd, color_buf, filler);
 
                     T::composite_shader_with_alphas(simd, blend_buf, color_buf, blend_mode, alphas);
                 }
