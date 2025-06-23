@@ -1,4 +1,4 @@
-mod blend;
+mod compose;
 
 use core::iter;
 use crate::fine::COLOR_COMPONENTS;
@@ -8,7 +8,7 @@ use crate::region::Region;
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
-use crate::fine2::lowp::blend::ComposeExt;
+use crate::fine2::lowp::compose::ComposeExt;
 use crate::util::BlendModeExt;
 
 #[derive(Clone, Copy, Debug)]
@@ -154,7 +154,7 @@ mod fill {
     use crate::fine2::Splat4thExt;
     use crate::util::normalized_mul;
     use vello_common::fearless_simd::*;
-    use crate::fine2::lowp::blend::ComposeExt;
+    use crate::fine2::lowp::compose::ComposeExt;
     use crate::peniko::BlendMode;
 
     pub(super) fn blend<S: Simd, T: Iterator<Item = u8x32<S>>>(
@@ -216,7 +216,7 @@ mod strip {
     use crate::fine2::Splat4thExt;
     use crate::util::{Div255Ext, normalized_mul};
     use vello_common::fearless_simd::*;
-    use crate::fine2::lowp::blend::ComposeExt;
+    use crate::fine2::lowp::compose::ComposeExt;
     use crate::fine2::lowp::extract_masks;
     use crate::peniko::BlendMode;
 
