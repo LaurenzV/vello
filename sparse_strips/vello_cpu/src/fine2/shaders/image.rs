@@ -1,7 +1,7 @@
 use crate::fine2::{u8_to_f32, PosExt};
 use crate::kurbo::Point;
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{Bytes, Simd, SimdBase, f32x4, u8x16, u32x4, f32x16};
+use vello_common::fearless_simd::{Bytes, Simd, SimdBase, f32x4, u8x16, u32x4, f32x16, SimdFloat};
 use crate::fine2::highp::element_wise_splat;
 use crate::peniko::ImageQuality;
 
@@ -192,14 +192,16 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
 
                 // We sample the corners rectangle that covers our current position.
                 for (x_idx, x) in [-0.5, 0.5].into_iter().enumerate() {
+                    let x_positions = extend_simd(
+                        self.simd,
+                        x_positions + x,
+                        self.data.image.extends.0,
+                        self.data.width,
+                        self.data.width_inv,
+                    );
+                    
                     for (y_idx, y) in [-0.5, 0.5].into_iter().enumerate() {
-                        let x_positions = extend_simd(
-                            self.simd,
-                            x_positions + x,
-                            self.data.image.extends.0,
-                            self.data.width,
-                            self.data.width_inv,
-                        );
+                        
 
                         let y_positions = extend_simd(
                             self.simd,
@@ -211,7 +213,7 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                         let color_sample = sample(x_positions, y_positions);
                         let w = cx[x_idx] * cy[y_idx];
                         
-                        interpolated_color = interpolated_color + w * color_sample;
+                        interpolated_color = interpolated_color.madd(w, color_sample);
                     }
                 }
             }
@@ -296,7 +298,7 @@ pub(crate) fn extend_simd<S: Simd>(
 
     match extend {
         crate::peniko::Extend::Pad => val.min(max - bias).max(f32x4::splat(simd, 0.0)),
-        crate::peniko::Extend::Repeat => val - (val * inv_max).floor() * max,
+        crate::peniko::Extend::Repeat => val.msub((val * inv_max).floor(), max),
         // <https://github.com/google/skia/blob/220738774f7a0ce4a6c7bd17519a336e5e5dea5b/src/opts/SkRasterPipeline_opts.h#L3274-L3290>
         crate::peniko::Extend::Reflect => {
             let u = val
