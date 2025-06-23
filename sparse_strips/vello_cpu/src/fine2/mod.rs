@@ -180,7 +180,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
             }
             Cmd::PushBuf => {
                 self.blend_buf
-                    .push([T::Numeric::ZERO; crate::fine::SCRATCH_BUF_SIZE]);
+                    .push([T::Numeric::ZERO; SCRATCH_BUF_SIZE]);
             }
             Cmd::PopBuf => {
                 self.blend_buf.pop();

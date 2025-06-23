@@ -1,6 +1,6 @@
 mod compose;
 
-use crate::fine::COLOR_COMPONENTS;
+use crate::fine2::COLOR_COMPONENTS;
 use crate::fine2::FineKernel;
 use crate::fine2::lowp::compose::ComposeExt;
 use crate::peniko::{BlendMode, Compose, Mix};

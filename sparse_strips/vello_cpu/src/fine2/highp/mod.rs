@@ -1,4 +1,4 @@
-use crate::fine::COLOR_COMPONENTS;
+use crate::fine2::COLOR_COMPONENTS;
 use crate::fine2::FineKernel;
 use crate::kurbo::{Point, Vec2};
 use crate::peniko::BlendMode;
