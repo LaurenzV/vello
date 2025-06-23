@@ -24,6 +24,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     // TODO: SIMDify on NEON. ALso make scalar version faster (it was faster in previous main version).
+    #[inline(always)]
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         for y in 0..Tile::HEIGHT {
             for (x, pixel) in region

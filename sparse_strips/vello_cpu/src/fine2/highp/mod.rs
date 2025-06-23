@@ -23,6 +23,7 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
         color.as_premul_f32().components
     }
 
+    #[inline(always)]
     fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         for y in 0..Tile::HEIGHT {
             for (x, pixel) in region
