@@ -170,8 +170,8 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         // center of the location we are sampling, and sample those points
         // using a cubic filter to weight each location's contribution.
 
-        let x_fract = element_wise_splat(self.simd, (x_positions + 0.5).fract());
-        let y_fract = element_wise_splat(self.simd, (y_positions + 0.5).fract());
+        let x_fract = (x_positions + 0.5).fract();
+        let y_fract = (y_positions + 0.5).fract();
 
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
 
@@ -233,7 +233,7 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                     for y_idx in 0..2 {
                         let y_positions = y_positions[y_idx];
                         let color_sample = sample(x_positions, y_positions);
-                        let w = cx[x_idx] * cy[y_idx];
+                        let w = element_wise_splat(self.simd, cx[x_idx] * cy[y_idx]);
                         
                         interpolated_color = interpolated_color.madd(w, color_sample);
                     }
@@ -344,4 +344,62 @@ pub(crate) fn extend_simd<S: Simd>(
             f32x4::from_bytes(biased_bits.to_bytes())
         }
     }
+}
+
+/// Calculate the weights for a single fractional value.
+fn weights<S: Simd>(fract: f32x4<S>) -> [f32x4<S>; 4] {
+    let s = fract.simd;
+    const MF: [[f32; 4]; 4] = mf_resampler();
+
+    [
+        single_weight(fract, f32x4::splat(s,MF[0][0]), f32x4::splat(s,MF[0][1]), f32x4::splat(s,MF[0][2]), f32x4::splat(s,MF[0][3])),
+        single_weight(fract, f32x4::splat(s,MF[1][0]), f32x4::splat(s,MF[1][1]), f32x4::splat(s,MF[1][2]), f32x4::splat(s,MF[1][3])),
+        single_weight(fract, f32x4::splat(s,MF[2][0]), f32x4::splat(s,MF[2][1]), f32x4::splat(s,MF[2][2]), f32x4::splat(s,MF[2][3])),
+        single_weight(fract, f32x4::splat(s,MF[3][0]), f32x4::splat(s,MF[3][1]), f32x4::splat(s,MF[3][2]), f32x4::splat(s,MF[3][3])),
+    ]
+}
+
+/// Calculate a weight based on the fractional value t and the cubic coefficients.
+#[inline(always)]
+fn single_weight<S: Simd>(t: f32x4<S>, a: f32x4<S>, b: f32x4<S>, c: f32x4<S>, d: f32x4<S>) -> f32x4<S> {
+    t * (t * (t * d + c) + b) + a
+}
+
+/// Mitchell filter with the variables B = 1/3 and C = 1/3.
+const fn mf_resampler() -> [[f32; 4]; 4] {
+    cubic_resampler(1.0 / 3.0, 1.0 / 3.0)
+}
+
+/// Cubic resampling logic is borrowed from Skia. See
+/// <https://github.com/google/skia/blob/220fef664978643a47d4559ae9e762b91aba534a/include/core/SkSamplingOptions.h#L33-L50>
+/// for some links to understand how this works. In principle, this macro allows us to define a
+/// resampler kernel based on two variables B and C which can be between 0 and 1, allowing to
+/// change some properties of the cubic interpolation kernel.
+///
+/// As mentioned above, cubic resampling consists of sampling the 16 surrounding pixels of the
+/// target point and interpolating them with a cubic filter.
+/// The generated matrix is 4x4 and represent the coefficients of the cubic function used to
+/// calculate weights based on the `x_fract` and `y_fract` of the location we are looking at.
+const fn cubic_resampler(b: f32, c: f32) -> [[f32; 4]; 4] {
+    [
+        [
+            (1.0 / 6.0) * b,
+            -(3.0 / 6.0) * b - c,
+            (3.0 / 6.0) * b + 2.0 * c,
+            -(1.0 / 6.0) * b - c,
+        ],
+        [
+            1.0 - (2.0 / 6.0) * b,
+            0.0,
+            -3.0 + (12.0 / 6.0) * b + c,
+            2.0 - (9.0 / 6.0) * b - c,
+        ],
+        [
+            (1.0 / 6.0) * b,
+            (3.0 / 6.0) * b + c,
+            3.0 - (15.0 / 6.0) * b - 2.0 * c,
+            -2.0 + (9.0 / 6.0) * b + c,
+        ],
+        [0.0, 0.0, -c, (1.0 / 6.0) * b + c],
+    ]
 }
