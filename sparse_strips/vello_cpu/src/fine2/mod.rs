@@ -1,5 +1,6 @@
 mod highp;
 mod lowp;
+mod shaders;
 
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
@@ -18,11 +19,11 @@ pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_C
 pub const SCRATCH_BUF_SIZE: usize =
     WideTile::WIDTH as usize * Tile::HEIGHT as usize * COLOR_COMPONENTS;
 
-use crate::fine2::highp::gradient::GradientFiller;
-use crate::fine2::highp::gradient::linear::SimdLinearKind;
-use crate::fine2::highp::gradient::radial::SimdRadialKind;
-use crate::fine2::highp::gradient::sweep::SimdSweepKind;
-use crate::fine2::highp::rounded_blurred_rect::BlurredRoundedRectFiller;
+use crate::fine2::shaders::gradient::GradientFiller;
+use crate::fine2::shaders::gradient::linear::SimdLinearKind;
+use crate::fine2::shaders::gradient::radial::SimdRadialKind;
+use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
+use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::{BlendModeExt, InlineMapExt};
 pub use highp::F32Kernel;
 pub use lowp::U8Kernel;

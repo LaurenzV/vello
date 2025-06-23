@@ -8,8 +8,6 @@ use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
 
 pub(crate) mod compose;
-pub(crate) mod gradient;
-pub(crate) mod rounded_blurred_rect;
 
 #[derive(Clone, Copy, Debug)]
 pub struct F32Kernel;
@@ -263,7 +261,7 @@ mod strip {
 }
 
 #[inline(always)]
-fn calc_pos(start_pos: Point, idx: usize, x_advance: Vec2, y_advance: Vec2) -> Point {
+pub(crate) fn calc_pos(start_pos: Point, idx: usize, x_advance: Vec2, y_advance: Vec2) -> Point {
     let col_idx = idx >> (Tile::HEIGHT.trailing_zeros() as usize);
     let row_idx = idx & (Tile::HEIGHT as usize - 1);
 
@@ -271,7 +269,7 @@ fn calc_pos(start_pos: Point, idx: usize, x_advance: Vec2, y_advance: Vec2) -> P
 }
 
 #[inline(always)]
-fn element_wise_splat<S: Simd>(simd: S, input: f32x4<S>) -> f32x16<S> {
+pub(crate) fn element_wise_splat<S: Simd>(simd: S, input: f32x4<S>) -> f32x16<S> {
     simd.combine_f32x8(
         simd.combine_f32x4(
             f32x4::splat(simd, input.val[0]),

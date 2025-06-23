@@ -1,4 +1,4 @@
-use crate::fine2::highp::gradient::SimdGradientKind;
+use crate::fine2::shaders::gradient::SimdGradientKind;
 use core::marker::PhantomData;
 use vello_common::encode::LinearKind;
 use vello_common::fearless_simd::{Simd, f32x4, f32x8, f32x16};
