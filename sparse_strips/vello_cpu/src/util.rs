@@ -3,8 +3,9 @@
 
 use crate::peniko::{BlendMode, Compose, ImageQuality, Mix};
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32};
+use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32, f32x16, mask32x16, mask32x4};
 use vello_common::math::FloatExt;
+use crate::fine2::Splat4thExt;
 
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.
@@ -152,3 +153,32 @@ impl EncodedImageExt for EncodedImage {
         self.quality == ImageQuality::Low
     }
 }
+
+pub(crate) trait Premultiply {
+    fn premultiply(self) -> Self;
+    fn unpremultiply(self) -> Self;
+}
+
+impl<S: Simd> Premultiply for f32x16<S> {
+    #[inline(always)]
+    fn premultiply(self) -> Self {
+        let alphas = self.splat_4th();
+        let multiplied = self * alphas;
+        
+        // Reselect original alphas, since those shouldn't be premultiplied.
+        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, 1, -1]));
+        self.simd.select_f32x16(select_mask, multiplied, alphas)
+    }
+
+    #[inline(always)]
+    fn unpremultiply(self) -> Self {
+        let alphas = self.splat_4th();
+        let divided = self / alphas;
+        // Clear NaN.
+        let cleared = self.simd.select_f32x16(self.simd.simd_eq_f32x16(divided, divided), divided, self);
+
+        // Reselect original alphas, since those shouldn't be unpremultiplied.
+        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, 1, -1]));
+        self.simd.select_f32x16(select_mask, cleared, alphas)
+    }
+} 
