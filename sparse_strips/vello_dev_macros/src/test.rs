@@ -159,7 +159,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
             || input_fn_name_str.contains("blurred_rounded_rect")
     };
 
-    skip_cpu |= { input_fn_name_str.contains("colr") || input_fn_name_str.contains("layer") };
+    skip_cpu |= input_fn_name_str.contains("colr");
 
     let empty_snippet = quote! {};
     let ignore_snippet = if let Some(reason) = ignore_reason {

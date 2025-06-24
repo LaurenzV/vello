@@ -326,7 +326,17 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
                 T::apply_mask(self.simd, blend_buf, iter);
             }
-            _ => unimplemented!(),
+            Cmd::Opacity(o) => {
+                if *o != 1.0 {
+                    let blend_buf = self.blend_buf.last_mut().unwrap();
+
+                    T::apply_mask(
+                        self.simd,
+                        blend_buf,
+                        iter::repeat(T::Shader::from_f32(self.simd, f32x16::splat(self.simd, *o))),
+                    );
+                }
+            }
         }
     }
 
