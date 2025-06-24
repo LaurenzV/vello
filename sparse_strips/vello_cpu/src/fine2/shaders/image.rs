@@ -240,27 +240,78 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                 let cx = weights(x_fract);
                 let cy = weights(y_fract);
 
+                const OFFSETS: [f32; 4] = [-1.5, -0.5, 0.5, 1.5];
+
+                let x_positions = [
+                    extend_simd(
+                        self.simd,
+                        x_positions + OFFSETS[0],
+                        self.data.image.extends.0,
+                        self.data.width,
+                        self.data.width_inv,
+                    ),
+                    extend_simd(
+                        self.simd,
+                        x_positions + OFFSETS[1],
+                        self.data.image.extends.0,
+                        self.data.width,
+                        self.data.width_inv,
+                    ),
+                    extend_simd(
+                        self.simd,
+                        x_positions + OFFSETS[2],
+                        self.data.image.extends.0,
+                        self.data.width,
+                        self.data.width_inv,
+                    ),
+                    extend_simd(
+                        self.simd,
+                        x_positions + OFFSETS[3],
+                        self.data.image.extends.0,
+                        self.data.width,
+                        self.data.width_inv,
+                    ),
+                ];
+
+                let y_positions = [
+                    extend_simd(
+                        self.simd,
+                        y_positions + OFFSETS[0],
+                        self.data.image.extends.1,
+                        self.data.height,
+                        self.data.height_inv,
+                    ),
+                    extend_simd(
+                        self.simd,
+                        y_positions + OFFSETS[1],
+                        self.data.image.extends.1,
+                        self.data.height,
+                        self.data.height_inv,
+                    ),
+                    extend_simd(
+                        self.simd,
+                        y_positions + OFFSETS[2],
+                        self.data.image.extends.1,
+                        self.data.height,
+                        self.data.height_inv,
+                    ),
+                    extend_simd(
+                        self.simd,
+                        y_positions + OFFSETS[3],
+                        self.data.image.extends.1,
+                        self.data.height,
+                        self.data.height_inv,
+                    ),
+                ];
+
                 // Note in particular that it is guaranteed that, similarly to bilinear filtering,
                 // the sum of all cx*cy is 1.
 
                 // We sample the 4x4 grid around the position we are currently looking at.
-                for (x_idx, x) in [-1.5, -0.5, 0.5, 1.5].into_iter().enumerate() {
-                    for (y_idx, y) in [-1.5, -0.5, 0.5, 1.5].into_iter().enumerate() {
-                        let x_positions = extend_simd(
-                            self.simd,
-                            x_positions + x,
-                            self.data.image.extends.0,
-                            self.data.width,
-                            self.data.width_inv,
-                        );
-                        
-                        let y_positions = extend_simd(
-                            self.simd,
-                            y_positions + y,
-                            self.data.image.extends.1,
-                            self.data.height,
-                            self.data.height_inv,
-                        );
+                for x_idx in 0..4 {
+                    let x_positions = x_positions[x_idx];
+                    for y_idx in 0..4 {
+                        let y_positions = y_positions[y_idx];
                         
                         let color_sample = sample(x_positions, y_positions);
                         let w = element_wise_splat(self.simd, cx[x_idx] * cy[y_idx]);
@@ -402,7 +453,7 @@ fn weights<S: Simd>(fract: f32x4<S>) -> [f32x4<S>; 4] {
 /// Calculate a weight based on the fractional value t and the cubic coefficients.
 #[inline(always)]
 fn single_weight<S: Simd>(t: f32x4<S>, a: f32x4<S>, b: f32x4<S>, c: f32x4<S>, d: f32x4<S>) -> f32x4<S> {
-    t * (t * (t * d + c) + b) + a
+    a.madd(b.madd(c.madd(t, d), t), t)
 }
 
 /// Mitchell filter with the variables B = 1/3 and C = 1/3.

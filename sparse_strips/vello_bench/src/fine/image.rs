@@ -18,7 +18,7 @@ pub fn image(c: &mut Criterion) {
 
     quality::low(c);
     quality::medium(c);
-    // quality::high(c);
+    quality::high(c);
 
     extend::pad(c);
     extend::repeat(c);
