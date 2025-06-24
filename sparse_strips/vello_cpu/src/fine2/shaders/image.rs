@@ -170,8 +170,13 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         // center of the location we are sampling, and sample those points
         // using a cubic filter to weight each location's contribution.
 
-        let x_fract = (x_positions + 0.5).fract();
-        let y_fract = (y_positions + 0.5).fract();
+        #[inline(always)]
+        fn fract<S: Simd>(val: f32x4<S>) -> f32x4<S> {
+            val - val.floor()
+        }
+        
+        let x_fract = fract(x_positions + 0.5);
+        let y_fract = fract(y_positions + 0.5);
 
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
 
