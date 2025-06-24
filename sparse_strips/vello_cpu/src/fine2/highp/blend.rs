@@ -82,3 +82,24 @@ separable_mix!(Difference, |cs: f32x16<S>, cb: f32x16<S>| {
     cs.simd.select_f32x16(cs.simd.simd_le_f32x16(cs, cb), cb - cs, cs - cb)
 });
 separable_mix!(HardLight, |cs: f32x16<S>, cb: f32x16<S>| HardLight::single(cs, cb));
+separable_mix!(Exclusion, |cs: f32x16<S>, cb: f32x16<S>| {
+    (cs + cb) - 2.0 * (cs * cb)
+});
+separable_mix!(SoftLight, |cs: f32x16<S>, cb: f32x16<S>| {
+    let mask_1 = cs.simd.simd_le_f32x16(cb, f32x16::splat(cs.simd, 0.25));
+    
+    let d = cs.simd.select_f32x16(
+        mask_1,
+        ((16.0 * cb - 12.0) * cb + 4.0) * cb,
+        cb.sqrt()
+    );
+
+    let mask_2 = cs.simd.simd_le_f32x16(cs, f32x16::splat(cs.simd, 0.5));
+    let res = cs.simd.select_f32x16(
+        mask_2,
+        cb - (1.0 - 2.0 * cs) * cb * (1.0 - cb),
+        cb + (2.0 * cs - 1.0) * (d - cb)
+    );
+
+    res
+});
