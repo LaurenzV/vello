@@ -134,30 +134,18 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
     type Item = f32x16<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let x_positions = extend_simd(
+        let x_positions = f32x4::splat_col_pos(
             self.simd,
-            f32x4::splat_col_pos(
-                self.simd,
-                self.data.cur_pos.x as f32,
-                self.data.x_advances.0,
-                self.data.y_advances.0,
-            ),
-            self.data.image.extends.0,
-            self.data.width,
-            self.data.width_inv,
+            self.data.cur_pos.x as f32,
+            self.data.x_advances.0,
+            self.data.y_advances.0,
         );
 
-        let y_positions = extend_simd(
+        let y_positions = f32x4::splat_col_pos(
             self.simd,
-            f32x4::splat_col_pos(
-                self.simd,
-                self.data.cur_pos.y as f32,
-                self.data.x_advances.1,
-                self.data.y_advances.1,
-            ),
-            self.data.image.extends.1,
-            self.data.height,
-            self.data.height_inv,
+            self.data.cur_pos.y as f32,
+            self.data.x_advances.1,
+            self.data.y_advances.1,
         );
 
         // We have two versions of filtering: `Medium` (bilinear filtering) and
@@ -178,10 +166,11 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         let x_fract = fract(x_positions + 0.5);
         let y_fract = fract(y_positions + 0.5);
         
-        println!("x_pos: {:?}, y_pos: {:?}", x_positions.val, y_positions.val);
-        println!("x_fract: {:?}, y_fract: {:?}", x_fract.val, y_fract.val);
+        println!("{:?}", x_fract.val);
+        println!("{:?}", y_fract.val);
         panic!();
-        
+
+
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
 
         let sample = |x_pos: f32x4<S>, y_pos: f32x4<S>| {
