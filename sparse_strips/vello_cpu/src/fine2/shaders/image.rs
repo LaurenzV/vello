@@ -318,8 +318,11 @@ impl<'a, S: Simd> ImageFillerData<'a, S> {
     pub(crate) fn new(simd: S, image: &'a EncodedImage, start_x: u16, start_y: u16) -> Self {
         let width = image.pixmap.width() as f32;
         let height = image.pixmap.height() as f32;
+        println!("starts: {:?}, {:?}", start_x, start_y);
+        println!("transform {:?}", image.transform);
         let start_pos = image.transform * Point::new(f64::from(start_x), f64::from(start_y));
-
+        println!("{:?}", start_pos);
+        
         let width_inv = f32x4::splat(simd, 1.0 / width);
         let height_inv = f32x4::splat(simd, 1.0 / height);
         let width = f32x4::splat(simd, width);
