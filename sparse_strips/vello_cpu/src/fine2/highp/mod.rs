@@ -7,7 +7,7 @@ use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
 
-mod blend;
+pub(crate) mod blend;
 pub(crate) mod compose;
 
 #[derive(Clone, Copy, Debug)]
@@ -125,10 +125,11 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
 
 mod fill {
     use crate::fine2::Splat4thExt;
+    use crate::fine2::highp::blend;
     use crate::fine2::highp::compose::ComposeExt;
     use crate::peniko::BlendMode;
+    use crate::util::BlendModeExt;
     use vello_common::fearless_simd::*;
-    use crate::fine2::highp::blend;
     // Careful: From my experiments, inlining these functions can have drastic (negative)
     // consequences on performance.
 
@@ -153,7 +154,7 @@ mod fill {
             alpha_composite_inner(simd, part, src_c, one_minus_alpha)
         }
     }
-    
+
     pub(super) fn blend<S: Simd, T: Iterator<Item = f32x16<S>>>(
         simd: S,
         target: &mut [f32],

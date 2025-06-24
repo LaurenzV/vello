@@ -1,11 +1,14 @@
-use crate::peniko::{BlendMode, Mix};
-use vello_common::fearless_simd::*;
 use crate::fine2::Splat4thExt;
+use crate::peniko::{BlendMode, Mix};
 use crate::util::Premultiply;
+use vello_common::fearless_simd::*;
 
 pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg_c: f32x16<S>, blend_mode: BlendMode) -> f32x16<S> {
+    if blend_mode.mix == Mix::Normal {
+        return src_c;
+    }
     // See https://www.w3.org/TR/compositing-1/#blending
-    
+
     let bg_alpha = bg_c.splat_4th();
     let src_alpha = src_c.splat_4th();
 
@@ -28,7 +31,7 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg_c: f32x16<S>, blend_mode: BlendM
     // As mentioned above, reset the alpha to its original value.
     let mask = mask32x16::block_splat(mask32x4::from_slice(src_c.simd, &[-1, -1, -1, 0]));
     mix_src = src_c.simd.select_f32x16(mask, mix_src, src_alpha);
-    
+
     mix_src.premultiply()
 }
 
@@ -141,35 +144,34 @@ separable_mix!(SoftLight, |cs: f32x16<S>, cb: f32x16<S>| {
 separable_mix!(ColorDodge, |cs: f32x16<S>, cb: f32x16<S>| {
     let mask_1 = cb.simd.simd_eq_f32x16(cb, f32x16::splat(cb.simd, 0.0));
     let mask_2 = cs.simd.simd_eq_f32x16(cs, f32x16::splat(cs.simd, 1.0));
-    
+
     cs.simd.select_f32x16(
         // if cb == 0
-        mask_1, 
+        mask_1,
         f32x16::splat(cs.simd, 0.0),
         // else if cs == 1
         cs.simd.select_f32x16(
             mask_2,
             f32x16::splat(cs.simd, 1.0),
             // else
-            f32x16::splat(cs.simd, 1.0)
-            .min(cb / (1.0 - cs))
-        )
+            f32x16::splat(cs.simd, 1.0).min(cb / (1.0 - cs)),
+        ),
     )
 });
 separable_mix!(ColorBurn, |cs: f32x16<S>, cb: f32x16<S>| {
     let mask_1 = cb.simd.simd_eq_f32x16(cb, f32x16::splat(cb.simd, 1.0));
     let mask_2 = cs.simd.simd_eq_f32x16(cs, f32x16::splat(cs.simd, 0.0));
-    
+
     cs.simd.select_f32x16(
         // if cb == 1
-        mask_1, 
+        mask_1,
         f32x16::splat(cs.simd, 1.0),
         // else if cs == 0
         cs.simd.select_f32x16(
             mask_2,
             f32x16::splat(cs.simd, 0.0),
             // else
-            (1.0 - f32x16::splat(cs.simd, 1.0).min((1.0 - cb) / cs))
-        )
+            (1.0 - f32x16::splat(cs.simd, 1.0).min((1.0 - cb) / cs)),
+        ),
     )
 });

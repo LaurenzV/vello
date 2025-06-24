@@ -1,8 +1,8 @@
 mod compose;
 
-use crate::fine2::FineKernel;
 use crate::fine2::lowp::compose::ComposeExt;
 use crate::fine2::{COLOR_COMPONENTS, SCRATCH_BUF_SIZE};
+use crate::fine2::{FineKernel, f32_to_u8, highp, u8_to_f32};
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 use crate::util::BlendModeExt;
@@ -113,7 +113,8 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
 mod fill {
     use crate::fine2::Splat4thExt;
     use crate::fine2::lowp::compose::ComposeExt;
-    use crate::peniko::BlendMode;
+    use crate::fine2::lowp::mix;
+    use crate::peniko::{BlendMode, Mix};
     use crate::util::normalized_mul;
     use vello_common::fearless_simd::*;
 
@@ -123,9 +124,15 @@ mod fill {
         src_c: T,
         blend_mode: BlendMode,
     ) {
+        let default_mix = blend_mode.mix == Mix::Normal;
         let mask = u8x32::splat(simd, 255);
         for (part, src_c) in target.chunks_exact_mut(32).zip(src_c) {
             let bg = u8x32::from_slice(simd, part);
+            let src_c = if default_mix {
+                src_c
+            } else {
+                mix(src_c, bg, blend_mode)
+            };
             let res = blend_mode.compose(simd, src_c, bg, mask);
             part.copy_from_slice(&res.val);
         }
@@ -175,8 +182,8 @@ mod fill {
 mod strip {
     use crate::fine2::Splat4thExt;
     use crate::fine2::lowp::compose::ComposeExt;
-    use crate::fine2::lowp::extract_masks;
-    use crate::peniko::BlendMode;
+    use crate::fine2::lowp::{extract_masks, mix};
+    use crate::peniko::{BlendMode, Mix};
     use crate::util::{Div255Ext, normalized_mul};
     use vello_common::fearless_simd::*;
 
@@ -187,12 +194,19 @@ mod strip {
         blend_mode: BlendMode,
         alphas: &[u8],
     ) {
+        let default_mix = blend_mode.mix == Mix::Normal;
+
         for ((bg_part, masks), src_c) in target
             .chunks_exact_mut(32)
             .zip(alphas.chunks_exact(8))
             .zip(src_c)
         {
             let bg = u8x32::from_slice(simd, bg_part);
+            let src_c = if default_mix {
+                src_c
+            } else {
+                mix(src_c, bg, blend_mode)
+            };
             let masks = extract_masks(simd, masks);
             let res = blend_mode.compose(simd, src_c, bg, masks);
             bg_part.copy_from_slice(&res.val);
@@ -253,6 +267,33 @@ mod strip {
         let res = s.narrow_u16x32((p1 + p2).div_255());
         target.copy_from_slice(&res.val);
     }
+}
+
+// TODO: Add a proper lowp mix pipeline
+fn mix<S: Simd>(src_c: u8x32<S>, bg_c: u8x32<S>, blend_mode: BlendMode) -> u8x32<S> {
+    let to_f32 = |val: u8x32<S>| {
+        let (a, b) = src_c.simd.split_u8x32(val);
+        let mut a = u8_to_f32(a);
+        let mut b = u8_to_f32(b);
+        a = a * f32x16::splat(src_c.simd, 1.0 / 255.0);
+        b = b * f32x16::splat(src_c.simd, 1.0 / 255.0);
+        (a, b)
+    };
+
+    let to_u8 = |val1: f32x16<S>, val2: f32x16<S>| {
+        let val1 = f32_to_u8(val1 * f32x16::splat(src_c.simd, 255.0));
+        let val2 = f32_to_u8(val2 * f32x16::splat(src_c.simd, 255.0));
+
+        val1.simd.combine_u8x16(val1, val2)
+    };
+
+    let (mut src_1, mut src_2) = to_f32(src_c);
+    let (bg_1, bg_2) = to_f32(bg_c);
+
+    src_1 = highp::blend::mix(src_1, bg_1, blend_mode);
+    src_2 = highp::blend::mix(src_2, bg_2, blend_mode);
+
+    to_u8(src_1, src_2)
 }
 
 #[inline(always)]
