@@ -134,6 +134,7 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
     type Item = f32x16<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        println!("{:?}", self.data.cur_pos);
         let x_positions = f32x4::splat_col_pos(
             self.simd,
             self.data.cur_pos.x as f32,
@@ -168,7 +169,6 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         
         println!("{:?}", x_fract.val);
         println!("{:?}", y_fract.val);
-        panic!();
 
 
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
