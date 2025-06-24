@@ -177,7 +177,11 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         
         let x_fract = fract(x_positions + 0.5);
         let y_fract = fract(y_positions + 0.5);
-
+        
+        println!("x_pos: {:?}, y_pos: {:?}", x_positions.val, y_positions.val);
+        println!("x_fract: {:?}, y_fract: {:?}", x_fract.val, y_fract.val);
+        panic!();
+        
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
 
         let sample = |x_pos: f32x4<S>, y_pos: f32x4<S>| {
