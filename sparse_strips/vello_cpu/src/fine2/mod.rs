@@ -286,23 +286,43 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
             Cmd::Mask(m) => {
                 let start_x = self.wide_coords.0 * WideTile::WIDTH;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
-                
+
                 let blend_buf = self.blend_buf.last_mut().unwrap();
-                
+
                 let width = (blend_buf.len() / (Tile::HEIGHT as usize * COLOR_COMPONENTS)) as u16;
                 let y = start_y as u32 + u32x4::from_slice(self.simd, &[0, 1, 2, 3]);
-                
-                let iter = (start_x..(start_x + width))
-                    .inline_map(|x| {
-                        let x_in_range = x < m.width();
-                        let s1 = if x_in_range && (y[0] as u16) < m.height() { m.sample(x, y[0] as u16) } else { 0 };
-                        let s2 = if x_in_range && (y[1] as u16) < m.height() { m.sample(x, y[1] as u16) } else { 0 };
-                        let s3 = if x_in_range && (y[2] as u16) < m.height() { m.sample(x, y[2] as u16) } else { 0 };
-                        let s4 = if x_in_range && (y[3] as u16) < m.height() { m.sample(x, y[3] as u16) } else { 0 };
-                        
-                        let samples = u8x16::from_slice(self.simd, &[s1, s1, s1, s1, s2, s2, s2, s2, s3, s3, s3, s3, s4, s4, s4, s4]);
-                        T::Shader::from_u8(self.simd, samples)
-                    });
+
+                let iter = (start_x..(start_x + width)).inline_map(|x| {
+                    let x_in_range = x < m.width();
+                    let s1 = if x_in_range && (y[0] as u16) < m.height() {
+                        m.sample(x, y[0] as u16)
+                    } else {
+                        0
+                    };
+                    let s2 = if x_in_range && (y[1] as u16) < m.height() {
+                        m.sample(x, y[1] as u16)
+                    } else {
+                        0
+                    };
+                    let s3 = if x_in_range && (y[2] as u16) < m.height() {
+                        m.sample(x, y[2] as u16)
+                    } else {
+                        0
+                    };
+                    let s4 = if x_in_range && (y[3] as u16) < m.height() {
+                        m.sample(x, y[3] as u16)
+                    } else {
+                        0
+                    };
+
+                    let samples = u8x16::from_slice(
+                        self.simd,
+                        &[
+                            s1, s1, s1, s1, s2, s2, s2, s2, s3, s3, s3, s3, s4, s4, s4, s4,
+                        ],
+                    );
+                    T::Shader::from_u8(self.simd, samples)
+                });
 
                 T::apply_mask(self.simd, blend_buf, iter);
             }

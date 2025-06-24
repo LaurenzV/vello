@@ -55,11 +55,15 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
         }
     }
 
-    fn apply_mask(simd: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item=Self::Shader>) {
+    fn apply_mask(
+        simd: S,
+        target: &mut [Self::Numeric],
+        mut src: impl Iterator<Item = Self::Shader>,
+    ) {
         for el in target.chunks_exact_mut(16) {
             let loaded = f32x16::from_slice(simd, el);
             let mulled = loaded * src.next().unwrap();
-            el.copy_from_slice(&mulled.val);       
+            el.copy_from_slice(&mulled.val);
         }
     }
 

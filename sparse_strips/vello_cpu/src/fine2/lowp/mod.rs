@@ -44,10 +44,16 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         }
     }
 
-    fn apply_mask(simd: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item=Self::Shader>) {
+    fn apply_mask(
+        simd: S,
+        target: &mut [Self::Numeric],
+        mut src: impl Iterator<Item = Self::Shader>,
+    ) {
         for el in target.chunks_exact_mut(16) {
             let loaded = u8x16::from_slice(simd, el);
-            let mulled = simd.narrow_u16x16((simd.widen_u8x16(loaded) * simd.widen_u8x16(src.next().unwrap())).div_255());
+            let mulled = simd.narrow_u16x16(
+                (simd.widen_u8x16(loaded) * simd.widen_u8x16(src.next().unwrap())).div_255(),
+            );
             el.copy_from_slice(&mulled.val);
         }
     }
@@ -289,8 +295,10 @@ fn mix<S: Simd>(src_c: u8x32<S>, bg_c: u8x32<S>, blend_mode: BlendMode) -> u8x32
     };
 
     let to_u8 = |val1: f32x16<S>, val2: f32x16<S>| {
-        let val1 = f32_to_u8(f32x16::splat(val1.simd, 0.5).madd(f32x16::splat(val1.simd, 255.0), val1));
-        let val2 = f32_to_u8(f32x16::splat(val2.simd, 0.5).madd(f32x16::splat(val2.simd, 255.0), val2));
+        let val1 =
+            f32_to_u8(f32x16::splat(val1.simd, 0.5).madd(f32x16::splat(val1.simd, 255.0), val1));
+        let val2 =
+            f32_to_u8(f32x16::splat(val2.simd, 0.5).madd(f32x16::splat(val2.simd, 255.0), val2));
 
         val1.simd.combine_u8x16(val1, val2)
     };

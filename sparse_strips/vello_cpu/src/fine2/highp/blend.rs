@@ -178,15 +178,15 @@ separable_mix!(ColorBurn, |cs: f32x16<S>, cb: f32x16<S>| {
 macro_rules! non_separable_mix {
     ($name:ident, $calc:expr) => {
         pub(crate) struct $name;
-        
+
         impl $name {
             #[inline(always)]
             fn mix<S: Simd>(mut src: f32x16<S>, bg: f32x16<S>) -> f32x16<S> {
                 for (src, bg) in (src.val.chunks_exact_mut(4)).zip(bg.val.chunks_exact(4)) {
                     let src_val = src.try_into().unwrap();
-                    src.copy_from_slice(&$calc(src_val, bg.try_into().unwrap()));   
+                    src.copy_from_slice(&$calc(src_val, bg.try_into().unwrap()));
                 }
-                
+
                 src
             }
         }
