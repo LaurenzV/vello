@@ -172,7 +172,7 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
 
         let sample = |x_pos: f32x4<S>, y_pos: f32x4<S>| {
-            u8_to_f32(sample(self.simd, &self.data, x_pos, y_pos)) * f32x16::splat(self.simd, 1.0 / 255.0)
+            u8_to_f32(sample(self.simd, &self.data, x_pos, y_pos))
         };
 
         match self.data.image.quality {
@@ -234,6 +234,8 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                         interpolated_color = interpolated_color.madd(w, color_sample);
                     }
                 }
+                
+                interpolated_color = interpolated_color * f32x16::splat(self.simd, 1.0 / 255.0)
             }
             ImageQuality::High => {
                 // Compare to <https://github.com/google/skia/blob/84ff153b0093fc83f6c77cd10b025c06a12c5604/src/opts/SkRasterPipeline_opts.h#L5030-L5075>.
@@ -319,6 +321,8 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                         interpolated_color = interpolated_color.madd(w, color_sample);
                     }
                 }
+                
+                interpolated_color = interpolated_color * f32x16::splat(self.simd, 1.0 / 255.0);
 
                 let alphas = interpolated_color.splat_4th();
 
