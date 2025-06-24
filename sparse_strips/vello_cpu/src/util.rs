@@ -4,7 +4,7 @@
 use crate::fine2::Splat4thExt;
 use crate::peniko::{BlendMode, Compose, ImageQuality, Mix};
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{Simd, SimdBase, f32x16, mask32x4, mask32x16, u8x32, u16x32};
+use vello_common::fearless_simd::{Simd, SimdBase, f32x16, mask32x4, mask32x16, u8x32, u16x32, u16x16};
 use vello_common::math::FloatExt;
 
 pub(crate) mod scalar {
@@ -83,6 +83,15 @@ impl<S: Simd> Div255Ext for u16x32<S> {
     #[inline(always)]
     fn div_255(self) -> u16x32<S> {
         let p1 = u16x32::splat(self.simd, 255);
+        let p2 = self + p1;
+        p2.shr(8)
+    }
+}
+
+impl<S: Simd> Div255Ext for u16x16<S> {
+    #[inline(always)]
+    fn div_255(self) -> u16x16<S> {
+        let p1 = u16x16::splat(self.simd, 255);
         let p2 = self + p1;
         p2.shr(8)
     }

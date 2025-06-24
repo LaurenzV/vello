@@ -5,7 +5,7 @@ use crate::fine2::{COLOR_COMPONENTS, SCRATCH_BUF_SIZE};
 use crate::fine2::{FineKernel, f32_to_u8, highp, u8_to_f32};
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
-use crate::util::BlendModeExt;
+use crate::util::{BlendModeExt, Div255Ext};
 use bytemuck::cast_slice;
 use vello_common::coarse::WideTile;
 use vello_common::fearless_simd::*;
@@ -41,6 +41,14 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
 
         for el in target.chunks_exact_mut(64) {
             el.copy_from_slice(&color.val);
+        }
+    }
+
+    fn apply_mask(simd: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item=Self::Shader>) {
+        for el in target.chunks_exact_mut(16) {
+            let loaded = u8x16::from_slice(simd, el);
+            let mulled = simd.narrow_u16x16((simd.widen_u8x16(loaded) * simd.widen_u8x16(src.next().unwrap())).div_255());
+            el.copy_from_slice(&mulled.val);
         }
     }
 

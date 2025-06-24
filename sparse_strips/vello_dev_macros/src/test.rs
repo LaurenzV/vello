@@ -162,7 +162,6 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
     skip_cpu |= {
         input_fn_name_str.contains("colr")
             || input_fn_name_str.contains("layer")
-            || input_fn_name_str.contains("mask")
     };
 
     let empty_snippet = quote! {};
