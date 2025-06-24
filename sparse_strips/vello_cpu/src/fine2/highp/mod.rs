@@ -7,8 +7,8 @@ use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
 
-pub(crate) mod compose;
 mod blend;
+pub(crate) mod compose;
 
 #[derive(Clone, Copy, Debug)]
 pub struct F32Kernel;

@@ -23,8 +23,8 @@ use crate::fine2::shaders::gradient::GradientFiller;
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
-use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller};
 use crate::fine2::shaders::image::SimpleImageFiller;
+use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller};
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::{BlendModeExt, EncodedImageExt, InlineMapExt};
 pub use highp::F32Kernel;
@@ -453,7 +453,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 blend_mode,
                                 filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                             );
-                        },
+                        }
                         (false, true) => {
                             let filler: SimpleImageFiller<'_, S> =
                                 SimpleImageFiller::new(self.simd, i, start_x, start_y);
@@ -649,7 +649,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
                                 alphas,
                             );
-                        },
+                        }
                         (false, true) => {
                             let filler: SimpleImageFiller<'_, S> =
                                 SimpleImageFiller::new(self.simd, i, start_x, start_y);

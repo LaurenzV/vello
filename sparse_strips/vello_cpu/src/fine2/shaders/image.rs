@@ -1,9 +1,9 @@
-use crate::fine2::{u8_to_f32, PosExt, Splat4thExt};
-use crate::kurbo::Point;
-use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{Bytes, Simd, SimdBase, f32x4, u8x16, u32x4, f32x16, SimdFloat};
 use crate::fine2::highp::element_wise_splat;
+use crate::fine2::{PosExt, Splat4thExt, u8_to_f32};
+use crate::kurbo::Point;
 use crate::peniko::ImageQuality;
+use vello_common::encode::EncodedImage;
+use vello_common::fearless_simd::{Bytes, Simd, SimdBase, SimdFloat, f32x4, f32x16, u8x16, u32x4};
 
 #[derive(Debug)]
 pub(crate) struct SimpleImageFiller<'a, S: Simd> {
@@ -115,7 +115,6 @@ impl<S: Simd> Iterator for ImageFiller<'_, S> {
     }
 }
 
-
 #[derive(Debug)]
 pub(crate) struct FilteredImageFiller<'a, S: Simd> {
     data: ImageFillerData<'a, S>,
@@ -164,10 +163,9 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         fn fract<S: Simd>(val: f32x4<S>) -> f32x4<S> {
             val - val.floor()
         }
-        
+
         let x_fract = fract(x_positions + 0.5);
         let y_fract = fract(y_positions + 0.5);
-
 
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
 
@@ -185,9 +183,9 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                 // Note that the sum of all cx*cy combinations also yields 1.0 again
                 // (modulo some floating point number impreciseness), ensuring the
                 // colors stay in range.
-                
+
                 const OFFSETS: [f32; 2] = [-0.5, 0.5];
-                
+
                 let x_positions = [
                     extend_simd(
                         self.simd,
@@ -225,16 +223,16 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                 // We sample the corners rectangle that covers our current position.
                 for x_idx in 0..2 {
                     let x_positions = x_positions[x_idx];
-                    
+
                     for y_idx in 0..2 {
                         let y_positions = y_positions[y_idx];
                         let color_sample = sample(x_positions, y_positions);
                         let w = element_wise_splat(self.simd, cx[x_idx] * cy[y_idx]);
-                        
+
                         interpolated_color = interpolated_color.madd(w, color_sample);
                     }
                 }
-                
+
                 interpolated_color = interpolated_color * f32x16::splat(self.simd, 1.0 / 255.0)
             }
             ImageQuality::High => {
@@ -314,14 +312,14 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                     let x_positions = x_positions[x_idx];
                     for y_idx in 0..4 {
                         let y_positions = y_positions[y_idx];
-                        
+
                         let color_sample = sample(x_positions, y_positions);
                         let w = element_wise_splat(self.simd, cx[x_idx] * cy[y_idx]);
 
                         interpolated_color = interpolated_color.madd(w, color_sample);
                     }
                 }
-                
+
                 interpolated_color = interpolated_color * f32x16::splat(self.simd, 1.0 / 255.0);
 
                 let alphas = interpolated_color.splat_4th();
@@ -362,7 +360,7 @@ impl<'a, S: Simd> ImageFillerData<'a, S> {
         let width = image.pixmap.width() as f32;
         let height = image.pixmap.height() as f32;
         let start_pos = image.transform * Point::new(f64::from(start_x), f64::from(start_y));
-        
+
         let width_inv = f32x4::splat(simd, 1.0 / width);
         let height_inv = f32x4::splat(simd, 1.0 / height);
         let width = f32x4::splat(simd, width);
@@ -447,16 +445,46 @@ fn weights<S: Simd>(fract: f32x4<S>) -> [f32x4<S>; 4] {
     const MF: [[f32; 4]; 4] = mf_resampler();
 
     [
-        single_weight(fract, f32x4::splat(s,MF[0][0]), f32x4::splat(s,MF[0][1]), f32x4::splat(s,MF[0][2]), f32x4::splat(s,MF[0][3])),
-        single_weight(fract, f32x4::splat(s,MF[1][0]), f32x4::splat(s,MF[1][1]), f32x4::splat(s,MF[1][2]), f32x4::splat(s,MF[1][3])),
-        single_weight(fract, f32x4::splat(s,MF[2][0]), f32x4::splat(s,MF[2][1]), f32x4::splat(s,MF[2][2]), f32x4::splat(s,MF[2][3])),
-        single_weight(fract, f32x4::splat(s,MF[3][0]), f32x4::splat(s,MF[3][1]), f32x4::splat(s,MF[3][2]), f32x4::splat(s,MF[3][3])),
+        single_weight(
+            fract,
+            f32x4::splat(s, MF[0][0]),
+            f32x4::splat(s, MF[0][1]),
+            f32x4::splat(s, MF[0][2]),
+            f32x4::splat(s, MF[0][3]),
+        ),
+        single_weight(
+            fract,
+            f32x4::splat(s, MF[1][0]),
+            f32x4::splat(s, MF[1][1]),
+            f32x4::splat(s, MF[1][2]),
+            f32x4::splat(s, MF[1][3]),
+        ),
+        single_weight(
+            fract,
+            f32x4::splat(s, MF[2][0]),
+            f32x4::splat(s, MF[2][1]),
+            f32x4::splat(s, MF[2][2]),
+            f32x4::splat(s, MF[2][3]),
+        ),
+        single_weight(
+            fract,
+            f32x4::splat(s, MF[3][0]),
+            f32x4::splat(s, MF[3][1]),
+            f32x4::splat(s, MF[3][2]),
+            f32x4::splat(s, MF[3][3]),
+        ),
     ]
 }
 
 /// Calculate a weight based on the fractional value t and the cubic coefficients.
 #[inline(always)]
-fn single_weight<S: Simd>(t: f32x4<S>, a: f32x4<S>, b: f32x4<S>, c: f32x4<S>, d: f32x4<S>) -> f32x4<S> {
+fn single_weight<S: Simd>(
+    t: f32x4<S>,
+    a: f32x4<S>,
+    b: f32x4<S>,
+    c: f32x4<S>,
+    d: f32x4<S>,
+) -> f32x4<S> {
     a.madd(b.madd(c.madd(t, d), t), t)
 }
 

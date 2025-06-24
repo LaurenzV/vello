@@ -1,11 +1,11 @@
 // Copyright 2025 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use crate::fine2::Splat4thExt;
 use crate::peniko::{BlendMode, Compose, ImageQuality, Mix};
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{Simd, SimdBase, u8x32, u16x32, f32x16, mask32x16, mask32x4};
+use vello_common::fearless_simd::{Simd, SimdBase, f32x16, mask32x4, mask32x16, u8x32, u16x32};
 use vello_common::math::FloatExt;
-use crate::fine2::Splat4thExt;
 
 pub(crate) mod scalar {
     /// Perform an approximate division by 255.
@@ -164,7 +164,7 @@ impl<S: Simd> Premultiply for f32x16<S> {
     fn premultiply(self) -> Self {
         let alphas = self.splat_4th();
         let multiplied = self * alphas;
-        
+
         // Reselect original alphas, since those shouldn't be premultiplied.
         let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, 1, -1]));
         self.simd.select_f32x16(select_mask, multiplied, alphas)
@@ -175,10 +175,12 @@ impl<S: Simd> Premultiply for f32x16<S> {
         let alphas = self.splat_4th();
         let divided = self / alphas;
         // Clear NaN.
-        let cleared = self.simd.select_f32x16(self.simd.simd_eq_f32x16(divided, divided), divided, self);
+        let cleared =
+            self.simd
+                .select_f32x16(self.simd.simd_eq_f32x16(divided, divided), divided, self);
 
         // Reselect original alphas, since those shouldn't be unpremultiplied.
         let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, 1, -1]));
         self.simd.select_f32x16(select_mask, cleared, alphas)
     }
-} 
+}
