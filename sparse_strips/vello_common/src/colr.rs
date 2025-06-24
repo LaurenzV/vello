@@ -134,7 +134,7 @@ impl<'a> ColrPainter<'a> {
             new_stop.offset = 1.0;
             stops.push(new_stop);
         }
-        
+
         // For the edge case where multiple stops have an end offset of 1, the algorithm
         // used in vello requires a second 1.0 stop.
         let last = stops.last().unwrap().clone();
