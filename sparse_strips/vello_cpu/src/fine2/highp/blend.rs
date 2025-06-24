@@ -16,12 +16,12 @@ impl MixExt for BlendMode {
             Mix::Overlay => Overlay::mix(src, bg),
             Mix::Darken => Darken::mix(src, bg),
             Mix::Lighten => Lighten::mix(src, bg),
-            // Mix::ColorDodge => ColorDodge::mix(src, bg),
-            // Mix::ColorBurn => ColorBurn::mix(src, bg),
+            Mix::ColorDodge => ColorDodge::mix(src, bg),
+            Mix::ColorBurn => ColorBurn::mix(src, bg),
             Mix::HardLight => HardLight::mix(src, bg),
-            // Mix::SoftLight => SoftLight::mix(src, bg),
+            Mix::SoftLight => SoftLight::mix(src, bg),
             Mix::Difference => Difference::mix(src, bg),
-            // Mix::Exclusion => Exclusion::mix(src, bg),
+            Mix::Exclusion => Exclusion::mix(src, bg),
             _ => src,
             // Mix::Hue => Hue::mix(src, bg),
             // Mix::Saturation => Saturation::mix(src, bg),
@@ -106,4 +106,39 @@ separable_mix!(SoftLight, |cs: f32x16<S>, cb: f32x16<S>| {
     );
 
     res
+});
+separable_mix!(ColorDodge, |cs: f32x16<S>, cb: f32x16<S>| {
+    let mask_1 = cb.simd.simd_eq_f32x16(cb, f32x16::splat(cb.simd, 0.0));
+    let mask_2 = cs.simd.simd_eq_f32x16(cs, f32x16::splat(cs.simd, 1.0));
+    
+    cs.simd.select_f32x16(
+        // if cb == 0
+        mask_1, 
+        f32x16::splat(cs.simd, 0.0),
+        // else if cs == 1
+        cs.simd.select_f32x16(
+            mask_2,
+            f32x16::splat(cs.simd, 1.0),
+            // else
+            f32x16::splat(cs.simd, 1.0)
+            .min(cb / (1.0 - cs))
+        )
+    )
+});
+separable_mix!(ColorBurn, |cs: f32x16<S>, cb: f32x16<S>| {
+    let mask_1 = cb.simd.simd_eq_f32x16(cb, f32x16::splat(cb.simd, 1.0));
+    let mask_2 = cs.simd.simd_eq_f32x16(cs, f32x16::splat(cs.simd, 0.0));
+    
+    cs.simd.select_f32x16(
+        // if cb == 1
+        mask_1, 
+        f32x16::splat(cs.simd, 1.0),
+        // else if cs == 0
+        cs.simd.select_f32x16(
+            mask_2,
+            f32x16::splat(cs.simd, 0.0),
+            // else
+            (1.0 - f32x16::splat(cs.simd, 1.0).min((1.0 - cb) / cs))
+        )
+    )
 });
