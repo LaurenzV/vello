@@ -14,7 +14,8 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg_c: f32x16<S>, blend_mode: BlendM
 
     // For blending, we need to first unpremultiply everything.
     let mix_bg = bg_c.unpremultiply();
-    let mut mix_src = src_c.unpremultiply();
+    let unpremultiplied_src_c = src_c.unpremultiply();
+    let mut mix_src = unpremultiplied_src_c;
 
     // Mix the source and background color. This will then be our
     // new source color.
@@ -24,7 +25,7 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg_c: f32x16<S>, blend_mode: BlendM
     mix_src = blend_mode.mix(mix_src, mix_bg);
 
     // Account for alpha.
-    let p1 = (1.0 - bg_alpha) * src_c;
+    let p1 = (1.0 - bg_alpha) * unpremultiplied_src_c;
     let p2 = bg_alpha * mix_src;
     mix_src = p1 + p2;
 
