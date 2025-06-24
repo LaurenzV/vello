@@ -8,6 +8,7 @@ use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
 
 pub(crate) mod compose;
+mod blend;
 
 #[derive(Clone, Copy, Debug)]
 pub struct F32Kernel;
