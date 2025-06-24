@@ -134,7 +134,8 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
     type Item = f32x16<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        println!("{:?}", self.data.cur_pos);
+        let debug = self.data.cur_pos.x == 4.15 && self.data.cur_pos.y == 3.05;
+
         let x_positions = f32x4::splat_col_pos(
             self.simd,
             self.data.cur_pos.x as f32,
@@ -166,9 +167,6 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         
         let x_fract = fract(x_positions + 0.5);
         let y_fract = fract(y_positions + 0.5);
-        
-        println!("{:?}", x_fract.val);
-        println!("{:?}", y_fract.val);
 
 
         let mut interpolated_color = f32x16::splat(self.simd, 0.0);
@@ -263,25 +261,26 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
                             self.data.height,
                             self.data.height_inv,
                         );
-
+                        
                         let color_sample = sample(x_positions, y_positions);
                         let w = element_wise_splat(self.simd, cx[x_idx] * cy[y_idx]);
 
                         interpolated_color = interpolated_color.madd(w, color_sample);
-                        let alphas = interpolated_color.splat_4th();
-                        
-                        // Due to the nature of the cubic filter, it can happen in certain situations
-                        // that one of the color components ends up with a higher value than the
-                        // alpha component, which isn't permissible because the color is
-                        // premultiplied and would lead to overflows when doing source over
-                        // compositing with u8-based values. Because of this, we need to clamp
-                        // to the alpha value.
-                        interpolated_color = interpolated_color
-                            .min(f32x16::splat(self.simd, 1.0))
-                            .max(f32x16::splat(self.simd, 0.0))
-                            .min(alphas);
                     }
                 }
+
+                let alphas = interpolated_color.splat_4th();
+
+                // Due to the nature of the cubic filter, it can happen in certain situations
+                // that one of the color components ends up with a higher value than the
+                // alpha component, which isn't permissible because the color is
+                // premultiplied and would lead to overflows when doing source over
+                // compositing with u8-based values. Because of this, we need to clamp
+                // to the alpha value.
+                interpolated_color = interpolated_color
+                    .min(f32x16::splat(self.simd, 1.0))
+                    .max(f32x16::splat(self.simd, 0.0))
+                    .min(alphas);
             }
         }
 
@@ -307,10 +306,7 @@ impl<'a, S: Simd> ImageFillerData<'a, S> {
     pub(crate) fn new(simd: S, image: &'a EncodedImage, start_x: u16, start_y: u16) -> Self {
         let width = image.pixmap.width() as f32;
         let height = image.pixmap.height() as f32;
-        println!("starts: {:?}, {:?}", start_x, start_y);
-        println!("transform {:?}", image.transform);
         let start_pos = image.transform * Point::new(f64::from(start_x), f64::from(start_y));
-        println!("{:?}", start_pos);
         
         let width_inv = f32x4::splat(simd, 1.0 / width);
         let height_inv = f32x4::splat(simd, 1.0 / height);
