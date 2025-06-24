@@ -128,6 +128,7 @@ mod fill {
     use crate::fine2::highp::compose::ComposeExt;
     use crate::peniko::BlendMode;
     use vello_common::fearless_simd::*;
+    use crate::fine2::highp::blend;
     // Careful: From my experiments, inlining these functions can have drastic (negative)
     // consequences on performance.
 
@@ -152,8 +153,7 @@ mod fill {
             alpha_composite_inner(simd, part, src_c, one_minus_alpha)
         }
     }
-
-    #[inline(always)]
+    
     pub(super) fn blend<S: Simd, T: Iterator<Item = f32x16<S>>>(
         simd: S,
         target: &mut [f32],
@@ -164,6 +164,7 @@ mod fill {
 
         for (bg_slice, src_c) in target.chunks_exact_mut(16).zip(src_c) {
             let bg = f32x16::from_slice(simd, bg_slice);
+            let src_c = blend::mix(src_c, bg, blend_mode);
             let res = blend_mode.compose(simd, src_c, bg, mask);
             bg_slice.copy_from_slice(&res.val);
         }
@@ -185,7 +186,7 @@ mod fill {
 mod strip {
     use crate::fine2::Splat4thExt;
     use crate::fine2::highp::compose::ComposeExt;
-    use crate::fine2::highp::extract_masks;
+    use crate::fine2::highp::{blend, extract_masks};
     use crate::peniko::BlendMode;
     use vello_common::fearless_simd::*;
 
@@ -238,6 +239,7 @@ mod strip {
         {
             let masks = extract_masks(simd, masks);
             let bg = f32x16::from_slice(simd, bg_part);
+            let src_c = blend::mix(src_c, bg, blend_mode);
             let res = blend_mode.compose(simd, src_c, bg, masks);
             bg_part.copy_from_slice(&res.val);
         }

@@ -166,7 +166,7 @@ impl<S: Simd> Premultiply for f32x16<S> {
         let multiplied = self * alphas;
 
         // Reselect original alphas, since those shouldn't be premultiplied.
-        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, 1, -1]));
+        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, -1, 0]));
         self.simd.select_f32x16(select_mask, multiplied, alphas)
     }
 
@@ -180,7 +180,7 @@ impl<S: Simd> Premultiply for f32x16<S> {
                 .select_f32x16(self.simd.simd_eq_f32x16(divided, divided), divided, self);
 
         // Reselect original alphas, since those shouldn't be unpremultiplied.
-        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, 1, -1]));
+        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, -1, 0]));
         self.simd.select_f32x16(select_mask, cleared, alphas)
     }
 }

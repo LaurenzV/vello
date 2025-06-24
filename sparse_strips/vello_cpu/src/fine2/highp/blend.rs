@@ -1,7 +1,38 @@
 use crate::peniko::{BlendMode, Mix};
 use vello_common::fearless_simd::*;
+use crate::fine2::Splat4thExt;
+use crate::util::Premultiply;
 
-pub(crate) trait MixExt {
+pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg_c: f32x16<S>, blend_mode: BlendMode) -> f32x16<S> {
+    // See https://www.w3.org/TR/compositing-1/#blending
+    
+    let bg_alpha = bg_c.splat_4th();
+    let src_alpha = src_c.splat_4th();
+
+    // For blending, we need to first unpremultiply everything.
+    let mix_bg = bg_c.unpremultiply();
+    let mut mix_src = src_c.unpremultiply();
+
+    // Mix the source and background color. This will then be our
+    // new source color.
+    // Note that mixing should not affect the alpha value, but since we currently
+    // SIMDify across the pixel range, the alphas will also be affected. Because of that,
+    // we will reset the alpha later to
+    mix_src = blend_mode.mix(mix_src, mix_bg);
+
+    // Account for alpha.
+    let p1 = (1.0 - bg_alpha) * src_c;
+    let p2 = bg_alpha * mix_src;
+    mix_src = p1 + p2;
+
+    // As mentioned above, reset the alpha to its original value.
+    let mask = mask32x16::block_splat(mask32x4::from_slice(src_c.simd, &[-1, -1, -1, 0]));
+    mix_src = src_c.simd.select_f32x16(mask, mix_src, src_alpha);
+    
+    mix_src.premultiply()
+}
+
+trait MixExt {
     fn mix<S: Simd>(&self, src: f32x16<S>, bg: f32x16<S>) -> f32x16<S>;
 }
 
