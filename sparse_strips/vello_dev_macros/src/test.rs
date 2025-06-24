@@ -163,10 +163,6 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
         input_fn_name_str.contains("colr")
             || input_fn_name_str.contains("layer")
             || input_fn_name_str.contains("mask")
-            || input_fn_name_str.contains("hue")
-            || input_fn_name_str.contains("saturation")
-            || input_fn_name_str.contains("color")
-            || input_fn_name_str.contains("luminosity")
     };
 
     let empty_snippet = quote! {};

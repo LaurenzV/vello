@@ -56,11 +56,10 @@ impl MixExt for BlendMode {
             Mix::SoftLight => SoftLight::mix(src, bg),
             Mix::Difference => Difference::mix(src, bg),
             Mix::Exclusion => Exclusion::mix(src, bg),
-            _ => src,
-            // Mix::Hue => Hue::mix(src, bg),
-            // Mix::Saturation => Saturation::mix(src, bg),
-            // Mix::Color => Color::mix(src, bg),
-            // Mix::Luminosity => Luminosity::mix(src, bg),
+            Mix::Hue => Hue::mix(src, bg),
+            Mix::Saturation => Saturation::mix(src, bg),
+            Mix::Color => Color::mix(src, bg),
+            Mix::Luminosity => Luminosity::mix(src, bg),
         }
     }
 }
@@ -175,3 +174,96 @@ separable_mix!(ColorBurn, |cs: f32x16<S>, cb: f32x16<S>| {
         ),
     )
 });
+
+macro_rules! non_separable_mix {
+    ($name:ident, $calc:expr) => {
+        pub(crate) struct $name;
+        
+        impl $name {
+            #[inline(always)]
+            fn mix<S: Simd>(mut src: f32x16<S>, bg: f32x16<S>) -> f32x16<S> {
+                for (src, bg) in (src.val.chunks_exact_mut(4)).zip(bg.val.chunks_exact(4)) {
+                    let src_val = src.try_into().unwrap();
+                    src.copy_from_slice(&$calc(src_val, bg.try_into().unwrap()));   
+                }
+                
+                src
+            }
+        }
+    };
+}
+
+non_separable_mix!(Hue, |cs, cb| set_lum(set_sat(cs, sat(cb)), lum(cb)));
+non_separable_mix!(Saturation, |cs, cb| set_lum(set_sat(cb, sat(cs)), lum(cb)));
+non_separable_mix!(Color, |cs, cb| set_lum(cs, lum(cb)));
+non_separable_mix!(Luminosity, |cs, cb| set_lum(cb, lum(cs)));
+
+fn lum(c: [f32; 4]) -> f32 {
+    0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+}
+
+fn sat(c: [f32; 4]) -> f32 {
+    c[0].max(c[1]).max(c[2]) - c[0].min(c[1]).min(c[2])
+}
+
+fn clip_color(color: [f32; 4]) -> [f32; 4] {
+    let mut c_new = color;
+
+    let l = lum(c_new);
+    let n = c_new[0].min(c_new[1].min(c_new[2]));
+    let x = c_new[0].max(c_new[1].max(c_new[2]));
+
+    for c in &mut c_new {
+        if n < 0.0 {
+            *c = l + (((*c - l) * l) / (l - n));
+        }
+
+        if x > 1.0 {
+            *c = l + (((*c - l) * (1.0 - l)) / (x - l));
+        }
+    }
+
+    c_new
+}
+
+fn set_lum(mut c: [f32; 4], l: f32) -> [f32; 4] {
+    let d = l - lum(c);
+    c[0] += d;
+    c[1] += d;
+    c[2] += d;
+
+    clip_color(c)
+}
+
+fn set_sat(mut c: [f32; 4], s: f32) -> [f32; 4] {
+    let (min, tail) = c.split_at_mut(1);
+    let (mid, max) = tail.split_at_mut(1);
+
+    let mut min = &mut min[0];
+    let mut mid = &mut mid[0];
+    let mut max = &mut max[0];
+
+    if *min > *mid {
+        core::mem::swap(&mut min, &mut mid);
+    }
+
+    if *min > *max {
+        core::mem::swap(&mut min, &mut max);
+    }
+
+    if *mid > *max {
+        core::mem::swap(&mut mid, &mut max);
+    }
+
+    if *max > *min {
+        *mid = ((*mid - *min) * s) / (*max - *min);
+        *max = s;
+    } else {
+        *mid = 0.0;
+        *max = 0.0;
+    }
+
+    *min = 0.0;
+
+    c
+}
