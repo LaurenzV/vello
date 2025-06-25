@@ -1,11 +1,12 @@
 mod compose;
 
 use crate::fine2::lowp::compose::ComposeExt;
-use crate::fine2::{COLOR_COMPONENTS, SCRATCH_BUF_SIZE};
+use crate::fine2::{COLOR_COMPONENTS, Painter, SCRATCH_BUF_SIZE};
 use crate::fine2::{FineKernel, f32_to_u8, highp, u8_to_f32};
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 use crate::util::{BlendModeExt, Div255Ext};
+use alloc::boxed::Box;
 use bytemuck::cast_slice;
 use vello_common::coarse::WideTile;
 use vello_common::fearless_simd::*;
@@ -44,6 +45,10 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         }
     }
 
+    fn create_painter<'a>(iter: impl Iterator<Item = Self::Shader> + 'a) -> Box<dyn Painter + 'a> {
+        Box::new(U8Painter::new(iter))
+    }
+
     fn apply_mask(
         simd: S,
         target: &mut [Self::Numeric],
@@ -59,10 +64,8 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn copy_f32_iter(_: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item = u8x16<S>>) {
-        for el in target.chunks_exact_mut(16) {
-            el.copy_from_slice(&src.next().unwrap()[..])
-        }
+    fn apply_painter<'a>(_: S, target: &mut [Self::Numeric], mut painter: Box<dyn Painter + 'a>) {
+        painter.paint_u8(target);
     }
 
     #[inline(always)]
@@ -121,6 +124,33 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         alphas: &[u8],
     ) {
         strip::blend(simd, target, src, blend_mode, alphas)
+    }
+}
+
+struct U8Painter<S: Simd, T: Iterator<Item = u8x16<S>>> {
+    iter: T,
+}
+
+impl<S: Simd, T: Iterator<Item = u8x16<S>>> U8Painter<S, T> {
+    pub fn new(iter: T) -> Self {
+        Self { iter }
+    }
+}
+
+impl<S: Simd, T: Iterator<Item = u8x16<S>>> Painter for U8Painter<S, T> {
+    fn paint_u8(&mut self, buf: &mut [u8]) {
+        for chunk in buf.chunks_exact_mut(16) {
+            let src = self.iter.next().unwrap();
+            chunk.copy_from_slice(&src.val);
+        }
+    }
+
+    fn paint_f32(&mut self, buf: &mut [f32]) {
+        for chunk in buf.chunks_exact_mut(16) {
+            let src = self.iter.next().unwrap();
+            let converted = u8_to_f32(src);
+            chunk.copy_from_slice(&converted.val);
+        }
     }
 }
 
@@ -365,7 +395,7 @@ fn pack_block<S: Simd>(simd: S, region: &mut Region<'_>, mut in_buf: &[u8]) {
         let dest_idx = idx * CHUNK_LENGTH / 4;
 
         let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
-        
+
         let loaded = simd.load_interleaved_128_u32x16(casted).reinterpret_u8();
         dest_slices[0][dest_idx..][..16].copy_from_slice(&loaded.val[..16]);
         dest_slices[1][dest_idx..][..16].copy_from_slice(&loaded.val[16..32]);

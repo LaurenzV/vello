@@ -54,7 +54,7 @@ pub(crate) fn vello_bench_inner(_: TokenStream, item: TokenStream) -> TokenStrea
                     run_integer(b, neon);
                 });
             }
-            
+
             //
             // c.bench_function(&get_bench_name(&#input_fn_name_str, "f32_scalar"), |b| {
             //     run_float(b, vello_common::fearless_simd::Fallback::new());

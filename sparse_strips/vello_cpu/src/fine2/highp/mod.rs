@@ -1,8 +1,9 @@
-use crate::fine2::COLOR_COMPONENTS;
 use crate::fine2::FineKernel;
+use crate::fine2::{COLOR_COMPONENTS, Painter, f32_to_u8};
 use crate::kurbo::{Point, Vec2};
 use crate::peniko::BlendMode;
 use crate::region::Region;
+use alloc::boxed::Box;
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::tile::Tile;
@@ -55,6 +56,10 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
         }
     }
 
+    fn create_painter<'a>(iter: impl Iterator<Item = Self::Shader> + 'a) -> Box<dyn Painter + 'a> {
+        Box::new(F32Painter::new(iter))
+    }
+
     fn apply_mask(
         simd: S,
         target: &mut [Self::Numeric],
@@ -68,10 +73,8 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
     }
 
     #[inline(always)]
-    fn copy_f32_iter(_: S, target: &mut [Self::Numeric], mut src: impl Iterator<Item = f32x16<S>>) {
-        for el in target.chunks_exact_mut(16) {
-            el.copy_from_slice(&src.next().unwrap().val);
-        }
+    fn apply_painter<'a>(_: S, target: &mut [Self::Numeric], mut painter: Box<dyn Painter + 'a>) {
+        painter.paint_f32(target);
     }
 
     #[inline(always)]
@@ -132,6 +135,33 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
         alphas: &[u8],
     ) {
         strip::blend(simd, target, src, alphas, blend_mode);
+    }
+}
+
+struct F32Painter<S: Simd, T: Iterator<Item = f32x16<S>>> {
+    iter: T,
+}
+
+impl<S: Simd, T: Iterator<Item = f32x16<S>>> F32Painter<S, T> {
+    pub fn new(iter: T) -> Self {
+        Self { iter }
+    }
+}
+
+impl<S: Simd, T: Iterator<Item = f32x16<S>>> Painter for F32Painter<S, T> {
+    fn paint_u8(&mut self, buf: &mut [u8]) {
+        for chunk in buf.chunks_exact_mut(16) {
+            let src = self.iter.next().unwrap();
+            let converted = f32_to_u8(src);
+            chunk.copy_from_slice(&converted.val);
+        }
+    }
+
+    fn paint_f32(&mut self, buf: &mut [f32]) {
+        for chunk in buf.chunks_exact_mut(16) {
+            let src = self.iter.next().unwrap();
+            chunk.copy_from_slice(&src.val);
+        }
     }
 }
 
