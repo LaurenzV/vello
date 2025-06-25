@@ -342,6 +342,9 @@ fn pack(region: &mut Region<'_>, blend_buf: &[u8]) {
     }
 }
 
+// Note: This method is 3x slower than `pack_regular` when using fallback SIMD, but it's
+// 3x faster than `pack_regular` using the NEON level. Perhaps we should add a way of
+// always falling back to `regular` when in fallback mode.
 #[inline(always)]
 fn pack_block<S: Simd>(simd: S, region: &mut Region<'_>, mut in_buf: &[u8]) {
     in_buf = &in_buf[..SCRATCH_BUF_SIZE];
@@ -362,7 +365,7 @@ fn pack_block<S: Simd>(simd: S, region: &mut Region<'_>, mut in_buf: &[u8]) {
         let dest_idx = idx * CHUNK_LENGTH / 4;
 
         let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
-        // TODO: Extract into fearless_simd
+        
         let loaded = simd.load_interleaved_128_u32x16(casted).reinterpret_u8();
         dest_slices[0][dest_idx..][..16].copy_from_slice(&loaded.val[..16]);
         dest_slices[1][dest_idx..][..16].copy_from_slice(&loaded.val[16..32]);
