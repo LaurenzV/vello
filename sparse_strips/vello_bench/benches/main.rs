@@ -20,7 +20,7 @@ criterion_main!(
     // render_strips,
     // fine_solid,
     // fine_strip,
-    // fine_pack,
+    fine_pack,
     // fine_gradient,
     // fine_rounded_blurred_rect,
     // fine_blend,

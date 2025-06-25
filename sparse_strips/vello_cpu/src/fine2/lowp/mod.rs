@@ -26,11 +26,11 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
+    fn pack(simd: S, region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         if region.width != WideTile::WIDTH || region.height != Tile::HEIGHT {
             pack(region, blend_buf);
         } else {
-            pack_block(region, blend_buf);
+            pack_block(simd, region, blend_buf);
         }
     }
 
@@ -343,9 +343,7 @@ fn pack(region: &mut Region<'_>, blend_buf: &[u8]) {
 }
 
 #[inline(always)]
-fn pack_block(region: &mut Region<'_>, mut in_buf: &[u8]) {
-    use core::arch::aarch64::*;
-
+fn pack_block<S: Simd>(simd: S, region: &mut Region<'_>, mut in_buf: &[u8]) {
     in_buf = &in_buf[..SCRATCH_BUF_SIZE];
 
     const CHUNK_LENGTH: usize = 64;
@@ -365,25 +363,10 @@ fn pack_block(region: &mut Region<'_>, mut in_buf: &[u8]) {
 
         let casted: &[u32; 16] = cast_slice::<u8, u32>(col).try_into().unwrap();
         // TODO: Extract into fearless_simd
-        unsafe {
-            let loaded = vld4q_u32(casted.as_ptr());
-
-            vst1q_u8(
-                dest_slices[0][dest_idx..][..16].as_mut_ptr(),
-                vreinterpretq_u8_u32(loaded.0),
-            );
-            vst1q_u8(
-                dest_slices[1][dest_idx..][..16].as_mut_ptr(),
-                vreinterpretq_u8_u32(loaded.1),
-            );
-            vst1q_u8(
-                dest_slices[2][dest_idx..][..16].as_mut_ptr(),
-                vreinterpretq_u8_u32(loaded.2),
-            );
-            vst1q_u8(
-                dest_slices[3][dest_idx..][..16].as_mut_ptr(),
-                vreinterpretq_u8_u32(loaded.3),
-            );
-        }
+        let loaded = simd.load_interleaved_128_u32x16(casted).reinterpret_u8();
+        dest_slices[0][dest_idx..][..16].copy_from_slice(&loaded.val[..16]);
+        dest_slices[1][dest_idx..][..16].copy_from_slice(&loaded.val[16..32]);
+        dest_slices[2][dest_idx..][..16].copy_from_slice(&loaded.val[32..48]);
+        dest_slices[3][dest_idx..][..16].copy_from_slice(&loaded.val[48..64]);
     }
 }

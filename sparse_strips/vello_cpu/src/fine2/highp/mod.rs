@@ -24,7 +24,7 @@ impl<S: Simd> FineKernel<S> for F32Kernel {
     }
 
     #[inline(always)]
-    fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
+    fn pack(_: S, region: &mut Region<'_>, blend_buf: &[Self::Numeric]) {
         for y in 0..Tile::HEIGHT {
             for (x, pixel) in region
                 .row_mut(y)

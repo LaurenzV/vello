@@ -173,7 +173,7 @@ pub trait FineKernel<S: Simd>: Send + Sync + 'static {
     type Shader: ShaderType<S>;
 
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
-    fn pack(region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
+    fn pack(simd: S, region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
     fn copy_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
     fn apply_mask(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item = Self::Shader>);
     fn copy_f32_iter(
@@ -242,7 +242,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
     pub fn pack(&self, region: &mut Region<'_>) {
         let blend_buf = self.blend_buf.last().unwrap();
 
-        T::pack(region, blend_buf);
+        T::pack(self.simd, region, blend_buf);
     }
 
     pub(crate) fn run_cmd(&mut self, cmd: &Cmd, alphas: &[u8], paints: &[EncodedPaint]) {
