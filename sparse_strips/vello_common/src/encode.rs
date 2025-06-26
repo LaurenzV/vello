@@ -419,6 +419,19 @@ impl EncodeExt for Image {
     fn encode_into(&self, paints: &mut Vec<EncodedPaint>, transform: Affine) -> Paint {
         let idx = paints.len();
 
+        let mut quality = self.quality;
+        
+        let c = transform.as_coeffs();
+        
+        // Optimize image quality for integer-only translations.
+        if (c[1] as f32).is_nearly_zero() && (c[2] as f32).is_nearly_zero() && 
+            (c[0] as f32 - 1.0).is_nearly_zero() && (c[3] as f32 - 1.0).is_nearly_zero() 
+            && (c[4].fract() as f32).is_nearly_zero() && (c[5].fract() as f32).is_nearly_zero()
+            && quality == ImageQuality::Medium
+        {
+            quality = ImageQuality::Low;
+        }
+
         // Similarly to gradients, apply a 0.5 offset so we sample at the center of
         // a pixel.
         let transform = transform.inverse() * Affine::translate((0.5, 0.5));
@@ -431,7 +444,7 @@ impl EncodeExt for Image {
         let encoded = EncodedImage {
             pixmap: self.pixmap.clone(),
             extends: (self.x_extend, self.y_extend),
-            quality: self.quality,
+            quality,
             has_opacities,
             transform,
             x_advance,
