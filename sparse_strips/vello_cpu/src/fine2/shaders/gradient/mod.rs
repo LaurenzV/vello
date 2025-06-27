@@ -1,7 +1,7 @@
 use crate::fine2::PosExt;
 use crate::fine2::highp::{calc_pos, element_wise_splat};
 use crate::kurbo::Point;
-use vello_common::encode::{EncodedGradient, GradientRange};
+use vello_common::encode::{EncodedGradient, GradientLut, GradientRange};
 use vello_common::fearless_simd::*;
 
 pub(crate) mod linear;
@@ -12,6 +12,8 @@ pub(crate) mod sweep;
 pub(crate) struct GradientFiller<'a, S: Simd, U: SimdGradientKind<S>> {
     pos: Point,
     gradient: &'a EncodedGradient,
+    lut: &'a GradientLut<f32>,
+    scale_factor: f32x4<S>,
     kind: U,
     x_advances: (f32, f32),
     y_advances: (f32, f32),
@@ -27,12 +29,16 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> GradientFiller<'a, S, U> {
         start_y: u16,
     ) -> Self {
         let start_pos = gradient.transform * Point::new(f64::from(start_x), f64::from(start_y));
+        let lut = gradient.f32_lut();
+        let scale_factor = f32x4::splat(simd, lut.scale_factor());
 
         Self {
             pos: start_pos,
             gradient,
             x_advances: (gradient.x_advance.x as f32, gradient.x_advance.y as f32),
             y_advances: (gradient.y_advance.x as f32, gradient.y_advance.y as f32),
+            scale_factor,
+            lut,
             kind,
             simd,
         }
@@ -60,30 +66,24 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
         );
         let pos = self.kind.cur_pos(x_pos, y_pos);
         let t_vals = extend(pos, pad);
-        let indices = advance(self.simd, t_vals, &self.gradient.ranges);
-
-        let r0 = &self.gradient.ranges[indices[0] as usize];
-        let r1 = &self.gradient.ranges[indices[1] as usize];
-        let r2 = &self.gradient.ranges[indices[2] as usize];
-        let r3 = &self.gradient.ranges[indices[3] as usize];
-
-        let t_vals = element_wise_splat(self.simd, t_vals);
-
-        let scales = self.simd.combine_f32x8(
-            self.simd
-                .combine_f32x4(r0.scale.simd_into(self.simd), r1.scale.simd_into(self.simd)),
-            self.simd
-                .combine_f32x4(r2.scale.simd_into(self.simd), r3.scale.simd_into(self.simd)),
+        let indices = (t_vals * self.scale_factor).cvt_u32();
+        
+        let sample_1 = self.lut.get(indices[0] as usize);
+        let sample_2 = self.lut.get(indices[1] as usize);
+        let sample_3 = self.lut.get(indices[2] as usize);
+        let sample_4 = self.lut.get(indices[3] as usize);
+        
+        let mut res = self.simd.combine_f32x8(
+            self.simd.combine_f32x4(
+                sample_1.simd_into(self.simd),
+                sample_2.simd_into(self.simd),
+            ),
+            self.simd.combine_f32x4(
+                sample_3.simd_into(self.simd),
+                sample_4.simd_into(self.simd),
+            ),
         );
-
-        let biases = self.simd.combine_f32x8(
-            self.simd
-                .combine_f32x4(r0.bias.simd_into(self.simd), r1.bias.simd_into(self.simd)),
-            self.simd
-                .combine_f32x4(r2.bias.simd_into(self.simd), r3.bias.simd_into(self.simd)),
-        );
-
-        let mut res = biases.madd(scales, t_vals);
+        
         self.pos += self.gradient.x_advance;
 
         if self.kind.has_undefined() {
