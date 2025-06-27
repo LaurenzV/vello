@@ -12,10 +12,13 @@ use crate::paint::{Image, IndexedPaint, Paint, PremulColor};
 use crate::peniko::{ColorStop, Extend, Gradient, GradientKind, ImageQuality};
 use crate::pixmap::Pixmap;
 use alloc::borrow::Cow;
-use alloc::sync::Arc;
 use alloc::vec::Vec;
+use alloc::sync::Arc;
+#[cfg(not(feature = "multithreading"))]
+use core::cell::OnceCell;
 use core::f32::consts::PI;
-use core::iter;
+#[cfg(feature = "multithreading")]
+use once_cell::sync::OnceCell;
 use smallvec::SmallVec;
 
 #[cfg(not(feature = "std"))]
@@ -211,6 +214,8 @@ impl EncodeExt for Gradient {
             ranges,
             pad,
             has_opacities,
+            u8_lut: OnceCell::new(),
+            f32_lut: OnceCell::new(),
         };
 
         let idx = paints.len();
@@ -713,6 +718,20 @@ pub struct EncodedGradient {
     pub pad: bool,
     /// Whether the gradient requires `source_over` compositing.
     pub has_opacities: bool,
+    u8_lut: OnceCell<GradientLut<u8>>,
+    f32_lut: OnceCell<GradientLut<f32>>,
+}
+
+impl EncodedGradient {
+    /// Get the lookup table for sampling u8-based gradient values.
+    pub fn u8_lut(&self) -> &GradientLut<u8> {
+        self.u8_lut.get_or_init(|| GradientLut::new(&self.ranges))
+    }
+
+    /// Get the lookup table for sampling f32-based gradient values.
+    pub fn f32_lut(&self) -> &GradientLut<f32> {
+        self.f32_lut.get_or_init(|| GradientLut::new(&self.ranges))
+    }
 }
 
 /// An encoded ange between two color stops.
@@ -934,6 +953,92 @@ fn unit_to_line(p0: Point, p1: Point) -> Affine {
         p0.y,
     ])
 }
+
+/// A helper trait for converting a premultiplied f32 color to `Self`.
+pub trait FromF32Color: Sized {
+    /// Convert from a premultiplied f32 color to `Self`.
+    fn from_f32(color: &[f32; 4]) -> [Self; 4];
+}
+
+impl FromF32Color for f32 {
+    fn from_f32(color: &[f32; 4]) -> [Self; 4] {
+        *color
+    }
+}
+
+impl FromF32Color for u8 {
+    fn from_f32(color: &[f32; 4]) -> [Self; 4] {
+        [
+            (color[0] * 255.0 + 0.5) as Self,
+            (color[1] * 255.0 + 0.5) as Self,
+            (color[2] * 255.0 + 0.5) as Self,
+            (color[3] * 255.0 + 0.5) as Self,
+        ]
+    }
+}
+
+/// A lookup table for sampled gradient values.
+#[derive(Debug)]
+pub struct GradientLut<T: Copy + Clone + FromF32Color> {
+    // Note that this representation of sampled values _might_ change in the future.
+    // Right now, we are storing them on a pixel-basis, but in the future we might instead store
+    // the values by their channel (i.e. store R, G, B, A values separately).
+    lut: Vec<[T; 4]>,
+    scale: f32,
+}
+
+impl<T: Copy + Clone + FromF32Color> GradientLut<T> {
+    /// Create a new lookup table.
+    fn new(ranges: &[GradientRange]) -> Self {
+        // Somewhat arbitrary, but we use 1024 samples for
+        // more than 2 stops, and 512 for just 2 stops. Blend2D does
+        // something similar.
+        let lut_size = if ranges.len() > 1 { 1024 } else { 512 };
+
+        let mut lut = Vec::with_capacity(lut_size);
+
+        let inv_lut_size = 1.0 / lut_size as f32;
+
+        let mut cur_idx = 0;
+
+        (0..lut_size).for_each(|idx| {
+            let t_val = idx as f32 * inv_lut_size;
+
+            while ranges[cur_idx].x1 < t_val {
+                cur_idx += 1;
+            }
+
+            let range = &ranges[cur_idx];
+            let mut interpolated = [0.0_f32; 4];
+
+            let bias = range.bias;
+
+            for (comp_idx, comp) in interpolated.iter_mut().enumerate() {
+                *comp = bias[comp_idx] + range.scale[comp_idx] * t_val;
+            }
+
+            lut.push(T::from_f32(&interpolated));
+        });
+
+        let scale = lut.len() as f32 - 1.0;
+
+        Self { lut, scale }
+    }
+
+    /// Get the sample value at a specific index.
+    #[inline(always)]
+    pub fn get(&self, idx: usize) -> [T; 4] {
+        self.lut[idx]
+    }
+
+    /// Get the scale factor by which to scale the parametric value to
+    /// compute the correct lookup index.
+    #[inline(always)]
+    pub fn scale_factor(&self) -> f32 {
+        self.scale
+    }
+}
+
 
 mod private {
     #[expect(unnameable_types, reason = "Sealed trait pattern.")]

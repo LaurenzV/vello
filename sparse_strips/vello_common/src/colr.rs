@@ -18,6 +18,7 @@ use skrifa::raw::TableProvider;
 use skrifa::raw::types::BoundingBox;
 use skrifa::{GlyphId, MetadataProvider};
 use smallvec::SmallVec;
+use crate::math::FloatExt;
 
 /// A trait for clients capable of rendering COLR glyphs.
 pub trait ColrRenderer {
@@ -135,10 +136,17 @@ impl<'a> ColrPainter<'a> {
             stops.push(new_stop);
         }
 
-        // For the edge case where multiple stops have an end offset of 1, the algorithm
-        // used in vello requires a second 1.0 stop.
-        let last = stops.last().unwrap().clone();
-        stops.push(last);
+        // The COLR spec has the very specific requirement that if there are multiple stops with the
+        // offset 1.0, only the last one should be used. We abstract this away by removing all such
+        // superfluous stops.
+        while let Some(stop) = stops.get(stops.len() - 2).map(|s| s.offset) {
+            if (stop - 1.0).is_nearly_zero() {
+                stops.remove(stops.len() - 2);
+            } else {
+                break;
+            }
+        }
+
 
         ColorStops(stops)
     }
