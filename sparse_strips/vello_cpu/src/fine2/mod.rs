@@ -663,3 +663,58 @@ impl<S: Simd> Splat4thExt<S> for u8x32<S> {
         self.simd.combine_u8x16(p1, p2)
     }
 }
+
+mod macros {
+    macro_rules! f32_iter {
+        ($($type_path:tt)+) => {
+            impl<S: Simd> crate::fine2::Painter for $($type_path)+ {
+                fn paint_u8(&mut self, buf: &mut [u8]) {
+                    use vello_common::fearless_simd::*;
+                    use crate::fine2::ShaderType;
+
+                    for chunk in buf.chunks_exact_mut(16) {
+                        let next = self.next().unwrap();
+                        let converted = u8x16::<S>::from_f32(next.simd, next);
+                        chunk.copy_from_slice(&converted.val);
+                    }
+                }
+
+                fn paint_f32(&mut self, buf: &mut [f32]) {
+                    use vello_common::fearless_simd::*;
+
+                    for chunk in buf.chunks_exact_mut(16) {
+                        let next = self.next().unwrap();
+                        chunk.copy_from_slice(&next.val);
+                    }
+                }
+            }
+        };
+    }
+
+    macro_rules! u8_iter {
+        ($($type_path:tt)+) => {
+            impl<S: Simd> crate::fine2::Painter for $($type_path)+ {
+                fn paint_u8(&mut self, buf: &mut [u8]) {
+                    for chunk in buf.chunks_exact_mut(16) {
+                        let next = self.next().unwrap();
+                        chunk.copy_from_slice(&next.val);
+                    }
+                }
+
+                fn paint_f32(&mut self, buf: &mut [f32]) {
+                    use vello_common::fearless_simd::*;
+                    use crate::fine2::ShaderType;
+
+                    for chunk in buf.chunks_exact_mut(16) {
+                        let next = self.next().unwrap();
+                        let converted = f32x16::<S>::from_u8(next.simd, next);
+                        chunk.copy_from_slice(&converted.val);
+                    }
+                }
+            }
+        };
+    }
+
+    pub(crate) use f32_iter;
+    pub(crate) use u8_iter;
+}

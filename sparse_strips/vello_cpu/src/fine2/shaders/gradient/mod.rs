@@ -1,5 +1,6 @@
 use crate::fine2::PosExt;
 use crate::fine2::highp::element_wise_splat;
+use crate::fine2::macros::f32_iter;
 use crate::kurbo::Point;
 use core::slice::ChunksExact;
 use vello_common::encode::{EncodedGradient, GradientLut, GradientRange};
@@ -100,6 +101,8 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
         Some(res)
     }
 }
+
+f32_iter!(GradientFiller<'_, S>);
 
 #[inline(always)]
 fn advance<S: Simd>(simd: S, target_pos: f32x4<S>, ranges: &[GradientRange]) -> u32x4<S> {

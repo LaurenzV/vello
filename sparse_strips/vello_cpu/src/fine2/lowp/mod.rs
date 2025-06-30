@@ -57,12 +57,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         has_undefined: bool,
         t_vals: &'a [f32],
     ) -> Box<dyn Painter + 'a> {
-        Box::new(U8Painter::Gradient(GradientFiller::new(
-            simd,
-            gradient,
-            has_undefined,
-            t_vals,
-        )))
+        Box::new(GradientFiller::new(simd, gradient, has_undefined, t_vals))
     }
 
     fn simple_image_painter<'a>(
@@ -71,9 +66,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         start_x: u16,
         start_y: u16,
     ) -> Box<dyn Painter + 'a> {
-        Box::new(U8Painter::SimpleImage(SimpleImageFiller::new(
-            simd, image, start_x, start_y,
-        )))
+        Box::new(SimpleImageFiller::new(simd, image, start_x, start_y))
     }
 
     fn image_painter<'a>(
@@ -82,9 +75,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         start_x: u16,
         start_y: u16,
     ) -> Box<dyn Painter + 'a> {
-        Box::new(U8Painter::Image(ImageFiller::new(
-            simd, image, start_x, start_y,
-        )))
+        Box::new(ImageFiller::new(simd, image, start_x, start_y))
     }
 
     fn filtered_image_painter<'a>(
@@ -93,9 +84,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         start_x: u16,
         start_y: u16,
     ) -> Box<dyn Painter + 'a> {
-        Box::new(U8Painter::FilteredImage(FilteredImageFiller::new(
-            simd, image, start_x, start_y,
-        )))
+        Box::new(FilteredImageFiller::new(simd, image, start_x, start_y))
     }
 
     fn blurred_rounded_rectangle_painter<'a>(
@@ -104,9 +93,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         start_x: u16,
         start_y: u16,
     ) -> Box<dyn Painter + 'a> {
-        Box::new(U8Painter::BlurredRoundedRect(
-            BlurredRoundedRectFiller::new(simd, rect, start_x, start_y),
-        ))
+        Box::new(BlurredRoundedRectFiller::new(simd, rect, start_x, start_y))
     }
 
     fn apply_mask(
@@ -171,59 +158,6 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         } else {
             fill::blend(simd, target, src, blend_mode);
         }
-    }
-}
-
-enum U8Painter<'a, S: Simd> {
-    BlurredRoundedRect(BlurredRoundedRectFiller<S>),
-    Gradient(GradientFiller<'a, S>),
-    SimpleImage(SimpleImageFiller<'a, S>),
-    Image(ImageFiller<'a, S>),
-    FilteredImage(FilteredImageFiller<'a, S>),
-}
-
-macro_rules! f32x16_iter {
-    ($iter:expr, $buf:expr) => {
-        for chunk in $buf.chunks_exact_mut(16) {
-            let next = $iter.next().unwrap();
-            let converted = u8x16::<S>::from_f32(next.simd, next);
-            chunk.copy_from_slice(&converted.val);
-        }
-    };
-}
-
-macro_rules! u8x16_iter {
-    ($iter:expr, $buf:expr) => {
-        for chunk in $buf.chunks_exact_mut(16) {
-            let next = $iter.next().unwrap();
-            chunk.copy_from_slice(&next.val);
-        }
-    };
-}
-
-impl<S: Simd> Painter for U8Painter<'_, S> {
-    fn paint_u8(&mut self, buf: &mut [u8]) {
-        match self {
-            Self::BlurredRoundedRect(r) => {
-                f32x16_iter!(r, buf);
-            }
-            Self::Gradient(g) => {
-                f32x16_iter!(g, buf);
-            }
-            Self::Image(i) => {
-                u8x16_iter!(i, buf);
-            }
-            Self::SimpleImage(i) => {
-                u8x16_iter!(i, buf);
-            }
-            Self::FilteredImage(i) => {
-                f32x16_iter!(i, buf);
-            }
-        }
-    }
-
-    fn paint_f32(&mut self, _: &mut [f32]) {
-        unimplemented!()
     }
 }
 

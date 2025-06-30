@@ -1,4 +1,5 @@
 use crate::fine2::highp::element_wise_splat;
+use crate::fine2::macros::{f32_iter, u8_iter};
 use crate::fine2::{PosExt, Splat4thExt, u8_to_f32};
 use crate::kurbo::Point;
 use crate::peniko::ImageQuality;
@@ -63,6 +64,8 @@ impl<S: Simd> Iterator for SimpleImageFiller<'_, S> {
     }
 }
 
+u8_iter!(SimpleImageFiller<'_, S>);
+
 #[derive(Debug)]
 pub(crate) struct ImageFiller<'a, S: Simd> {
     data: ImageFillerData<'a, S>,
@@ -114,6 +117,8 @@ impl<S: Simd> Iterator for ImageFiller<'_, S> {
         Some(samples)
     }
 }
+
+u8_iter!(ImageFiller<'_, S>);
 
 #[derive(Debug)]
 pub(crate) struct FilteredImageFiller<'a, S: Simd> {
@@ -342,6 +347,8 @@ impl<S: Simd> Iterator for FilteredImageFiller<'_, S> {
         Some(interpolated_color)
     }
 }
+
+f32_iter!(FilteredImageFiller<'_, S>);
 
 #[derive(Debug)]
 pub(crate) struct ImageFillerData<'a, S: Simd> {

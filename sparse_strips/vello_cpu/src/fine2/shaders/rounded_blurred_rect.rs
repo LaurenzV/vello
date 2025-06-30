@@ -7,6 +7,7 @@
 
 use crate::fine2::PosExt;
 use crate::fine2::highp::element_wise_splat;
+use crate::fine2::macros::f32_iter;
 use crate::kurbo::{Point, Vec2};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16};
@@ -60,6 +61,8 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
         Some(self.color * alphas)
     }
 }
+
+f32_iter!(BlurredRoundedRectFiller<S>);
 
 #[derive(Debug)]
 struct AlphaCalculator<S: Simd> {
