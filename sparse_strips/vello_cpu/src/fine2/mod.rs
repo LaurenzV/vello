@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::iter;
 use vello_common::coarse::{Cmd, WideTile};
-use vello_common::encode::{EncodedKind, EncodedPaint};
+use vello_common::encode::{EncodedKind, EncodedPaint, GradientLike};
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::tile::Tile;
 
@@ -20,7 +20,7 @@ pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_C
 pub const SCRATCH_BUF_SIZE: usize =
     WideTile::WIDTH as usize * Tile::HEIGHT as usize * COLOR_COMPONENTS;
 
-use crate::fine2::shaders::gradient::GradientFiller;
+use crate::fine2::shaders::gradient::{calculate_t_vals, GradientFiller};
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
@@ -205,6 +205,7 @@ pub struct Fine<S: Simd, T: FineKernel<S>> {
     pub(crate) wide_coords: (u16, u16),
     pub(crate) blend_buf: Vec<ScratchBuf<T::Numeric>>,
     pub(crate) paint_buf: ScratchBuf<T::Numeric>,
+    pub(crate) f32_buf: Vec<f32>,
     pub(crate) simd: S,
 }
 
@@ -214,6 +215,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
             simd,
             wide_coords: (0, 0),
             blend_buf: vec![[T::Numeric::ZERO; SCRATCH_BUF_SIZE]],
+            f32_buf: vec![0.0; SCRATCH_BUF_SIZE / 4],
             paint_buf: [T::Numeric::ZERO; SCRATCH_BUF_SIZE],
         }
     }
@@ -429,75 +431,81 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             alphas,
                         );
                     }
-                    EncodedPaint::Gradient(g) => match &g.kind {
-                        EncodedKind::Linear(l) => {
-                            let filler: GradientFiller<'_, S, SimdLinearKind<S>> =
-                                GradientFiller::new(
-                                    self.simd,
-                                    g,
-                                    SimdLinearKind::new(self.simd, l),
-                                    start_x,
-                                    start_y,
-                                );
+                    EncodedPaint::Gradient(g) => {
+                        let f32_buf = &mut self.f32_buf[..width * Tile::HEIGHT as usize];
+                        
+                        match &g.kind {
+                            EncodedKind::Linear(l) => {
+                                calculate_t_vals(self.simd, SimdLinearKind::new(self.simd, l), f32_buf, g, start_x, start_y);
+                                
+                                let filler =
+                                    GradientFiller::new(
+                                        self.simd,
+                                        g,
+                                        l.has_undefined(),
+                                        f32_buf
+                                    );
 
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
-                                alphas,
-                            );
-                        }
-                        EncodedKind::Sweep(s) => {
-                            let filler: GradientFiller<'_, S, SimdSweepKind<S>> =
-                                GradientFiller::new(
+                                fill_complex_paint::<S, T>(
                                     self.simd,
-                                    g,
-                                    SimdSweepKind::new(self.simd, s),
-                                    start_x,
-                                    start_y,
+                                    color_buf,
+                                    blend_buf,
+                                    g.has_opacities,
+                                    default_blend,
+                                    blend_mode,
+                                    T::create_painter(
+                                        filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
+                                    ),
+                                    alphas,
                                 );
+                            }
+                            EncodedKind::Sweep(s) => {
+                                calculate_t_vals(self.simd, SimdSweepKind::new(self.simd, s), f32_buf, g, start_x, start_y);
+                                let filler =
+                                    GradientFiller::new(
+                                        self.simd,
+                                        g,
+                                        s.has_undefined(),
+                                        f32_buf
+                                    );
 
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
-                                alphas,
-                            );
-                        }
-                        EncodedKind::Radial(r) => {
-                            let filler: GradientFiller<'_, S, SimdRadialKind<S>> =
-                                GradientFiller::new(
+                                fill_complex_paint::<S, T>(
                                     self.simd,
-                                    g,
-                                    SimdRadialKind::new(self.simd, r),
-                                    start_x,
-                                    start_y,
+                                    color_buf,
+                                    blend_buf,
+                                    g.has_opacities,
+                                    default_blend,
+                                    blend_mode,
+                                    T::create_painter(
+                                        filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
+                                    ),
+                                    alphas,
                                 );
+                            }
+                            EncodedKind::Radial(r) => {
+                                calculate_t_vals(self.simd, SimdRadialKind::new(self.simd, r), f32_buf, g, start_x, start_y);
 
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
-                                alphas,
-                            );
+                                let filler =
+                                    GradientFiller::new(
+                                        self.simd,
+                                        g,
+                                        r.has_undefined(),
+                                        f32_buf
+                                    );
+
+                                fill_complex_paint::<S, T>(
+                                    self.simd,
+                                    color_buf,
+                                    blend_buf,
+                                    g.has_opacities,
+                                    default_blend,
+                                    blend_mode,
+                                    T::create_painter(
+                                        filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
+                                    ),
+                                    alphas,
+                                );
+                            }
                         }
                     },
                     EncodedPaint::Image(i) => match (i.has_skew(), i.nearest_neighbor()) {

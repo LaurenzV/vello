@@ -18,6 +18,7 @@ use vello_dev_macros::vello_bench;
 pub fn gradient(c: &mut Criterion) {
     linear::opaque(c);
     radial::opaque(c);
+    radial::opaque_conical(c);
     sweep::opaque(c);
 
     // extend::pad(c);
@@ -140,6 +141,24 @@ mod radial {
             start_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
             start_radius: 25.0,
             end_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
+            end_radius: 75.0,
+        };
+
+        gradient_base(
+            b,
+            fine,
+            peniko::Extend::Pad,
+            kind,
+            stops_blue_green_red_yellow_opaque(),
+        );
+    }
+
+    #[vello_bench]
+    pub(super) fn opaque_conical<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
+        let kind = GradientKind::Radial {
+            start_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
+            start_radius: 25.0,
+            end_center: Point::new(WideTile::WIDTH as f64 / 2.0 + 5.0, (Tile::HEIGHT / 2) as f64 + 5.0),
             end_radius: 75.0,
         };
 
