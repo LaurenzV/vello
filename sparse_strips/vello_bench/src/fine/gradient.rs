@@ -154,11 +154,17 @@ mod radial {
     }
 
     #[vello_bench]
-    pub(super) fn opaque_conical<S: Simd, N: FineKernel<S>>(b: &mut Bencher<'_>, fine: &mut Fine<S, N>) {
+    pub(super) fn opaque_conical<S: Simd, N: FineKernel<S>>(
+        b: &mut Bencher<'_>,
+        fine: &mut Fine<S, N>,
+    ) {
         let kind = GradientKind::Radial {
             start_center: Point::new(WideTile::WIDTH as f64 / 2.0, (Tile::HEIGHT / 2) as f64),
             start_radius: 25.0,
-            end_center: Point::new(WideTile::WIDTH as f64 / 2.0 + 5.0, (Tile::HEIGHT / 2) as f64 + 5.0),
+            end_center: Point::new(
+                WideTile::WIDTH as f64 / 2.0 + 5.0,
+                (Tile::HEIGHT / 2) as f64 + 5.0,
+            ),
             end_radius: 75.0,
         };
 

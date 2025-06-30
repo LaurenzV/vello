@@ -10,7 +10,10 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::iter;
 use vello_common::coarse::{Cmd, WideTile};
-use vello_common::encode::{EncodedKind, EncodedPaint, GradientLike};
+use vello_common::encode::{
+    EncodedBlurredRoundedRectangle, EncodedGradient, EncodedImage, EncodedKind, EncodedPaint,
+    GradientLike,
+};
 use vello_common::paint::{Paint, PremulColor};
 use vello_common::tile::Tile;
 
@@ -20,16 +23,17 @@ pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_C
 pub const SCRATCH_BUF_SIZE: usize =
     WideTile::WIDTH as usize * Tile::HEIGHT as usize * COLOR_COMPONENTS;
 
-use crate::fine2::shaders::gradient::{calculate_t_vals, GradientFiller};
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
+use crate::fine2::shaders::gradient::{GradientFiller, calculate_t_vals};
 use crate::fine2::shaders::image::SimpleImageFiller;
 use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller};
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::util::{BlendModeExt, EncodedImageExt, InlineMapExt};
 pub use highp::F32Kernel;
 pub use lowp::U8Kernel;
+use vello_common::blurred_rounded_rect::BlurredRoundedRectangle;
 use vello_common::fearless_simd::{
     Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16, u8x32, u32x4, u32x8,
 };
@@ -176,7 +180,36 @@ pub trait FineKernel<S: Simd>: Send + Sync + 'static {
     fn extract_color(color: PremulColor) -> [Self::Numeric; 4];
     fn pack(simd: S, region: &mut Region<'_>, blend_buf: &[Self::Numeric]);
     fn copy_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
-    fn create_painter<'a>(iter: impl Iterator<Item = Self::Shader> + 'a) -> Box<dyn Painter + 'a>;
+    fn gradient_painter<'a>(
+        simd: S,
+        gradient: &'a EncodedGradient,
+        has_undefined: bool,
+        t_vals: &'a [f32],
+    ) -> Box<dyn Painter + 'a>;
+    fn simple_image_painter<'a>(
+        simd: S,
+        image: &'a EncodedImage,
+        start_x: u16,
+        start_y: u16,
+    ) -> Box<dyn Painter + 'a>;
+    fn image_painter<'a>(
+        simd: S,
+        image: &'a EncodedImage,
+        start_x: u16,
+        start_y: u16,
+    ) -> Box<dyn Painter + 'a>;
+    fn filtered_image_painter<'a>(
+        simd: S,
+        image: &'a EncodedImage,
+        start_x: u16,
+        start_y: u16,
+    ) -> Box<dyn Painter + 'a>;
+    fn blurred_rounded_rectangle_painter<'a>(
+        simd: S,
+        rect: &'a EncodedBlurredRoundedRectangle,
+        start_x: u16,
+        start_y: u16,
+    ) -> Box<dyn Painter + 'a>;
     fn apply_mask(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item = Self::Shader>);
     fn apply_painter<'a>(simd: S, target: &mut [Self::Numeric], painter: Box<dyn Painter + 'a>);
     fn alpha_composite_solid(
@@ -382,7 +415,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
-                
+
                 let mut fill_complex_paint = |has_opacities: bool, filler: Box<dyn Painter>| {
                     if has_opacities || alphas.is_some() {
                         T::apply_painter(self.simd, color_buf, filler);
@@ -409,104 +442,79 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
                 match encoded_paint {
                     EncodedPaint::BlurredRoundedRect(b) => {
-                        let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
-
                         fill_complex_paint(
                             true,
-                            T::create_painter(filler.map(|i| T::Shader::from_f32(self.simd, i))),
+                            T::blurred_rounded_rectangle_painter(self.simd, b, start_x, start_y),
                         );
                     }
                     EncodedPaint::Gradient(g) => {
                         let f32_buf = &mut self.f32_buf[..width * Tile::HEIGHT as usize];
-                        
+
                         match &g.kind {
                             EncodedKind::Linear(l) => {
-                                calculate_t_vals(self.simd, SimdLinearKind::new(self.simd, l), f32_buf, g, start_x, start_y);
-                                
-                                let filler =
-                                    GradientFiller::new(
-                                        self.simd,
-                                        g,
-                                        l.has_undefined(),
-                                        f32_buf
-                                    );
+                                calculate_t_vals(
+                                    self.simd,
+                                    SimdLinearKind::new(self.simd, l),
+                                    f32_buf,
+                                    g,
+                                    start_x,
+                                    start_y,
+                                );
 
                                 fill_complex_paint(
                                     g.has_opacities,
-                                    T::create_painter(
-                                        filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                    ),
+                                    T::gradient_painter(self.simd, g, l.has_undefined(), f32_buf),
                                 );
                             }
                             EncodedKind::Sweep(s) => {
-                                calculate_t_vals(self.simd, SimdSweepKind::new(self.simd, s), f32_buf, g, start_x, start_y);
-                                let filler =
-                                    GradientFiller::new(
-                                        self.simd,
-                                        g,
-                                        s.has_undefined(),
-                                        f32_buf
-                                    );
+                                calculate_t_vals(
+                                    self.simd,
+                                    SimdSweepKind::new(self.simd, s),
+                                    f32_buf,
+                                    g,
+                                    start_x,
+                                    start_y,
+                                );
 
                                 fill_complex_paint(
                                     g.has_opacities,
-                                    T::create_painter(
-                                        filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                    ),
+                                    T::gradient_painter(self.simd, g, s.has_undefined(), f32_buf),
                                 );
                             }
                             EncodedKind::Radial(r) => {
-                                calculate_t_vals(self.simd, SimdRadialKind::new(self.simd, r), f32_buf, g, start_x, start_y);
-
-                                let filler =
-                                    GradientFiller::new(
-                                        self.simd,
-                                        g,
-                                        r.has_undefined(),
-                                        f32_buf
-                                    );
+                                calculate_t_vals(
+                                    self.simd,
+                                    SimdRadialKind::new(self.simd, r),
+                                    f32_buf,
+                                    g,
+                                    start_x,
+                                    start_y,
+                                );
 
                                 fill_complex_paint(
                                     g.has_opacities,
-                                    T::create_painter(
-                                        filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                    ),
+                                    T::gradient_painter(self.simd, g, r.has_undefined(), f32_buf),
                                 );
                             }
                         }
-                    },
+                    }
                     EncodedPaint::Image(i) => match (i.has_skew(), i.nearest_neighbor()) {
                         (_, false) => {
-                            let filler: FilteredImageFiller<'_, S> =
-                                FilteredImageFiller::new(self.simd, i, start_x, start_y);
-
                             fill_complex_paint(
                                 i.has_opacities,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
+                                T::filtered_image_painter(self.simd, i, start_x, start_y),
                             );
                         }
                         (false, true) => {
-                            let filler: SimpleImageFiller<'_, S> =
-                                SimpleImageFiller::new(self.simd, i, start_x, start_y);
-
                             fill_complex_paint(
                                 i.has_opacities,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_u8(self.simd, i)),
-                                ),
+                                T::simple_image_painter(self.simd, i, start_x, start_y),
                             );
                         }
                         (true, true) => {
-                            let filler: ImageFiller<'_, S> =
-                                ImageFiller::new(self.simd, i, start_x, start_y);
-
                             fill_complex_paint(
                                 i.has_opacities,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_u8(self.simd, i)),
-                                ),
+                                T::image_painter(self.simd, i, start_x, start_y),
                             );
                         }
                     },

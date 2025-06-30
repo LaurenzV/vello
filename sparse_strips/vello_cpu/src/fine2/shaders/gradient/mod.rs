@@ -1,7 +1,7 @@
-use core::slice::ChunksExact;
 use crate::fine2::PosExt;
 use crate::fine2::highp::element_wise_splat;
 use crate::kurbo::Point;
+use core::slice::ChunksExact;
 use vello_common::encode::{EncodedGradient, GradientLut, GradientRange};
 use vello_common::fearless_simd::*;
 
@@ -20,23 +20,13 @@ pub(crate) fn calculate_t_vals<S: Simd, U: SimdGradientKind<S>>(
     let mut cur_pos = gradient.transform * Point::new(f64::from(start_x), f64::from(start_y));
     let x_advances = (gradient.x_advance.x as f32, gradient.x_advance.y as f32);
     let y_advances = (gradient.y_advance.x as f32, gradient.y_advance.y as f32);
-    
+
     for buf in buf.chunks_exact_mut(8) {
-        let x_pos = f32x8::splat_col_pos(
-            simd,
-            cur_pos.x as f32,
-            x_advances.0,
-            y_advances.0,
-        );
-        let y_pos = f32x8::splat_col_pos(
-            simd,
-            cur_pos.y as f32,
-            x_advances.1,
-            y_advances.1,
-        );
+        let x_pos = f32x8::splat_col_pos(simd, cur_pos.x as f32, x_advances.0, y_advances.0);
+        let y_pos = f32x8::splat_col_pos(simd, cur_pos.y as f32, x_advances.1, y_advances.1);
         let pos = kind.cur_pos(x_pos, y_pos);
         buf.copy_from_slice(&pos.val);
-        
+
         cur_pos += gradient.x_advance;
         cur_pos += gradient.x_advance;
     }
@@ -82,21 +72,17 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
         let pos = f32x4::from_slice(self.simd, self.t_vals.next()?);
         let t_vals = extend(pos, pad);
         let indices = (t_vals * self.scale_factor).cvt_u32();
-        
+
         let sample_1 = self.lut.get(indices[0] as usize);
         let sample_2 = self.lut.get(indices[1] as usize);
         let sample_3 = self.lut.get(indices[2] as usize);
         let sample_4 = self.lut.get(indices[3] as usize);
-        
+
         let mut res = self.simd.combine_f32x8(
-            self.simd.combine_f32x4(
-                sample_1.simd_into(self.simd),
-                sample_2.simd_into(self.simd),
-            ),
-            self.simd.combine_f32x4(
-                sample_3.simd_into(self.simd),
-                sample_4.simd_into(self.simd),
-            ),
+            self.simd
+                .combine_f32x4(sample_1.simd_into(self.simd), sample_2.simd_into(self.simd)),
+            self.simd
+                .combine_f32x4(sample_3.simd_into(self.simd), sample_4.simd_into(self.simd)),
         );
 
         if self.has_undefined {
