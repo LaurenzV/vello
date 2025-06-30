@@ -48,7 +48,14 @@ fn strip_single<S: Simd, N: FineKernel<S>>(
     }
 
     b.iter(|| {
-        fine.strip(0, width, &alphas, paint, default_blend(), encoded_paints);
+        fine.fill(
+            0,
+            width,
+            paint,
+            default_blend(),
+            encoded_paints,
+            Some(&alphas),
+        );
 
         std::hint::black_box(&fine);
     })

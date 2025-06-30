@@ -6,7 +6,7 @@
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
 use crate::fine2::PosExt;
-use crate::fine2::highp::{element_wise_splat};
+use crate::fine2::highp::element_wise_splat;
 use crate::kurbo::{Point, Vec2};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16};

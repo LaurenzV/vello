@@ -245,18 +245,19 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     f.blend_mode
                         .unwrap_or(BlendMode::new(Mix::Normal, Compose::SrcOver)),
                     paints,
+                    None,
                 );
             }
             Cmd::AlphaFill(s) => {
                 let a_slice = &alphas[s.alpha_idx..];
-                self.strip(
+                self.fill(
                     usize::from(s.x),
                     usize::from(s.width),
-                    a_slice,
                     &s.paint,
                     s.blend_mode
                         .unwrap_or(BlendMode::new(Mix::Normal, Compose::SrcOver)),
                     paints,
+                    Some(a_slice),
                 );
             }
             Cmd::PushBuf => {
@@ -330,8 +331,10 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         }
     }
 
-    #[inline(always)]
     /// Fill at a given x and with a width using the given paint.
+    // For short strip segments, benchmark showed that not inlining leads to significantly
+    // worse performance.
+    #[inline(always)]
     pub fn fill(
         &mut self,
         x: usize,
@@ -339,6 +342,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         fill: &Paint,
         blend_mode: BlendMode,
         encoded_paints: &[EncodedPaint],
+        alphas: Option<&[u8]>,
     ) {
         let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
             [..TILE_HEIGHT_COMPONENTS * width];
@@ -350,21 +354,21 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
 
                 // If color is completely opaque, we can just directly override
                 // the blend buffer.
-                if color[3] == T::Numeric::ONE && default_blend {
+                if color[3] == T::Numeric::ONE && default_blend && alphas.is_none() {
                     T::copy_solid(self.simd, blend_buf, color);
 
                     return;
                 }
 
                 if default_blend {
-                    T::alpha_composite_solid(self.simd, blend_buf, color, None);
+                    T::alpha_composite_solid(self.simd, blend_buf, color, alphas);
                 } else {
                     T::blend(
                         self.simd,
                         blend_buf,
                         iter::repeat(T::Composite::from_color(self.simd, color)),
                         blend_mode,
-                        None,
+                        alphas,
                     );
                 }
             }
@@ -385,12 +389,13 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     default_blend: bool,
                     blend_mode: BlendMode,
                     filler: Box<dyn Painter + 'a>,
+                    alphas: Option<&[u8]>,
                 ) {
-                    if has_opacities {
+                    if has_opacities || alphas.is_some() {
                         T::apply_painter(simd, color_buf, filler);
 
                         if default_blend {
-                            T::alpha_composite_shader(simd, blend_buf, color_buf, None);
+                            T::alpha_composite_shader(simd, blend_buf, color_buf, alphas);
                         } else {
                             T::blend(
                                 simd,
@@ -399,7 +404,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                     .chunks_exact(T::Composite::LENGTH)
                                     .map(|s| T::Composite::from_slice(simd, s)),
                                 blend_mode,
-                                None,
+                                alphas,
                             );
                         }
                     } else {
@@ -421,213 +426,6 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             default_blend,
                             blend_mode,
                             T::create_painter(filler.map(|i| T::Shader::from_f32(self.simd, i))),
-                        );
-                    }
-                    EncodedPaint::Gradient(g) => match &g.kind {
-                        EncodedKind::Linear(l) => {
-                            let filler: GradientFiller<'_, S, SimdLinearKind<S>> =
-                                GradientFiller::new(
-                                    self.simd,
-                                    g,
-                                    SimdLinearKind::new(self.simd, l),
-                                    start_x,
-                                    start_y,
-                                );
-
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
-                            );
-                        }
-                        EncodedKind::Sweep(s) => {
-                            let filler: GradientFiller<'_, S, SimdSweepKind<S>> =
-                                GradientFiller::new(
-                                    self.simd,
-                                    g,
-                                    SimdSweepKind::new(self.simd, s),
-                                    start_x,
-                                    start_y,
-                                );
-
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
-                            );
-                        }
-                        EncodedKind::Radial(r) => {
-                            let filler: GradientFiller<'_, S, SimdRadialKind<S>> =
-                                GradientFiller::new(
-                                    self.simd,
-                                    g,
-                                    SimdRadialKind::new(self.simd, r),
-                                    start_x,
-                                    start_y,
-                                );
-
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                g.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
-                            );
-                        }
-                    },
-                    EncodedPaint::Image(i) => match (i.has_skew(), i.nearest_neighbor()) {
-                        (_, false) => {
-                            let filler: FilteredImageFiller<'_, S> =
-                                FilteredImageFiller::new(self.simd, i, start_x, start_y);
-
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                i.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_f32(self.simd, i)),
-                                ),
-                            );
-                        }
-                        (false, true) => {
-                            let filler: SimpleImageFiller<'_, S> =
-                                SimpleImageFiller::new(self.simd, i, start_x, start_y);
-
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                i.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_u8(self.simd, i)),
-                                ),
-                            );
-                        }
-                        (true, true) => {
-                            let filler: ImageFiller<'_, S> =
-                                ImageFiller::new(self.simd, i, start_x, start_y);
-
-                            fill_complex_paint::<S, T>(
-                                self.simd,
-                                color_buf,
-                                blend_buf,
-                                i.has_opacities,
-                                default_blend,
-                                blend_mode,
-                                T::create_painter(
-                                    filler.inline_map(|i| T::Shader::from_u8(self.simd, i)),
-                                ),
-                            );
-                        }
-                    },
-                }
-            }
-        }
-    }
-
-    /// Strip at a given x and with a width using the given paint and alpha values.
-    #[inline(always)]
-    pub fn strip(
-        &mut self,
-        x: usize,
-        width: usize,
-        alphas: &[u8],
-        fill: &Paint,
-        blend_mode: BlendMode,
-        encoded_paints: &[EncodedPaint],
-    ) {
-        debug_assert!(
-            alphas.len() >= width,
-            "alpha buffer doesn't contain sufficient elements"
-        );
-
-        let blend_buf = &mut self.blend_buf.last_mut().unwrap()[x * TILE_HEIGHT_COMPONENTS..]
-            [..TILE_HEIGHT_COMPONENTS * width];
-        let default_blend = blend_mode.is_default();
-
-        match fill {
-            Paint::Solid(color) => {
-                let color = T::extract_color(*color);
-
-                if default_blend {
-                    T::alpha_composite_solid(self.simd, blend_buf, color, Some(alphas));
-                } else {
-                    T::blend(
-                        self.simd,
-                        blend_buf,
-                        iter::repeat(T::Composite::from_color(self.simd, color)),
-                        blend_mode,
-                        Some(alphas),
-                    );
-                }
-            }
-            Paint::Indexed(paint) => {
-                fn fill_complex_paint<'a, S: Simd, T: FineKernel<S>>(
-                    simd: S,
-                    color_buf: &mut [T::Numeric],
-                    blend_buf: &mut [T::Numeric],
-                    default_blend: bool,
-                    blend_mode: BlendMode,
-                    filler: Box<dyn Painter + 'a>,
-                    alphas: &[u8],
-                ) {
-                    T::apply_painter(simd, color_buf, filler);
-
-                    if default_blend {
-                        T::alpha_composite_shader(simd, blend_buf, color_buf, Some(alphas));
-                    } else {
-                        T::blend(
-                            simd,
-                            blend_buf,
-                            color_buf
-                                .chunks_exact(T::Composite::LENGTH)
-                                .map(|s| T::Composite::from_slice(simd, s)),
-                            blend_mode,
-                            Some(alphas),
-                        );
-                    }
-                }
-
-                let color_buf = &mut self.paint_buf[x * TILE_HEIGHT_COMPONENTS..]
-                    [..TILE_HEIGHT_COMPONENTS * width];
-
-                let encoded_paint = &encoded_paints[paint.index()];
-
-                let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
-                let start_y = self.wide_coords.1 * Tile::HEIGHT;
-
-                match encoded_paint {
-                    EncodedPaint::BlurredRoundedRect(b) => {
-                        let filler = BlurredRoundedRectFiller::new(self.simd, b, start_x, start_y);
-
-                        fill_complex_paint::<S, T>(
-                            self.simd,
-                            color_buf,
-                            blend_buf,
-                            default_blend,
-                            blend_mode,
-                            T::create_painter(filler.map(|i| T::Shader::from_f32(self.simd, i))),
                             alphas,
                         );
                     }
@@ -646,6 +444,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
+                                g.has_opacities,
                                 default_blend,
                                 blend_mode,
                                 T::create_painter(
@@ -668,6 +467,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
+                                g.has_opacities,
                                 default_blend,
                                 blend_mode,
                                 T::create_painter(
@@ -690,6 +490,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
+                                g.has_opacities,
                                 default_blend,
                                 blend_mode,
                                 T::create_painter(
@@ -708,6 +509,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
+                                i.has_opacities,
                                 default_blend,
                                 blend_mode,
                                 T::create_painter(
@@ -724,6 +526,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
+                                i.has_opacities,
                                 default_blend,
                                 blend_mode,
                                 T::create_painter(
@@ -740,6 +543,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                 self.simd,
                                 color_buf,
                                 blend_buf,
+                                i.has_opacities,
                                 default_blend,
                                 blend_mode,
                                 T::create_painter(

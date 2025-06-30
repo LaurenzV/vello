@@ -23,7 +23,7 @@ pub fn gradient(c: &mut Criterion) {
     // extend::pad(c);
     // extend::repeat(c);
     // extend::reflect(c);
-    // 
+    //
     // many_stops(c);
     // transparent(c);
 }
