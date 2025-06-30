@@ -1,5 +1,5 @@
 use crate::fine2::PosExt;
-use crate::fine2::highp::{calc_pos, element_wise_splat};
+use crate::fine2::highp::{element_wise_splat};
 use crate::kurbo::Point;
 use vello_common::encode::{EncodedGradient, GradientLut, GradientRange};
 use vello_common::fearless_simd::*;

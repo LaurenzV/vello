@@ -301,14 +301,6 @@ mod strip {
 }
 
 #[inline(always)]
-pub(crate) fn calc_pos(start_pos: Point, idx: usize, x_advance: Vec2, y_advance: Vec2) -> Point {
-    let col_idx = idx >> (Tile::HEIGHT.trailing_zeros() as usize);
-    let row_idx = idx & (Tile::HEIGHT as usize - 1);
-
-    start_pos + (x_advance * col_idx as f64 + y_advance * row_idx as f64)
-}
-
-#[inline(always)]
 pub(crate) fn element_wise_splat<S: Simd>(simd: S, input: f32x4<S>) -> f32x16<S> {
     simd.combine_f32x8(
         simd.combine_f32x4(

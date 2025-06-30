@@ -6,7 +6,7 @@
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
 use crate::fine2::PosExt;
-use crate::fine2::highp::{calc_pos, element_wise_splat};
+use crate::fine2::highp::{element_wise_splat};
 use crate::kurbo::{Point, Vec2};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
 use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16};
@@ -63,12 +63,11 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
 
 #[derive(Debug)]
 struct AlphaCalculator<S: Simd> {
-    start_pos: Point,
+    cur_pos: Point,
     x_advance: Vec2,
     y_advance: Vec2,
     r: SimdRoundedBlurredRect<S>,
     simd: S,
-    idx: usize,
 }
 
 impl<'a, S: Simd> AlphaCalculator<S> {
@@ -80,12 +79,11 @@ impl<'a, S: Simd> AlphaCalculator<S> {
         simd: S,
     ) -> Self {
         Self {
-            start_pos,
+            cur_pos: start_pos,
             x_advance,
             y_advance,
             r,
             simd,
-            idx: 0,
         }
     }
 }
@@ -94,17 +92,15 @@ impl<S: Simd> Iterator for AlphaCalculator<S> {
     type Item = f32x8<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let pos = calc_pos(self.start_pos, self.idx, self.x_advance, self.y_advance);
-
         let i = f32x8::splat_col_pos(
             self.simd,
-            pos.x as f32,
+            self.cur_pos.x as f32,
             self.x_advance.x as f32,
             self.y_advance.x as f32,
         );
         let j = f32x8::splat_col_pos(
             self.simd,
-            pos.y as f32,
+            self.cur_pos.y as f32,
             self.x_advance.y as f32,
             self.y_advance.y as f32,
         );
@@ -124,7 +120,7 @@ impl<S: Simd> Iterator for AlphaCalculator<S> {
             * (f32x8::compute_erf7(self.simd, r.std_dev_inv * (r.min_edge + d))
                 - f32x8::compute_erf7(self.simd, r.std_dev_inv * d));
 
-        self.idx += 8;
+        self.cur_pos += 2.0 * self.x_advance;
 
         Some(z)
     }
