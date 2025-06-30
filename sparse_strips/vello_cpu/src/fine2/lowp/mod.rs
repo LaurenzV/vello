@@ -69,27 +69,32 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], alphas: Option<&[u8]>) {
+    fn alpha_composite_solid(
+        simd: S,
+        target: &mut [Self::Numeric],
+        color: [Self::Numeric; 4],
+        alphas: Option<&[u8]>,
+    ) {
         if let Some(alphas) = alphas {
             strip::alpha_composite_solid(simd, target, color, alphas);
-        }   else {
+        } else {
             fill::alpha_composite_solid(simd, target, color);
         }
     }
 
-    fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], alphas: Option<&[u8]>) {
+    fn alpha_composite_shader(
+        simd: S,
+        target: &mut [Self::Numeric],
+        shader_src: &[Self::Numeric],
+        alphas: Option<&[u8]>,
+    ) {
         let src_iter = shader_src
             .chunks_exact(32)
             .map(|el| u8x32::from_slice(simd, el));
 
         if let Some(alphas) = alphas {
-            strip::alpha_composite_arbitrary(
-                simd,
-                target,
-                src_iter,
-                alphas,
-            );
-        }   else {
+            strip::alpha_composite_arbitrary(simd, target, src_iter, alphas);
+        } else {
             fill::alpha_composite_arbitrary(simd, target, src_iter);
         }
     }
@@ -103,10 +108,9 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     ) {
         if let Some(alphas) = alphas {
             strip::blend(simd, target, src, blend_mode, alphas);
-        }   else {
+        } else {
             fill::blend(simd, target, src, blend_mode);
         }
-        
     }
 }
 

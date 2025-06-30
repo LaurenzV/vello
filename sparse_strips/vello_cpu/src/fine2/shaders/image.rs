@@ -353,7 +353,7 @@ pub(crate) struct ImageFillerData<'a, S: Simd> {
     pub(crate) height_inv: f32x4<S>,
     pub(crate) width: f32x4<S>,
     pub(crate) width_inv: f32x4<S>,
-    pub(crate) width_u32: u32x4<S>
+    pub(crate) width_u32: u32x4<S>,
 }
 
 impl<'a, S: Simd> ImageFillerData<'a, S> {
@@ -393,13 +393,10 @@ pub(crate) fn sample<S: Simd>(
     y_positions: f32x4<S>,
 ) -> u8x16<S> {
     let idx = x_positions.cvt_u32() + y_positions.cvt_u32() * data.width_u32;
-    
+
     macro_rules! sample {
         ($idx:expr) => {
-            data.image
-                .pixmap
-                .sample_idx(idx[$idx])
-                .to_u32()
+            data.image.pixmap.sample_idx(idx[$idx]).to_u32()
         };
     }
 

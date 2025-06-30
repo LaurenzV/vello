@@ -7,6 +7,7 @@ use crate::color::Srgb;
 use crate::color::{AlphaColor, DynamicColor};
 use crate::glyph::{ColorGlyph, OutlinePath};
 use crate::kurbo::{Affine, BezPath, Point, Rect, Shape};
+use crate::math::FloatExt;
 use crate::peniko::{self, BlendMode, ColorStops, Compose, Extend, Gradient, GradientKind, Mix};
 use alloc::boxed::Box;
 use alloc::vec;
@@ -18,7 +19,6 @@ use skrifa::raw::TableProvider;
 use skrifa::raw::types::BoundingBox;
 use skrifa::{GlyphId, MetadataProvider};
 use smallvec::SmallVec;
-use crate::math::FloatExt;
 
 /// A trait for clients capable of rendering COLR glyphs.
 pub trait ColrRenderer {
@@ -146,7 +146,6 @@ impl<'a> ColrPainter<'a> {
                 break;
             }
         }
-
 
         ColorStops(stops)
     }

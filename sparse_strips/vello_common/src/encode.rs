@@ -12,8 +12,8 @@ use crate::paint::{Image, IndexedPaint, Paint, PremulColor};
 use crate::peniko::{ColorStop, Extend, Gradient, GradientKind, ImageQuality};
 use crate::pixmap::Pixmap;
 use alloc::borrow::Cow;
-use alloc::vec::Vec;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 #[cfg(not(feature = "multithreading"))]
 use core::cell::OnceCell;
 use core::f32::consts::PI;
@@ -425,13 +425,16 @@ impl EncodeExt for Image {
         let idx = paints.len();
 
         let mut quality = self.quality;
-        
+
         let c = transform.as_coeffs();
-        
+
         // Optimize image quality for integer-only translations.
-        if (c[1] as f32).is_nearly_zero() && (c[2] as f32).is_nearly_zero() && 
-            (c[0] as f32 - 1.0).is_nearly_zero() && (c[3] as f32 - 1.0).is_nearly_zero() 
-            && (c[4].fract() as f32).is_nearly_zero() && (c[5].fract() as f32).is_nearly_zero()
+        if (c[1] as f32).is_nearly_zero()
+            && (c[2] as f32).is_nearly_zero()
+            && (c[0] as f32 - 1.0).is_nearly_zero()
+            && (c[3] as f32 - 1.0).is_nearly_zero()
+            && (c[4].fract() as f32).is_nearly_zero()
+            && (c[5].fract() as f32).is_nearly_zero()
             && quality == ImageQuality::Medium
         {
             quality = ImageQuality::Low;
@@ -1038,7 +1041,6 @@ impl<T: Copy + Clone + FromF32Color> GradientLut<T> {
         self.scale
     }
 }
-
 
 mod private {
     #[expect(unnameable_types, reason = "Sealed trait pattern.")]

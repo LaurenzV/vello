@@ -67,23 +67,19 @@ impl<'a, S: Simd, U: SimdGradientKind<S>> Iterator for GradientFiller<'a, S, U> 
         let pos = self.kind.cur_pos(x_pos, y_pos);
         let t_vals = extend(pos, pad);
         let indices = (t_vals * self.scale_factor).cvt_u32();
-        
+
         let sample_1 = self.lut.get(indices[0] as usize);
         let sample_2 = self.lut.get(indices[1] as usize);
         let sample_3 = self.lut.get(indices[2] as usize);
         let sample_4 = self.lut.get(indices[3] as usize);
-        
+
         let mut res = self.simd.combine_f32x8(
-            self.simd.combine_f32x4(
-                sample_1.simd_into(self.simd),
-                sample_2.simd_into(self.simd),
-            ),
-            self.simd.combine_f32x4(
-                sample_3.simd_into(self.simd),
-                sample_4.simd_into(self.simd),
-            ),
+            self.simd
+                .combine_f32x4(sample_1.simd_into(self.simd), sample_2.simd_into(self.simd)),
+            self.simd
+                .combine_f32x4(sample_3.simd_into(self.simd), sample_4.simd_into(self.simd)),
         );
-        
+
         self.pos += self.gradient.x_advance;
 
         if self.kind.has_undefined() {
