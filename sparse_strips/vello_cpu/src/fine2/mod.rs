@@ -416,35 +416,37 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                 let start_x = self.wide_coords.0 * WideTile::WIDTH + x as u16;
                 let start_y = self.wide_coords.1 * Tile::HEIGHT;
 
-                let mut fill_complex_paint = |has_opacities: bool, filler: Box<dyn Painter>| {
-                    if has_opacities || alphas.is_some() {
-                        T::apply_painter(self.simd, color_buf, filler);
-
-                        if default_blend {
-                            T::alpha_composite_shader(self.simd, blend_buf, color_buf, alphas);
+                macro_rules! fill_complex_paint {
+                    ($has_opacities:expr, $filler:expr) => {
+                        if $has_opacities || alphas.is_some() {
+                            T::apply_painter(self.simd, color_buf, $filler);
+    
+                            if default_blend {
+                                T::alpha_composite_shader(self.simd, blend_buf, color_buf, alphas);
+                            } else {
+                                T::blend(
+                                    self.simd,
+                                    blend_buf,
+                                    color_buf
+                                        .chunks_exact(T::Composite::LENGTH)
+                                        .map(|s| T::Composite::from_slice(self.simd, s)),
+                                    blend_mode,
+                                    alphas,
+                                );
+                            }
                         } else {
-                            T::blend(
-                                self.simd,
-                                blend_buf,
-                                color_buf
-                                    .chunks_exact(T::Composite::LENGTH)
-                                    .map(|s| T::Composite::from_slice(self.simd, s)),
-                                blend_mode,
-                                alphas,
-                            );
+                            // Similarly to solid colors we can just override the previous values
+                            // if all colors in the gradient are fully opaque.
+                            T::apply_painter(self.simd, blend_buf, $filler);
                         }
-                    } else {
-                        // Similarly to solid colors we can just override the previous values
-                        // if all colors in the gradient are fully opaque.
-                        T::apply_painter(self.simd, blend_buf, filler);
                     }
-                };
+                }
 
                 match encoded_paint {
                     EncodedPaint::BlurredRoundedRect(b) => {
-                        fill_complex_paint(
+                        fill_complex_paint!(
                             true,
-                            T::blurred_rounded_rectangle_painter(self.simd, b, start_x, start_y),
+                            T::blurred_rounded_rectangle_painter(self.simd, b, start_x, start_y)
                         );
                     }
                     EncodedPaint::Gradient(g) => {
@@ -461,9 +463,9 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                     start_y,
                                 );
 
-                                fill_complex_paint(
+                                fill_complex_paint!(
                                     g.has_opacities,
-                                    T::gradient_painter(self.simd, g, l.has_undefined(), f32_buf),
+                                    T::gradient_painter(self.simd, g, l.has_undefined(), f32_buf)
                                 );
                             }
                             EncodedKind::Sweep(s) => {
@@ -476,9 +478,9 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                     start_y,
                                 );
 
-                                fill_complex_paint(
+                                fill_complex_paint!(
                                     g.has_opacities,
-                                    T::gradient_painter(self.simd, g, s.has_undefined(), f32_buf),
+                                    T::gradient_painter(self.simd, g, s.has_undefined(), f32_buf)
                                 );
                             }
                             EncodedKind::Radial(r) => {
@@ -491,30 +493,30 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                     start_y,
                                 );
 
-                                fill_complex_paint(
+                                fill_complex_paint!(
                                     g.has_opacities,
-                                    T::gradient_painter(self.simd, g, r.has_undefined(), f32_buf),
+                                    T::gradient_painter(self.simd, g, r.has_undefined(), f32_buf)
                                 );
                             }
                         }
                     }
                     EncodedPaint::Image(i) => match (i.has_skew(), i.nearest_neighbor()) {
                         (_, false) => {
-                            fill_complex_paint(
+                            fill_complex_paint!(
                                 i.has_opacities,
-                                T::filtered_image_painter(self.simd, i, start_x, start_y),
+                                T::filtered_image_painter(self.simd, i, start_x, start_y)
                             );
                         }
                         (false, true) => {
-                            fill_complex_paint(
+                            fill_complex_paint!(
                                 i.has_opacities,
-                                T::simple_image_painter(self.simd, i, start_x, start_y),
+                                T::simple_image_painter(self.simd, i, start_x, start_y)
                             );
                         }
                         (true, true) => {
-                            fill_complex_paint(
+                            fill_complex_paint!(
                                 i.has_opacities,
-                                T::image_painter(self.simd, i, start_x, start_y),
+                                T::image_painter(self.simd, i, start_x, start_y)
                             );
                         }
                     },
