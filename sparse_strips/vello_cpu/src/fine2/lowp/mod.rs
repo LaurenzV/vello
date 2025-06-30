@@ -69,16 +69,29 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     }
 
     #[inline(always)]
-    fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]) {
-        fill::alpha_composite_solid(simd, target, color);
+    fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4], alphas: Option<&[u8]>) {
+        if let Some(alphas) = alphas {
+            strip::alpha_composite_solid(simd, target, color, alphas);
+        }   else {
+            fill::alpha_composite_solid(simd, target, color);
+        }
     }
 
-    fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric]) {
+    fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric], alphas: Option<&[u8]>) {
         let src_iter = shader_src
             .chunks_exact(32)
             .map(|el| u8x32::from_slice(simd, el));
 
-        fill::alpha_composite_arbitrary(simd, target, src_iter);
+        if let Some(alphas) = alphas {
+            strip::alpha_composite_arbitrary(
+                simd,
+                target,
+                src_iter,
+                alphas,
+            );
+        }   else {
+            fill::alpha_composite_arbitrary(simd, target, src_iter);
+        }
     }
 
     fn blend(
@@ -86,44 +99,14 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         target: &mut [Self::Numeric],
         src: impl Iterator<Item = Self::Composite>,
         blend_mode: BlendMode,
+        alphas: Option<&[u8]>,
     ) {
-        fill::blend(simd, target, src, blend_mode);
-    }
-
-    #[inline(always)]
-    fn alpha_composite_solid_with_alphas(
-        simd: S,
-        target: &mut [Self::Numeric],
-        color: [Self::Numeric; 4],
-        alphas: &[u8],
-    ) {
-        strip::alpha_composite_solid(simd, target, color, alphas);
-    }
-
-    fn alpha_composite_shader_with_alphas(
-        simd: S,
-        target: &mut [Self::Numeric],
-        shader_src: &[Self::Numeric],
-        alphas: &[u8],
-    ) {
-        strip::alpha_composite_arbitrary(
-            simd,
-            target,
-            shader_src
-                .chunks_exact(32)
-                .map(|el| u8x32::from_slice(simd, el)),
-            alphas,
-        );
-    }
-
-    fn blend_with_alphas(
-        simd: S,
-        target: &mut [Self::Numeric],
-        src: impl Iterator<Item = Self::Composite>,
-        blend_mode: BlendMode,
-        alphas: &[u8],
-    ) {
-        strip::blend(simd, target, src, blend_mode, alphas)
+        if let Some(alphas) = alphas {
+            strip::blend(simd, target, src, blend_mode, alphas);
+        }   else {
+            fill::blend(simd, target, src, blend_mode);
+        }
+        
     }
 }
 

@@ -179,32 +179,16 @@ pub trait FineKernel<S: Simd>: Send + Sync + 'static {
     fn create_painter<'a>(iter: impl Iterator<Item = Self::Shader> + 'a) -> Box<dyn Painter + 'a>;
     fn apply_mask(simd: S, target: &mut [Self::Numeric], src: impl Iterator<Item = Self::Shader>);
     fn apply_painter<'a>(simd: S, target: &mut [Self::Numeric], painter: Box<dyn Painter + 'a>);
-    fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4]);
-    fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric]);
+    fn alpha_composite_solid(simd: S, target: &mut [Self::Numeric], color: [Self::Numeric; 4],
+    alphas: Option<&[u8]>);
+    fn alpha_composite_shader(simd: S, target: &mut [Self::Numeric], shader_src: &[Self::Numeric],
+    alphas: Option<&[u8]>);
     fn blend(
         simd: S,
         target: &mut [Self::Numeric],
         src: impl Iterator<Item = Self::Composite>,
         blend_mode: BlendMode,
-    );
-    fn alpha_composite_solid_with_alphas(
-        simd: S,
-        target: &mut [Self::Numeric],
-        color: [Self::Numeric; 4],
-        alphas: &[u8],
-    );
-    fn alpha_composite_shader_with_alphas(
-        simd: S,
-        target: &mut [Self::Numeric],
-        shader_src: &[Self::Numeric],
-        alphas: &[u8],
-    );
-    fn blend_with_alphas(
-        simd: S,
-        target: &mut [Self::Numeric],
-        src: impl Iterator<Item = Self::Composite>,
-        blend_mode: BlendMode,
-        alphas: &[u8],
+        alphas: Option<&[u8]>
     );
 }
 
@@ -365,13 +349,15 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                 }
 
                 if default_blend {
-                    T::alpha_composite_solid(self.simd, blend_buf, color);
+                    T::alpha_composite_solid(self.simd, blend_buf, color,
+                    None);
                 } else {
                     T::blend(
                         self.simd,
                         blend_buf,
                         iter::repeat(T::Composite::from_color(self.simd, color)),
                         blend_mode,
+                        None
                     );
                 }
             }
@@ -397,7 +383,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                         T::apply_painter(simd, color_buf, filler);
 
                         if default_blend {
-                            T::alpha_composite_shader(simd, blend_buf, color_buf);
+                            T::alpha_composite_shader(simd, blend_buf, color_buf, None);
                         } else {
                             T::blend(
                                 simd,
@@ -406,6 +392,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                                     .chunks_exact(T::Composite::LENGTH)
                                     .map(|s| T::Composite::from_slice(simd, s)),
                                 blend_mode,
+                                None
                             );
                         }
                     } else {
@@ -577,14 +564,14 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                 let color = T::extract_color(*color);
 
                 if default_blend {
-                    T::alpha_composite_solid_with_alphas(self.simd, blend_buf, color, alphas);
+                    T::alpha_composite_solid(self.simd, blend_buf, color, Some(alphas));
                 } else {
-                    T::blend_with_alphas(
+                    T::blend(
                         self.simd,
                         blend_buf,
                         iter::repeat(T::Composite::from_color(self.simd, color)),
                         blend_mode,
-                        alphas,
+                        Some(alphas),
                     );
                 }
             }
@@ -601,16 +588,16 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     T::apply_painter(simd, color_buf, filler);
 
                     if default_blend {
-                        T::alpha_composite_shader_with_alphas(simd, blend_buf, color_buf, alphas);
+                        T::alpha_composite_shader(simd, blend_buf, color_buf, Some(alphas));
                     } else {
-                        T::blend_with_alphas(
+                        T::blend(
                             simd,
                             blend_buf,
                             color_buf
                                 .chunks_exact(T::Composite::LENGTH)
                                 .map(|s| T::Composite::from_slice(simd, s)),
                             blend_mode,
-                            alphas,
+                            Some(alphas),
                         );
                     }
                 }
@@ -771,6 +758,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                 .chunks_exact(T::Composite::LENGTH)
                 .map(|s| T::Composite::from_slice(self.simd, s)),
             blend_mode,
+            None
         );
     }
 
@@ -783,7 +771,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         let target_buffer =
             &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
-        T::alpha_composite_shader(self.simd, target_buffer, source_buffer);
+        T::alpha_composite_shader(self.simd, target_buffer, source_buffer, None);
     }
 
     fn clip_strip(&mut self, x: usize, width: usize, alphas: &[u8]) {
@@ -795,7 +783,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
         let target_buffer =
             &mut target_buffer[x * TILE_HEIGHT_COMPONENTS..][..TILE_HEIGHT_COMPONENTS * width];
 
-        T::alpha_composite_shader_with_alphas(self.simd, target_buffer, source_buffer, alphas);
+        T::alpha_composite_shader(self.simd, target_buffer, source_buffer, Some(alphas));
     }
 }
 
