@@ -438,7 +438,8 @@ pub(crate) fn extend_simd<S: Simd>(
             // This would yield NaN if `m` is 0 and `bias_in_ulps` > 0, but since
             // our `max` is always an integer number, u and s must also be an integer number
             // and thus `m_bits` must be 0.
-            let biased_bits = m_bits.wrapping_sub(bias_in_ulps.cvt_u32());
+            // Note that this is a wrapping sub!
+            let biased_bits = m_bits - bias_in_ulps.cvt_u32();
             f32x4::from_bytes(biased_bits.to_bytes())
         }
     }
