@@ -103,11 +103,11 @@ impl MixExt for BlendMode {
             Mix::SoftLight => SoftLight::mix(src, bg),
             Mix::Difference => Difference::mix(src, bg),
             Mix::Exclusion => Exclusion::mix(src, bg),
+            Mix::Luminosity => Luminosity::mix(src, bg),
             _ => unimplemented!(),
             // Mix::Hue => Hue::mix(src, bg),
             // Mix::Saturation => Saturation::mix(src, bg),
             // Mix::Color => Color::mix(src, bg),
-            // Mix::Luminosity => Luminosity::mix(src, bg),
         }
     }
 }
@@ -233,88 +233,81 @@ macro_rules! non_separable_mix {
 
         impl $name {
             #[inline(always)]
-            fn mix<S: Simd>(mut src: f32x4<S>, bg: f32x4<S>, r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x16<S> {
-                for (src, bg) in (src.val.chunks_exact_mut(4)).zip(bg.val.chunks_exact(4)) {
-                    let src_val = src.try_into().unwrap();
-                    src.copy_from_slice(&$calc(src_val, bg.try_into().unwrap()));
-                }
-
-                src
+            fn mix<S: Simd>(mut src: Channels<S>, mut bg: Channels<S>) -> Channels<S> {
+                $calc(&mut src, &mut bg)
             }
         }
     };
 }
 // 
-// non_separable_mix!(Hue, |cs, cb| set_lum(set_sat(cs, sat(cb)), lum(cb)));
+// non_separable_mix!(Hue, |cs, cb| {
+//     set_sat(&mut cs.r, &mut cs.g, &mut cs.b, sat(cb.r, cb.g, cb.b));
+//     set_lum(, lum(cb.r, cb.g, cb.b)))
+// };
 // non_separable_mix!(Saturation, |cs, cb| set_lum(set_sat(cb, sat(cs)), lum(cb)));
 // non_separable_mix!(Color, |cs, cb| set_lum(cs, lum(cb)));
-// non_separable_mix!(Luminosity, |cs, cb| set_lum(cb, lum(cs)));
-// 
-// fn lum<S: Simd>(r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
-//     0.3 * r + 0.59 * g + 0.11 * b
-// }
-// 
-// fn sat<S: Simd>(r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
-//     r.max(g).max(b) - r.min(g).min(b)
-// }
-// 
-// fn clip_color<S: Simd>(src: f32x4<S>, r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
-//     let simd = src.simd;
-//     let mut c_new = src;
-// 
-//     let l = lum(r, g, b);
-//     let n = r.min(g.min(b));
-//     let x = r.max(g.max(b));
-// 
-//     c_new = simd.select_f32x4(
-//         simd.simd_le_f32x4(n, f32x4::splat(simd, 0.0)),
-//         l + (((c_new - l) * l) / (l - n)),
-//         c_new
-//     );
-// 
-//     simd.select_f32x4(
-//         simd.simd_gt_f32x4(x, f32x4::splat(simd, 1.0)),
-//         l + (((c_new - l) * (1.0 - l)) / (x - l)),
-//         c_new
-//     )
-// }
-// 
-// fn set_lum<S: Simd>(mut src: f32x4<S>, r: f32x4<S>, g: f32x4<S>, b: f32x4<S>, l: f32x4<S>) -> f32x4<S> {
-//     let d = l - lum(r, g, b);
-//     src = src + d;
-// 
-//     clip_color(src, r, g, b)
-// }
-// 
-// fn set_sat<S: Simd>(mut c: [f32; 4], s: f32) -> [f32; 4] {
-//     let (min, tail) = c.split_at_mut(1);
-//     let (mid, max) = tail.split_at_mut(1);
-// 
-//     let mut min = &mut min[0];
-//     let mut mid = &mut mid[0];
-//     let mut max = &mut max[0];
-// 
-//     if *min > *mid {
-//         core::mem::swap(&mut min, &mut mid);
-//     }
-// 
-//     if *min > *max {
-//         core::mem::swap(&mut min, &mut max);
-//     }
-// 
-//     if *mid > *max {
-//         core::mem::swap(&mut mid, &mut max);
-//     }
-// 
-//     if *max > *min {
-//         *mid = ((*mid - *min) * s) / (*max - *min);
-//         *max = s;
-//     } else {
-//         *mid = 0.0;
-//         *max = 0.0;
-//     }
-// 
-//     *min = 0.0;
-// 
-//     c
-// }
+non_separable_mix!(Luminosity, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
+    set_lum(&mut cb.r, &mut cb.g, &mut cb.b, lum(cs.r, cs.g, cs.b));
+    
+    *cb
+});
+//
+
+fn lum<S: Simd>(r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
+    0.3 * r + 0.59 * g + 0.11 * b
+}
+
+fn sat<S: Simd>(r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
+    r.max(g).max(b) - r.min(g).min(b)
+}
+
+fn clip_color<S: Simd>(r: &mut f32x4<S>, g: &mut f32x4<S>, b: &mut f32x4<S>) {
+    let simd = r.simd;
+
+    let l = lum(*r, *g, *b);
+    let n = r.min(g.min(*b));
+    let x = r.max(g.max(*b));
+    
+    for c in [r, g, b] {
+        *c = simd.select_f32x4(
+            simd.simd_le_f32x4(n, f32x4::splat(simd, 0.0)),
+            l + (((*c - l) * l) / (l - n)),
+            *c
+        );
+
+        *c = simd.select_f32x4(
+            simd.simd_gt_f32x4(x, f32x4::splat(simd, 1.0)),
+            l + (((*c - l) * (1.0 - l)) / (x - l)),
+            *c
+        )
+    }
+}
+
+fn set_lum<S: Simd>(r: &mut f32x4<S>, g: &mut f32x4<S>, b: &mut f32x4<S>, l: f32x4<S>) {
+    let d = l - lum(*r, *g, *b);
+    *r = *r + d;
+    *g = *g + d;
+    *b = *b + d;
+
+    clip_color(r, g, b)
+}
+
+// Adapted from tiny-skia
+fn set_sat<S: Simd>(r: &mut f32x4<S>, g: &mut f32x4<S>, b: &mut f32x4<S>, s: f32x4<S>) {
+    let simd = r.simd;
+    let zero = f32x4::splat(simd, 0.0);
+    let mn  = r.min(g.min(*b));
+    let mx  = r.max(g.max(*b));
+    let sat = mx - mn;
+
+    // Map min channel to 0, max channel to s, and scale the middle proportionally.
+    let scale = |c| simd.select_f32x4(
+        simd.simd_eq_f32x4(sat, zero),
+        zero,
+        (c - mn) * s / sat
+    );
+
+    *r = scale(*r);
+    *g = scale(*g);
+    *b = scale(*b);
+}
