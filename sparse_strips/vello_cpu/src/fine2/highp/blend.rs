@@ -104,10 +104,10 @@ impl MixExt for BlendMode {
             Mix::Difference => Difference::mix(src, bg),
             Mix::Exclusion => Exclusion::mix(src, bg),
             Mix::Luminosity => Luminosity::mix(src, bg),
+            Mix::Color => Color::mix(src, bg),
+            Mix::Hue => Hue::mix(src, bg),
             _ => unimplemented!(),
-            // Mix::Hue => Hue::mix(src, bg),
             // Mix::Saturation => Saturation::mix(src, bg),
-            // Mix::Color => Color::mix(src, bg),
         }
     }
 }
@@ -239,19 +239,24 @@ macro_rules! non_separable_mix {
         }
     };
 }
-// 
-// non_separable_mix!(Hue, |cs, cb| {
-//     set_sat(&mut cs.r, &mut cs.g, &mut cs.b, sat(cb.r, cb.g, cb.b));
-//     set_lum(, lum(cb.r, cb.g, cb.b)))
-// };
+
+non_separable_mix!(Hue, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
+    set_sat(&mut cs.r, &mut cs.g, &mut cs.b, sat(cb.r, cb.g, cb.b));
+    set_lum(&mut cs.r, &mut cs.g, &mut cs.b, lum(cb.r, cb.g, cb.b));
+    
+    *cs
+});
 // non_separable_mix!(Saturation, |cs, cb| set_lum(set_sat(cb, sat(cs)), lum(cb)));
-// non_separable_mix!(Color, |cs, cb| set_lum(cs, lum(cb)));
+non_separable_mix!(Color, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
+    set_lum(&mut cs.r, &mut cs.g, &mut cs.b, lum(cb.r, cb.g, cb.b));
+    
+    *cs
+});
 non_separable_mix!(Luminosity, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
     set_lum(&mut cb.r, &mut cb.g, &mut cb.b, lum(cs.r, cs.g, cs.b));
     
     *cb
 });
-//
 
 fn lum<S: Simd>(r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
     0.3 * r + 0.59 * g + 0.11 * b
@@ -270,7 +275,7 @@ fn clip_color<S: Simd>(r: &mut f32x4<S>, g: &mut f32x4<S>, b: &mut f32x4<S>) {
     
     for c in [r, g, b] {
         *c = simd.select_f32x4(
-            simd.simd_le_f32x4(n, f32x4::splat(simd, 0.0)),
+            simd.simd_lt_f32x4(n, f32x4::splat(simd, 0.0)),
             l + (((*c - l) * l) / (l - n)),
             *c
         );
