@@ -666,14 +666,21 @@ impl<S: Simd> Splat4thExt<S> for u8x32<S> {
     }
 }
 
-pub(crate) struct ShaderResult<S: Simd> {
+pub(crate) struct ShaderResultU8<S: Simd> {
+    pub(crate) r: u8x16<S>,
+    pub(crate) g: u8x16<S>,
+    pub(crate) b: u8x16<S>,
+    pub(crate) a: u8x16<S>,
+}
+
+pub(crate) struct ShaderResultF32<S: Simd> {
     pub(crate) r: f32x8<S>,
     pub(crate) g: f32x8<S>,
     pub(crate) b: f32x8<S>,
     pub(crate) a: f32x8<S>,
 }
 
-impl<S: Simd> ShaderResult<S> {
+impl<S: Simd> ShaderResultF32<S> {
     #[inline(always)]
     pub(crate) fn get(&self) -> (f32x16<S>, f32x16<S>) {
         let (r_1, r_2) = self.r.simd.split_f32x8(self.r);

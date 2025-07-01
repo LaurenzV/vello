@@ -1,4 +1,4 @@
-use crate::fine2::{PosExt, ShaderResult, ShaderType};
+use crate::fine2::{PosExt, ShaderResultF32, ShaderResultU8, ShaderType};
 use crate::fine2::highp::element_wise_splat;
 use crate::fine2::macros::f32_iter;
 use crate::kurbo::Point;
@@ -37,10 +37,10 @@ pub(crate) fn calculate_t_vals<S: Simd, U: SimdGradientKind<S>>(
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a, S: Simd> {
     gradient: &'a EncodedGradient,
-    lut: &'a GradientLut<f32>,
+    lut: &'a GradientLut<u8>,
     t_vals: ChunksExact<'a, f32>,
     has_undefined: bool,
-    scale_factor: f32x8<S>,
+    scale_factor: f32x16<S>,
     simd: S,
 }
 
@@ -51,37 +51,35 @@ impl<'a, S: Simd> GradientFiller<'a, S> {
         has_undefined: bool,
         t_vals: &'a [f32],
     ) -> Self {
-        let lut = gradient.f32_lut();
-        let scale_factor = f32x8::splat(simd, lut.scale_factor());
+        let lut = gradient.u8_lut();
+        let scale_factor = f32x16::splat(simd, lut.scale_factor());
 
         Self {
             gradient,
             scale_factor,
             has_undefined,
             lut,
-            t_vals: t_vals.chunks_exact(8),
+            t_vals: t_vals.chunks_exact(16),
             simd,
         }
     }
 }
 
 impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
-    type Item = ShaderResult<S>;
+    type Item = ShaderResultU8<S>;
 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         let pad = self.gradient.pad;
-        let pos = f32x8::from_slice(self.simd, self.t_vals.next()?);
+        let pos = f32x16::from_slice(self.simd, self.t_vals.next()?);
         let t_vals = extend(pos, pad);
         let indices = (t_vals * self.scale_factor).cvt_u32();
         
-        let mut r = [0.0f32; 8];
-        let mut g = [0.0f32; 8];
-        let mut b = [0.0f32; 8];
-        let mut a = [0.0f32; 8];
-        
-        
-        // TODO: Us eloop?
+        let mut r = [0u8; 16];
+        let mut g = [0u8; 16];
+        let mut b = [0u8; 16];
+        let mut a = [0u8; 16];
+
         macro_rules! gather {
             ($idx:expr) => {
                 let sample = self.lut.get(indices[$idx] as usize);
@@ -100,33 +98,41 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
         gather!(5);
         gather!(6);
         gather!(7);
+        gather!(8);
+        gather!(9);
+        gather!(10);
+        gather!(11);
+        gather!(12);
+        gather!(13);
+        gather!(14);
+        gather!(15);
         
-        let mut r = f32x8::from_slice(self.simd, &r);
-        let mut g = f32x8::from_slice(self.simd, &g);
-        let mut b = f32x8::from_slice(self.simd, &b);
-        let mut a = f32x8::from_slice(self.simd, &a);
+        let mut r = u8x16::from_slice(self.simd, &r);
+        let mut g = u8x16::from_slice(self.simd, &g);
+        let mut b = u8x16::from_slice(self.simd, &b);
+        let mut a = u8x16::from_slice(self.simd, &a);
 
-        if self.has_undefined {
-            macro_rules! mask_nan {
-                ($channel:expr) => {
-                    $channel = self.simd.select_f32x8(
-                        // On some architectures, the NaNs of `t_vals` might have been cleared already by
-                        // the `extend` function, so use the original variable as the mask.
-                        // Mask out NaNs with 0.
-                        self.simd.simd_eq_f32x8(pos, pos),
-                        $channel,
-                        f32x8::splat(self.simd, 0.0),
-                    );
-                };
-            }
-            
-            mask_nan!(r);
-            mask_nan!(g);
-            mask_nan!(b);
-            mask_nan!(a);
-        }
+        // if self.has_undefined {
+        //     macro_rules! mask_nan {
+        //         ($channel:expr) => {
+        //             $channel = self.simd.select_f32x16(
+        //                 // On some architectures, the NaNs of `t_vals` might have been cleared already by
+        //                 // the `extend` function, so use the original variable as the mask.
+        //                 // Mask out NaNs with 0.
+        //                 self.simd.simd_eq_f32x16(pos, pos),
+        //                 $channel,
+        //                 u8x16::splat(self.simd, 0),
+        //             );
+        //         };
+        //     }
+        //     
+        //     mask_nan!(r);
+        //     mask_nan!(g);
+        //     mask_nan!(b);
+        //     mask_nan!(a);
+        // }
 
-        Some(ShaderResult {
+        Some(ShaderResultU8 {
             r,
             g,
             b,
@@ -136,37 +142,24 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
 }
 
 impl<S: Simd> crate::fine2::Painter for GradientFiller<'_, S> {
+    #[inline(never)]
     fn paint_u8(&mut self, buf: &mut [u8]) {
-        for chunk in buf.chunks_exact_mut(64) {
-            let first = self.next().unwrap();
-            let simd = first.r.simd;
-            let second = self.next().unwrap();
-
-            let r = u8x16::from_f32(simd, simd.combine_f32x8(first.r, second.r));
-            let g = u8x16::from_f32(simd, simd.combine_f32x8(first.g, second.g));
-            let b = u8x16::from_f32(simd, simd.combine_f32x8(first.b, second.b));
-            let a = u8x16::from_f32(simd, simd.combine_f32x8(first.a, second.a));
-
-            let combined = simd.combine_u8x32(
-                simd.combine_u8x16(r, g),
-                simd.combine_u8x16(b, a),
-            );
-
-            simd.store_interleaved_128_u8x64(combined, (&mut chunk[..]).try_into().unwrap());
+        for chunk in buf.chunks_exact_mut(32) {
+            let next = self.next().unwrap();
+            let simd = next.r.simd;
+            
+            core::hint::black_box(next);
+            core::hint::black_box(chunk);
         }
     }
 
     fn paint_f32(&mut self, buf: &mut [f32]) {
-        for chunk in buf.chunks_exact_mut(32) {
-            let (c1, c2) = self.next().unwrap().get();
-            c1.simd.store_interleaved_128_f32x16(c1, (&mut chunk[..16]).try_into().unwrap());
-            c2.simd.store_interleaved_128_f32x16(c2, (&mut chunk[16..]).try_into().unwrap());
-        }
+        unimplemented!()
     }
 }
 
 #[inline(always)]
-pub(crate) fn extend<S: Simd>(val: f32x8<S>, pad: bool) -> f32x8<S> {
+pub(crate) fn extend<S: Simd>(val: f32x8<S>, pad: bool) -> f32x16<S> {
     if pad {
         val.max(0.0).min(1.0)
     } else {

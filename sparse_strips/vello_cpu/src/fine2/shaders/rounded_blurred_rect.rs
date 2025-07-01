@@ -5,7 +5,7 @@
 //!
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
-use crate::fine2::{PosExt, ShaderResult, ShaderType};
+use crate::fine2::{PosExt, ShaderResultF32, ShaderType};
 use crate::fine2::highp::element_wise_splat;
 use crate::fine2::macros::f32_iter;
 use crate::kurbo::{Point, Vec2};
@@ -48,7 +48,7 @@ impl<S: Simd> BlurredRoundedRectFiller<S> {
 }
 
 impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
-    type Item = ShaderResult<S>;
+    type Item = ShaderResultF32<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.alpha_calculator.next().unwrap();
@@ -57,7 +57,7 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
         let b = self.b * next;
         let a = self.a * next;
 
-        Some(ShaderResult {
+        Some(ShaderResultF32 {
             r,
             g,
             b,
