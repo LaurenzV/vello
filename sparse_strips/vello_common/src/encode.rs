@@ -427,7 +427,7 @@ impl EncodeExt for Image {
         let mut quality = self.quality;
 
         let c = transform.as_coeffs();
-        
+
         // Optimize image quality for integer-only translations.
         if (c[0] as f32 - 1.0).is_nearly_zero()
             && (c[1] as f32).is_nearly_zero()
@@ -439,7 +439,7 @@ impl EncodeExt for Image {
         {
             quality = ImageQuality::Low;
         }
-        
+
         // Similarly to gradients, apply a 0.5 offset so we sample at the center of
         // a pixel.
         let transform = transform.inverse() * Affine::translate((0.5, 0.5));
@@ -1030,7 +1030,7 @@ impl<T: Copy + Clone + FromF32Color> GradientLut<T> {
     pub fn get(&self, idx: usize) -> [T; 4] {
         self.lut[idx]
     }
-    
+
     #[inline(always)]
     pub fn lut(&self) -> &[[T; 4]] {
         &self.lut

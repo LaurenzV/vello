@@ -5,12 +5,14 @@
 //!
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
-use crate::fine2::{PosExt, ShaderResultF32, ShaderType};
 use crate::fine2::highp::element_wise_splat;
 use crate::fine2::macros::f32_iter;
+use crate::fine2::{PosExt, ShaderResultF32, ShaderType};
 use crate::kurbo::{Point, Vec2};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16};
+use vello_common::fearless_simd::{
+    Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16,
+};
 
 #[derive(Debug)]
 pub(crate) struct BlurredRoundedRectFiller<S: Simd> {
@@ -41,7 +43,10 @@ impl<S: Simd> BlurredRoundedRectFiller<S> {
 
         Self {
             alpha_calculator,
-            r, g, b, a,
+            r,
+            g,
+            b,
+            a,
             simd,
         }
     }
@@ -57,12 +62,7 @@ impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
         let b = self.b * next;
         let a = self.a * next;
 
-        Some(ShaderResultF32 {
-            r,
-            g,
-            b,
-            a,
-        })
+        Some(ShaderResultF32 { r, g, b, a })
     }
 }
 impl<S: Simd> crate::fine2::Painter for BlurredRoundedRectFiller<S> {
@@ -71,17 +71,14 @@ impl<S: Simd> crate::fine2::Painter for BlurredRoundedRectFiller<S> {
             let first = self.next().unwrap();
             let simd = first.r.simd;
             let second = self.next().unwrap();
-            
+
             let r = u8x16::from_f32(simd, simd.combine_f32x8(first.r, second.r));
             let g = u8x16::from_f32(simd, simd.combine_f32x8(first.g, second.g));
             let b = u8x16::from_f32(simd, simd.combine_f32x8(first.b, second.b));
             let a = u8x16::from_f32(simd, simd.combine_f32x8(first.a, second.a));
-            
-            let combined = simd.combine_u8x32(
-                simd.combine_u8x16(r, g),
-                simd.combine_u8x16(b, a),
-            );
-            
+
+            let combined = simd.combine_u8x32(simd.combine_u8x16(r, g), simd.combine_u8x16(b, a));
+
             simd.store_interleaved_128_u8x64(combined, (&mut chunk[..]).try_into().unwrap());
         }
     }
@@ -89,8 +86,10 @@ impl<S: Simd> crate::fine2::Painter for BlurredRoundedRectFiller<S> {
     fn paint_f32(&mut self, buf: &mut [f32]) {
         for chunk in buf.chunks_exact_mut(32) {
             let (c1, c2) = self.next().unwrap().get();
-            c1.simd.store_interleaved_128_f32x16(c1, (&mut chunk[..16]).try_into().unwrap());
-            c2.simd.store_interleaved_128_f32x16(c2, (&mut chunk[16..]).try_into().unwrap());
+            c1.simd
+                .store_interleaved_128_f32x16(c1, (&mut chunk[..16]).try_into().unwrap());
+            c2.simd
+                .store_interleaved_128_f32x16(c2, (&mut chunk[16..]).try_into().unwrap());
         }
     }
 }

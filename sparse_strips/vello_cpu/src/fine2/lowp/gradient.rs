@@ -47,7 +47,7 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
         for (val, idx) in vals.chunks_exact_mut(4).zip(indices.val) {
             val.copy_from_slice(&self.lut[idx as usize]);
         }
-        
+
         Some(u8x64::from_slice(self.simd, &vals))
     }
 }

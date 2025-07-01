@@ -420,7 +420,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                     ($has_opacities:expr, $filler:expr) => {
                         if $has_opacities || alphas.is_some() {
                             T::apply_painter(self.simd, color_buf, $filler);
-    
+
                             if default_blend {
                                 T::alpha_composite_shader(self.simd, blend_buf, color_buf, alphas);
                             } else {
@@ -439,7 +439,7 @@ impl<S: Simd, T: FineKernel<S>> Fine<S, T> {
                             // if all colors in the gradient are fully opaque.
                             T::apply_painter(self.simd, blend_buf, $filler);
                         }
-                    }
+                    };
                 }
 
                 match encoded_paint {
@@ -666,7 +666,6 @@ impl<S: Simd> Splat4thExt<S> for u8x32<S> {
     }
 }
 
-
 pub(crate) struct ShaderResultF32<S: Simd> {
     pub(crate) r: f32x8<S>,
     pub(crate) g: f32x8<S>,
@@ -681,7 +680,7 @@ impl<S: Simd> ShaderResultF32<S> {
         let (g_1, g_2) = self.g.simd.split_f32x8(self.g);
         let (b_1, b_2) = self.b.simd.split_f32x8(self.b);
         let (a_1, a_2) = self.a.simd.split_f32x8(self.a);
-        
+
         let first = self.r.simd.combine_f32x8(
             self.r.simd.combine_f32x4(r_1, g_1),
             self.r.simd.combine_f32x4(b_1, a_1),

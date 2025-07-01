@@ -1,14 +1,15 @@
 mod compose;
-mod image;
 mod gradient;
+mod image;
 
-use crate::fine2::{shaders, ShaderType};
-use crate::fine2::lowp::compose::ComposeExt;
 use crate::fine2::lowp;
+use crate::fine2::lowp::compose::ComposeExt;
+use crate::fine2::lowp::image::BilinearImageFiller;
 use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller, SimpleImageFiller};
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::fine2::{COLOR_COMPONENTS, Painter, SCRATCH_BUF_SIZE};
 use crate::fine2::{FineKernel, f32_to_u8, highp, u8_to_f32};
+use crate::fine2::{ShaderType, shaders};
 use crate::peniko::{BlendMode, Compose, Mix};
 use crate::region::Region;
 use crate::util::{BlendModeExt, Div255Ext};
@@ -20,7 +21,6 @@ use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
 use vello_common::peniko::ImageQuality;
 use vello_common::tile::Tile;
-use crate::fine2::lowp::image::BilinearImageFiller;
 
 #[derive(Clone, Copy, Debug)]
 pub struct U8Kernel;
@@ -61,9 +61,19 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         t_vals: &'a [f32],
     ) -> Box<dyn Painter + 'a> {
         if has_undefined {
-            Box::new(shaders::gradient::GradientFiller::new(simd, gradient, has_undefined, t_vals))
-        }   else {
-            Box::new(gradient::GradientFiller::new(simd, gradient, has_undefined, t_vals))
+            Box::new(shaders::gradient::GradientFiller::new(
+                simd,
+                gradient,
+                has_undefined,
+                t_vals,
+            ))
+        } else {
+            Box::new(gradient::GradientFiller::new(
+                simd,
+                gradient,
+                has_undefined,
+                t_vals,
+            ))
         }
     }
 
@@ -93,7 +103,7 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
     ) -> Box<dyn Painter + 'a> {
         if image.quality == ImageQuality::Medium {
             Box::new(BilinearImageFiller::new(simd, image, start_x, start_y))
-        }   else {
+        } else {
             Box::new(FilteredImageFiller::new(simd, image, start_x, start_y))
         }
     }
