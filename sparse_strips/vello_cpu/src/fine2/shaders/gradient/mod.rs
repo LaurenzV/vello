@@ -34,7 +34,7 @@ pub(crate) fn calculate_t_vals<S: Simd, U: SimdGradientKind<S>>(
 #[derive(Debug)]
 pub(crate) struct GradientFiller<'a, S: Simd> {
     gradient: &'a EncodedGradient,
-    lut: &'a GradientLut<u8>,
+    lut: &'a [[u8; 4]],
     t_vals: ChunksExact<'a, f32>,
     has_undefined: bool,
     scale_factor: f32x16<S>,
@@ -55,7 +55,7 @@ impl<'a, S: Simd> GradientFiller<'a, S> {
             gradient,
             scale_factor,
             has_undefined,
-            lut,
+            lut: lut.lut(),
             t_vals: t_vals.chunks_exact(16),
             simd,
         }
@@ -74,7 +74,7 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
         
         let mut vals = [0u8; 64];
         for (val, idx) in vals.chunks_exact_mut(4).zip(indices.val) {
-            val.copy_from_slice(&self.lut.get(idx as usize));
+            val.copy_from_slice(&self.lut[idx as usize]);
         }
         
         Some(u8x64::from_slice(self.simd, &vals))

@@ -1030,6 +1030,11 @@ impl<T: Copy + Clone + FromF32Color> GradientLut<T> {
     pub fn get(&self, idx: usize) -> [T; 4] {
         self.lut[idx]
     }
+    
+    #[inline(always)]
+    pub fn lut(&self) -> &[[T; 4]] {
+        &self.lut
+    }
 
     /// Get the scale factor by which to scale the parametric value to
     /// compute the correct lookup index.
