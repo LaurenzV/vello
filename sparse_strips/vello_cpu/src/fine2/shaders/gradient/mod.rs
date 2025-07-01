@@ -1,11 +1,8 @@
-use crate::fine2::{PosExt, ShaderResultF32, ShaderResultU8, ShaderType};
-use crate::fine2::highp::element_wise_splat;
-use crate::fine2::macros::f32_iter;
+use crate::fine2::{PosExt, ShaderResultF32, ShaderType};
 use crate::kurbo::Point;
 use core::slice::ChunksExact;
 use vello_common::encode::{EncodedGradient, GradientLut, GradientRange};
 use vello_common::fearless_simd::*;
-use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 
 pub(crate) mod linear;
 pub(crate) mod radial;
@@ -66,7 +63,7 @@ impl<'a, S: Simd> GradientFiller<'a, S> {
 }
 
 impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
-    type Item = ShaderResultU8<S>;
+    type Item = u8x64<S>;
 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -80,38 +77,7 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
             val.copy_from_slice(&self.lut.get(idx as usize));
         }
         
-        let loaded = self.simd.load_interleaved_128_u8x64(&vals);
-        let (s1, s2) = self.simd.split_u8x64(loaded);
-        
-        let (r, g) = self.simd.split_u8x32(s1);
-        let (b, a) = self.simd.split_u8x32(s2);
-
-        // if self.has_undefined {
-        //     macro_rules! mask_nan {
-        //         ($channel:expr) => {
-        //             $channel = self.simd.select_f32x16(
-        //                 // On some architectures, the NaNs of `t_vals` might have been cleared already by
-        //                 // the `extend` function, so use the original variable as the mask.
-        //                 // Mask out NaNs with 0.
-        //                 self.simd.simd_eq_f32x16(pos, pos),
-        //                 $channel,
-        //                 u8x16::splat(self.simd, 0),
-        //             );
-        //         };
-        //     }
-        //     
-        //     mask_nan!(r);
-        //     mask_nan!(g);
-        //     mask_nan!(b);
-        //     mask_nan!(a);
-        // }
-
-        Some(ShaderResultU8 {
-            r,
-            g,
-            b,
-            a,
-        })
+        Some(u8x64::from_slice(self.simd, &vals))
     }
 }
 
@@ -119,11 +85,7 @@ impl<S: Simd> crate::fine2::Painter for GradientFiller<'_, S> {
     #[inline(never)]
     fn paint_u8(&mut self, buf: &mut [u8]) {
         for chunk in buf.chunks_exact_mut(64) {
-            let next = self.next().unwrap();
-            let simd = next.r.simd;
-            
-            core::hint::black_box(next);
-            core::hint::black_box(chunk);
+            chunk.copy_from_slice(&self.next().unwrap().val);       
         }
     }
 

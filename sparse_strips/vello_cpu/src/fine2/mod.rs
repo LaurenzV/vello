@@ -666,12 +666,6 @@ impl<S: Simd> Splat4thExt<S> for u8x32<S> {
     }
 }
 
-pub(crate) struct ShaderResultU8<S: Simd> {
-    pub(crate) r: u8x16<S>,
-    pub(crate) g: u8x16<S>,
-    pub(crate) b: u8x16<S>,
-    pub(crate) a: u8x16<S>,
-}
 
 pub(crate) struct ShaderResultF32<S: Simd> {
     pub(crate) r: f32x8<S>,
