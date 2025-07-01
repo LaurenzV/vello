@@ -4,7 +4,9 @@
 use crate::fine2::Splat4thExt;
 use crate::peniko::{BlendMode, Compose, ImageQuality, Mix};
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{Simd, SimdBase, f32x16, mask32x4, mask32x16, u8x32, u16x16, u16x32, f32x4};
+use vello_common::fearless_simd::{
+    Simd, SimdBase, f32x4, f32x16, mask32x4, mask32x16, u8x32, u16x16, u16x32,
+};
 use vello_common::math::FloatExt;
 
 pub(crate) mod scalar {
@@ -178,8 +180,8 @@ impl<S: Simd> Premultiply for f32x4<S> {
     fn unpremultiply(self, alphas: f32x4<S>) -> Self {
         let zero = f32x4::splat(alphas.simd, 0.0);
         let divided = self / alphas;
-        
+
         self.simd
-                .select_f32x4(self.simd.simd_eq_f32x4(alphas, zero), zero, divided)
+            .select_f32x4(self.simd.simd_eq_f32x4(alphas, zero), zero, divided)
     }
 }

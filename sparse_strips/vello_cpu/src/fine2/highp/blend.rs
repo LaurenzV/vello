@@ -15,7 +15,7 @@ impl<S: Simd> Channels<S> {
         self.r = self.r.unpremultiply(a);
         self.g = self.g.unpremultiply(a);
         self.b = self.b.unpremultiply(a);
-        
+
         self
     }
 }
@@ -26,23 +26,19 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg: f32x16<S>, blend_mode: BlendMod
     }
     // See https://www.w3.org/TR/compositing-1/#blending
     let simd = src_c.simd;
-    
+
     let split = |input: f32x16<S>| {
         let mut storage = [0.0; 16];
         simd.store_interleaved_128_f32x16(input, &mut storage);
         let input = f32x16::from_slice(simd, &storage);
-        
+
         let p1 = simd.split_f32x16(input);
         let (r, g) = simd.split_f32x8(p1.0);
         let (b, a) = simd.split_f32x8(p1.1);
 
-        (Channels {
-            r,
-            g,
-            b,
-        }, a)
+        (Channels { r, g, b }, a)
     };
-    
+
     let (mut bg_channels, bg_a) = split(bg);
     let (src_channels, src_a) = split(src_c);
 
@@ -50,7 +46,7 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg: f32x16<S>, blend_mode: BlendMod
     let mix_bg = bg_channels.unpremultiply(bg_a);
     let unpremultiplied_src_c = src_channels.unpremultiply(src_a);
     let mut mix_src = unpremultiplied_src_c;
-    
+
     let mut res_bg = mix_bg;
 
     // Mix the source and background color. This will then be our
@@ -59,24 +55,25 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg: f32x16<S>, blend_mode: BlendMod
     // SIMDify across the pixel range, the alphas will also be affected. Because of that,
     // we will reset the alpha later to
     mix_src = blend_mode.mix(mix_src, mix_bg);
-    
-    let apply_alpha = |unpre_src_c: f32x4<S>, mut mix_src: f32x4<S>, dest: &mut f32x4<S>, alpha: f32x4<S>| {
-        let p1 = (1.0 - bg_a) * unpre_src_c;
-        let p2 = bg_a * mix_src;
-        mix_src = p1 + p2;
 
-        *dest = mix_src.premultiply(src_a)
-    };
-    
+    let apply_alpha =
+        |unpre_src_c: f32x4<S>, mut mix_src: f32x4<S>, dest: &mut f32x4<S>, alpha: f32x4<S>| {
+            let p1 = (1.0 - bg_a) * unpre_src_c;
+            let p2 = bg_a * mix_src;
+            mix_src = p1 + p2;
+
+            *dest = mix_src.premultiply(src_a)
+        };
+
     apply_alpha(unpremultiplied_src_c.r, mix_src.r, &mut res_bg.r, bg_a);
     apply_alpha(unpremultiplied_src_c.g, mix_src.g, &mut res_bg.g, bg_a);
     apply_alpha(unpremultiplied_src_c.b, mix_src.b, &mut res_bg.b, bg_a);
-    
+
     let combined = simd.combine_f32x8(
         simd.combine_f32x4(res_bg.r, res_bg.g),
-        simd.combine_f32x4(res_bg.b, src_a)
+        simd.combine_f32x4(res_bg.b, src_a),
     );
-    
+
     let mut storage = [0.0; 16];
     simd.store_interleaved_128_f32x16(combined, &mut storage);
     f32x16::from_slice(simd, &storage)
@@ -106,8 +103,8 @@ impl MixExt for BlendMode {
             Mix::Luminosity => Luminosity::mix(src, bg),
             Mix::Color => Color::mix(src, bg),
             Mix::Hue => Hue::mix(src, bg),
+            Mix::Saturation => Saturation::mix(src, bg),
             _ => unimplemented!(),
-            // Mix::Saturation => Saturation::mix(src, bg),
         }
     }
 }
@@ -148,7 +145,7 @@ macro_rules! separable_mix {
                 src.r = $calc(src.r, bg.r);
                 src.g = $calc(src.g, bg.g);
                 src.b = $calc(src.b, bg.b);
-                
+
                 src
             }
         }
@@ -158,9 +155,7 @@ macro_rules! separable_mix {
 separable_mix!(Multiply, |cs: f32x4<S>, cb: f32x4<S>| Multiply::single(
     cs, cb
 ));
-separable_mix!(Screen, |cs: f32x4<S>, cb: f32x4<S>| Screen::single(
-    cs, cb
-));
+separable_mix!(Screen, |cs: f32x4<S>, cb: f32x4<S>| Screen::single(cs, cb));
 separable_mix!(Overlay, |cs: f32x4<S>, cb: f32x4<S>| HardLight::single(
     cb, cs
 ));
@@ -243,18 +238,26 @@ macro_rules! non_separable_mix {
 non_separable_mix!(Hue, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
     set_sat(&mut cs.r, &mut cs.g, &mut cs.b, sat(cb.r, cb.g, cb.b));
     set_lum(&mut cs.r, &mut cs.g, &mut cs.b, lum(cb.r, cb.g, cb.b));
-    
+
     *cs
 });
-// non_separable_mix!(Saturation, |cs, cb| set_lum(set_sat(cb, sat(cs)), lum(cb)));
+
+non_separable_mix!(Saturation, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
+    let lum = lum(cb.r, cb.g, cb.b);
+    set_sat(&mut cb.r, &mut cb.g, &mut cb.b, sat(cs.r, cs.g, cs.b));
+    set_lum(&mut cb.r, &mut cb.g, &mut cb.b, lum);
+
+    *cb
+});
+
 non_separable_mix!(Color, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
     set_lum(&mut cs.r, &mut cs.g, &mut cs.b, lum(cb.r, cb.g, cb.b));
-    
+
     *cs
 });
 non_separable_mix!(Luminosity, |cs: &mut Channels<S>, cb: &mut Channels<S>| {
     set_lum(&mut cb.r, &mut cb.g, &mut cb.b, lum(cs.r, cs.g, cs.b));
-    
+
     *cb
 });
 
@@ -272,18 +275,18 @@ fn clip_color<S: Simd>(r: &mut f32x4<S>, g: &mut f32x4<S>, b: &mut f32x4<S>) {
     let l = lum(*r, *g, *b);
     let n = r.min(g.min(*b));
     let x = r.max(g.max(*b));
-    
+
     for c in [r, g, b] {
         *c = simd.select_f32x4(
             simd.simd_lt_f32x4(n, f32x4::splat(simd, 0.0)),
             l + (((*c - l) * l) / (l - n)),
-            *c
+            *c,
         );
 
         *c = simd.select_f32x4(
             simd.simd_gt_f32x4(x, f32x4::splat(simd, 1.0)),
             l + (((*c - l) * (1.0 - l)) / (x - l)),
-            *c
+            *c,
         )
     }
 }
@@ -301,16 +304,12 @@ fn set_lum<S: Simd>(r: &mut f32x4<S>, g: &mut f32x4<S>, b: &mut f32x4<S>, l: f32
 fn set_sat<S: Simd>(r: &mut f32x4<S>, g: &mut f32x4<S>, b: &mut f32x4<S>, s: f32x4<S>) {
     let simd = r.simd;
     let zero = f32x4::splat(simd, 0.0);
-    let mn  = r.min(g.min(*b));
-    let mx  = r.max(g.max(*b));
+    let mn = r.min(g.min(*b));
+    let mx = r.max(g.max(*b));
     let sat = mx - mn;
 
     // Map min channel to 0, max channel to s, and scale the middle proportionally.
-    let scale = |c| simd.select_f32x4(
-        simd.simd_eq_f32x4(sat, zero),
-        zero,
-        (c - mn) * s / sat
-    );
+    let scale = |c| simd.select_f32x4(simd.simd_eq_f32x4(sat, zero), zero, (c - mn) * s / sat);
 
     *r = scale(*r);
     *g = scale(*g);

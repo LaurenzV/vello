@@ -23,10 +23,10 @@ pub(crate) const TILE_HEIGHT_COMPONENTS: usize = Tile::HEIGHT as usize * COLOR_C
 pub const SCRATCH_BUF_SIZE: usize =
     WideTile::WIDTH as usize * Tile::HEIGHT as usize * COLOR_COMPONENTS;
 
+use crate::fine2::shaders::gradient::calculate_t_vals;
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
-use crate::fine2::shaders::gradient::calculate_t_vals;
 use crate::util::{BlendModeExt, EncodedImageExt, InlineMapExt};
 pub use highp::F32Kernel;
 pub use lowp::U8Kernel;
@@ -707,7 +707,7 @@ mod macros {
                 }
 
                 fn paint_f32(&mut self, buf: &mut [f32]) {
-                    
+
 
                     for chunk in buf.chunks_exact_mut(16) {
                         let next = self.next().unwrap();

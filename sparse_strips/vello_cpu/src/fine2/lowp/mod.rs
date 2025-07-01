@@ -3,11 +3,11 @@ mod gradient;
 mod image;
 
 use crate::fine2::lowp::image::BilinearImageFiller;
+use crate::fine2::shaders;
 use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller, SimpleImageFiller};
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::fine2::{COLOR_COMPONENTS, Painter, SCRATCH_BUF_SIZE};
 use crate::fine2::{FineKernel, f32_to_u8, highp, u8_to_f32};
-use crate::fine2::shaders;
 use crate::peniko::BlendMode;
 use crate::region::Region;
 use crate::util::Div255Ext;

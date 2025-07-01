@@ -8,9 +8,7 @@
 use crate::fine2::{PosExt, ShaderResultF32, ShaderType};
 use crate::kurbo::{Point, Vec2};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::fearless_simd::{
-    Simd, SimdBase, SimdFloat, f32x8, u8x16,
-};
+use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, f32x8, u8x16};
 
 #[derive(Debug)]
 pub(crate) struct BlurredRoundedRectFiller<S: Simd> {
