@@ -75,42 +75,16 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
         let t_vals = extend(pos, pad);
         let indices = (t_vals * self.scale_factor).cvt_u32();
         
-        let mut r = [0u8; 16];
-        let mut g = [0u8; 16];
-        let mut b = [0u8; 16];
-        let mut a = [0u8; 16];
-
-        macro_rules! gather {
-            ($idx:expr) => {
-                let sample = self.lut.get(indices[$idx] as usize);
-                r[$idx] = sample[0];
-                g[$idx] = sample[1];
-                b[$idx] = sample[2];
-                a[$idx] = sample[3];
-            };
+        let mut vals = [0u8; 64];
+        for (val, idx) in vals.chunks_exact_mut(4).zip(indices.val) {
+            val.copy_from_slice(&self.lut.get(idx as usize));
         }
         
-        gather!(0);
-        gather!(1);
-        gather!(2);
-        gather!(3);
-        gather!(4);
-        gather!(5);
-        gather!(6);
-        gather!(7);
-        gather!(8);
-        gather!(9);
-        gather!(10);
-        gather!(11);
-        gather!(12);
-        gather!(13);
-        gather!(14);
-        gather!(15);
+        let loaded = self.simd.load_interleaved_128_u8x64(&vals);
+        let (s1, s2) = self.simd.split_u8x64(loaded);
         
-        let mut r = u8x16::from_slice(self.simd, &r);
-        let mut g = u8x16::from_slice(self.simd, &g);
-        let mut b = u8x16::from_slice(self.simd, &b);
-        let mut a = u8x16::from_slice(self.simd, &a);
+        let (r, g) = self.simd.split_u8x32(s1);
+        let (b, a) = self.simd.split_u8x32(s2);
 
         // if self.has_undefined {
         //     macro_rules! mask_nan {
@@ -144,7 +118,7 @@ impl<'a, S: Simd> Iterator for GradientFiller<'a, S> {
 impl<S: Simd> crate::fine2::Painter for GradientFiller<'_, S> {
     #[inline(never)]
     fn paint_u8(&mut self, buf: &mut [u8]) {
-        for chunk in buf.chunks_exact_mut(32) {
+        for chunk in buf.chunks_exact_mut(64) {
             let next = self.next().unwrap();
             let simd = next.r.simd;
             
@@ -159,7 +133,7 @@ impl<S: Simd> crate::fine2::Painter for GradientFiller<'_, S> {
 }
 
 #[inline(always)]
-pub(crate) fn extend<S: Simd>(val: f32x8<S>, pad: bool) -> f32x16<S> {
+pub(crate) fn extend<S: Simd>(val: f32x16<S>, pad: bool) -> f32x16<S> {
     if pad {
         val.max(0.0).min(1.0)
     } else {
