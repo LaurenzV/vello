@@ -666,6 +666,35 @@ impl<S: Simd> Splat4thExt<S> for u8x32<S> {
     }
 }
 
+pub(crate) struct ShaderResult<S: Simd> {
+    pub(crate) r: f32x8<S>,
+    pub(crate) g: f32x8<S>,
+    pub(crate) b: f32x8<S>,
+    pub(crate) a: f32x8<S>,
+}
+
+impl<S: Simd> ShaderResult<S> {
+    #[inline(always)]
+    pub(crate) fn get(&self) -> (f32x16<S>, f32x16<S>) {
+        let (r_1, r_2) = self.r.simd.split_f32x8(self.r);
+        let (g_1, g_2) = self.g.simd.split_f32x8(self.g);
+        let (b_1, b_2) = self.b.simd.split_f32x8(self.b);
+        let (a_1, a_2) = self.a.simd.split_f32x8(self.a);
+        
+        let first = self.r.simd.combine_f32x8(
+            self.r.simd.combine_f32x4(r_1, g_1),
+            self.r.simd.combine_f32x4(b_1, a_1),
+        );
+
+        let second = self.r.simd.combine_f32x8(
+            self.r.simd.combine_f32x4(r_2, g_2),
+            self.r.simd.combine_f32x4(b_2, a_2),
+        );
+
+        (first, second)
+    }
+}
+
 mod macros {
     macro_rules! f32_iter {
         ($($type_path:tt)+) => {

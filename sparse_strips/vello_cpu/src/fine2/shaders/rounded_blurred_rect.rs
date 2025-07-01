@@ -5,18 +5,20 @@
 //!
 //! Implementation is adapted from: <https://git.sr.ht/~raph/blurrr/tree/master/src/distfield.rs>.
 
-use crate::fine2::PosExt;
+use crate::fine2::{PosExt, ShaderResult, ShaderType};
 use crate::fine2::highp::element_wise_splat;
 use crate::fine2::macros::f32_iter;
 use crate::kurbo::{Point, Vec2};
 use vello_common::encode::EncodedBlurredRoundedRectangle;
-use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16};
+use vello_common::fearless_simd::{Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16};
 
 #[derive(Debug)]
 pub(crate) struct BlurredRoundedRectFiller<S: Simd> {
-    color: f32x16<S>,
+    r: f32x8<S>,
+    g: f32x8<S>,
+    b: f32x8<S>,
+    a: f32x8<S>,
     alpha_calculator: AlphaCalculator<S>,
-    next_alphas: Option<f32x4<S>>,
     simd: S,
 }
 
@@ -28,41 +30,70 @@ impl<S: Simd> BlurredRoundedRectFiller<S> {
         start_y: u16,
     ) -> Self {
         let start_pos = rect.transform * Point::new(f64::from(start_x), f64::from(start_y));
-        let color = f32x16::block_splat(rect.color.as_premul_f32().components.simd_into(simd));
+        let color_components = rect.color.as_premul_f32().components;
+        let r = f32x8::splat(simd, color_components[0]);
+        let g = f32x8::splat(simd, color_components[1]);
+        let b = f32x8::splat(simd, color_components[2]);
+        let a = f32x8::splat(simd, color_components[3]);
         let simd_rect = SimdRoundedBlurredRect::new(rect, simd);
         let alpha_calculator =
             AlphaCalculator::new(start_pos, rect.x_advance, rect.y_advance, simd_rect, simd);
 
         Self {
             alpha_calculator,
-            color,
+            r, g, b, a,
             simd,
-            next_alphas: None,
         }
     }
 }
 
 impl<S: Simd> Iterator for BlurredRoundedRectFiller<S> {
-    type Item = f32x16<S>;
+    type Item = ShaderResult<S>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let alphas = if let Some(next) = self.next_alphas {
-            self.next_alphas = None;
+        let next = self.alpha_calculator.next().unwrap();
+        let r = self.r * next;
+        let g = self.g * next;
+        let b = self.b * next;
+        let a = self.a * next;
 
-            element_wise_splat(self.simd, next)
-        } else {
-            let next = self.alpha_calculator.next().unwrap();
-            let (s0, s1) = self.simd.split_f32x8(next);
-            self.next_alphas = Some(s1);
-
-            element_wise_splat(self.simd, s0)
-        };
-
-        Some(self.color * alphas)
+        Some(ShaderResult {
+            r,
+            g,
+            b,
+            a,
+        })
     }
 }
+impl<S: Simd> crate::fine2::Painter for BlurredRoundedRectFiller<S> {
+    fn paint_u8(&mut self, buf: &mut [u8]) {
+        for chunk in buf.chunks_exact_mut(64) {
+            let first = self.next().unwrap();
+            let simd = first.r.simd;
+            let second = self.next().unwrap();
+            
+            let r = u8x16::from_f32(simd, simd.combine_f32x8(first.r, second.r));
+            let g = u8x16::from_f32(simd, simd.combine_f32x8(first.g, second.g));
+            let b = u8x16::from_f32(simd, simd.combine_f32x8(first.b, second.b));
+            let a = u8x16::from_f32(simd, simd.combine_f32x8(first.a, second.a));
+            
+            let combined = simd.combine_u8x32(
+                simd.combine_u8x16(r, g),
+                simd.combine_u8x16(b, a),
+            );
+            
+            simd.store_interleaved_128_u8x64(combined, (&mut chunk[..]).try_into().unwrap());
+        }
+    }
 
-f32_iter!(BlurredRoundedRectFiller<S>);
+    fn paint_f32(&mut self, buf: &mut [f32]) {
+        for chunk in buf.chunks_exact_mut(32) {
+            let (c1, c2) = self.next().unwrap().get();
+            c1.simd.store_interleaved_128_f32x16(c1, (&mut chunk[..16]).try_into().unwrap());
+            c2.simd.store_interleaved_128_f32x16(c2, (&mut chunk[16..]).try_into().unwrap());
+        }
+    }
+}
 
 #[derive(Debug)]
 struct AlphaCalculator<S: Simd> {
