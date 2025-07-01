@@ -4,9 +4,7 @@
 use crate::fine2::Splat4thExt;
 use crate::peniko::{BlendMode, Compose, ImageQuality, Mix};
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{
-    Simd, SimdBase, f32x16, mask32x4, mask32x16, u8x32, u16x16, u16x32,
-};
+use vello_common::fearless_simd::{Simd, SimdBase, f32x16, mask32x4, mask32x16, u8x32, u16x16, u16x32, f32x4};
 use vello_common::math::FloatExt;
 
 pub(crate) mod scalar {
@@ -166,32 +164,22 @@ impl EncodedImageExt for EncodedImage {
 }
 
 pub(crate) trait Premultiply {
-    fn premultiply(self) -> Self;
-    fn unpremultiply(self) -> Self;
+    fn premultiply(self, alphas: Self) -> Self;
+    fn unpremultiply(self, alphas: Self) -> Self;
 }
 
-impl<S: Simd> Premultiply for f32x16<S> {
+impl<S: Simd> Premultiply for f32x4<S> {
     #[inline(always)]
-    fn premultiply(self) -> Self {
-        let alphas = self.splat_4th();
-        let multiplied = self * alphas;
-
-        // Reselect original alphas, since those shouldn't be premultiplied.
-        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, -1, 0]));
-        self.simd.select_f32x16(select_mask, multiplied, alphas)
+    fn premultiply(self, alphas: f32x4<S>) -> Self {
+        self * alphas
     }
 
     #[inline(always)]
-    fn unpremultiply(self) -> Self {
-        let alphas = self.splat_4th();
+    fn unpremultiply(self, alphas: f32x4<S>) -> Self {
+        let zero = f32x4::splat(alphas.simd, 0.0);
         let divided = self / alphas;
-        // Clear NaN.
-        let cleared =
-            self.simd
-                .select_f32x16(self.simd.simd_eq_f32x16(divided, divided), divided, self);
-
-        // Reselect original alphas, since those shouldn't be unpremultiplied.
-        let select_mask = mask32x16::block_splat(mask32x4::from_slice(self.simd, &[-1, -1, -1, 0]));
-        self.simd.select_f32x16(select_mask, cleared, alphas)
+        
+        self.simd
+                .select_f32x4(self.simd.simd_eq_f32x4(alphas, zero), zero, divided)
     }
 }
