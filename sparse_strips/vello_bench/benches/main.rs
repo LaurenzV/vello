@@ -23,6 +23,6 @@ criterion_main!(
     // fine_pack,
     fine_gradient,
     fine_rounded_blurred_rect,
-    // fine_blend,
+    fine_blend,
     fine_image
 );
