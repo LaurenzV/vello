@@ -427,11 +427,11 @@ impl EncodeExt for Image {
         let mut quality = self.quality;
 
         let c = transform.as_coeffs();
-
+        
         // Optimize image quality for integer-only translations.
-        if (c[1] as f32).is_nearly_zero()
+        if (c[0] as f32 - 1.0).is_nearly_zero()
+            && (c[1] as f32).is_nearly_zero()
             && (c[2] as f32).is_nearly_zero()
-            && (c[0] as f32 - 1.0).is_nearly_zero()
             && (c[3] as f32 - 1.0).is_nearly_zero()
             && (c[4].fract() as f32).is_nearly_zero()
             && (c[5].fract() as f32).is_nearly_zero()
@@ -439,13 +439,10 @@ impl EncodeExt for Image {
         {
             quality = ImageQuality::Low;
         }
-
+        
         // Similarly to gradients, apply a 0.5 offset so we sample at the center of
         // a pixel.
         let transform = transform.inverse() * Affine::translate((0.5, 0.5));
-        // TODO: This is somewhat expensive for large images, maybe it's not worth optimizing
-        // non-opaque images in the first place..
-        let has_opacities = self.pixmap.data().iter().any(|pixel| pixel.a != 255);
 
         let (x_advance, y_advance) = x_y_advances(&transform);
 
@@ -453,7 +450,7 @@ impl EncodeExt for Image {
             pixmap: self.pixmap.clone(),
             extends: (self.x_extend, self.y_extend),
             quality,
-            has_opacities,
+            has_opacities: true,
             transform,
             x_advance,
             y_advance,

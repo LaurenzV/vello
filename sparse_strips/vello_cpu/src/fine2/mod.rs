@@ -611,7 +611,7 @@ impl<S: Simd> Splat4thExt<S> for f32x8<S> {
     }
 }
 
-trait Painter {
+pub trait Painter {
     fn paint_u8(&mut self, buf: &mut [u8]);
     fn paint_f32(&mut self, buf: &mut [f32]);
 }

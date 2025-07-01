@@ -12,12 +12,15 @@ use crate::region::Region;
 use crate::util::{BlendModeExt, Div255Ext};
 use alloc::boxed::Box;
 use bytemuck::cast_slice;
+mod image;
 use vello_common::blurred_rounded_rect::BlurredRoundedRectangle;
 use vello_common::coarse::WideTile;
 use vello_common::encode::{EncodedBlurredRoundedRectangle, EncodedGradient, EncodedImage};
 use vello_common::fearless_simd::*;
 use vello_common::paint::PremulColor;
+use vello_common::peniko::ImageQuality;
 use vello_common::tile::Tile;
+use crate::fine2::lowp::image::BilinearImageFiller;
 
 #[derive(Clone, Copy, Debug)]
 pub struct U8Kernel;
@@ -84,7 +87,11 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         start_x: u16,
         start_y: u16,
     ) -> Box<dyn Painter + 'a> {
-        Box::new(FilteredImageFiller::new(simd, image, start_x, start_y))
+        if image.quality == ImageQuality::Medium {
+            Box::new(BilinearImageFiller::new(simd, image, start_x, start_y))
+        }   else {
+            Box::new(FilteredImageFiller::new(simd, image, start_x, start_y))
+        }
     }
 
     fn blurred_rounded_rectangle_painter<'a>(
