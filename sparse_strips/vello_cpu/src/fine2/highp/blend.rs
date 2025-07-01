@@ -2,6 +2,24 @@ use crate::peniko::{BlendMode, Mix};
 use crate::util::Premultiply;
 use vello_common::fearless_simd::*;
 
+#[derive(Copy, Clone)]
+struct Channels<S: Simd> {
+    r: f32x4<S>,
+    g: f32x4<S>,
+    b: f32x4<S>,
+}
+
+impl<S: Simd> Channels<S> {
+    #[inline(always)]
+    fn unpremultiply(mut self, a: f32x4<S>) -> Self {
+        self.r = self.r.unpremultiply(a);
+        self.g = self.g.unpremultiply(a);
+        self.b = self.b.unpremultiply(a);
+        
+        self
+    }
+}
+
 pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg: f32x16<S>, blend_mode: BlendMode) -> f32x16<S> {
     if blend_mode.mix == Mix::Normal {
         return src_c;
@@ -17,40 +35,46 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg: f32x16<S>, blend_mode: BlendMod
         let p1 = simd.split_f32x16(input);
         let (r, g) = simd.split_f32x8(p1.0);
         let (b, a) = simd.split_f32x8(p1.1);
-        (r, g, b, a)
+
+        (Channels {
+            r,
+            g,
+            b,
+        }, a)
     };
     
-    let (bg_r, bg_g, bg_b, bg_a) = split(bg);
-    let (src_r, src_g, src_b, src_a) = split(src_c);
-    
-    let mut res_bg_r = bg_r;
-    let mut res_bg_g = bg_g;
-    let mut res_bg_b = bg_b;
-    
-    for (src_channel, bg_channel) in [(src_r, &mut res_bg_r), (src_g, &mut res_bg_g), (src_b, &mut res_bg_b)] {
-        // For blending, we need to first unpremultiply everything.
-        let mix_bg = bg_channel.unpremultiply(bg_a);
-        let unpremultiplied_src_c = src_channel.unpremultiply(src_a);
-        let mut mix_src = unpremultiplied_src_c;
+    let (mut bg_channels, bg_a) = split(bg);
+    let (src_channels, src_a) = split(src_c);
 
-        // Mix the source and background color. This will then be our
-        // new source color.
-        // Note that mixing should not affect the alpha value, but since we currently
-        // SIMDify across the pixel range, the alphas will also be affected. Because of that,
-        // we will reset the alpha later to
-        mix_src = blend_mode.mix(mix_src, mix_bg);
+    // For blending, we need to first unpremultiply everything.
+    let mix_bg = bg_channels.unpremultiply(bg_a);
+    let unpremultiplied_src_c = src_channels.unpremultiply(src_a);
+    let mut mix_src = unpremultiplied_src_c;
+    
+    let mut res_bg = mix_bg;
 
-        // Account for alpha.
-        let p1 = (1.0 - bg_a) * unpremultiplied_src_c;
+    // Mix the source and background color. This will then be our
+    // new source color.
+    // Note that mixing should not affect the alpha value, but since we currently
+    // SIMDify across the pixel range, the alphas will also be affected. Because of that,
+    // we will reset the alpha later to
+    mix_src = blend_mode.mix(mix_src, mix_bg);
+    
+    let apply_alpha = |unpre_src_c: f32x4<S>, mut mix_src: f32x4<S>, dest: &mut f32x4<S>, alpha: f32x4<S>| {
+        let p1 = (1.0 - bg_a) * unpre_src_c;
         let p2 = bg_a * mix_src;
         mix_src = p1 + p2;
 
-        *bg_channel = mix_src.premultiply(src_a)
-    }
+        *dest = mix_src.premultiply(src_a)
+    };
+    
+    apply_alpha(unpremultiplied_src_c.r, mix_src.r, &mut res_bg.r, bg_a);
+    apply_alpha(unpremultiplied_src_c.g, mix_src.g, &mut res_bg.g, bg_a);
+    apply_alpha(unpremultiplied_src_c.b, mix_src.b, &mut res_bg.b, bg_a);
     
     let combined = simd.combine_f32x8(
-        simd.combine_f32x4(res_bg_r, res_bg_g),
-        simd.combine_f32x4(res_bg_b, src_a)
+        simd.combine_f32x4(res_bg.r, res_bg.g),
+        simd.combine_f32x4(res_bg.b, src_a)
     );
     
     let mut storage = [0.0; 16];
@@ -59,11 +83,11 @@ pub(crate) fn mix<S: Simd>(src_c: f32x16<S>, bg: f32x16<S>, blend_mode: BlendMod
 }
 
 trait MixExt {
-    fn mix<S: Simd>(&self, src: f32x4<S>, bg: f32x4<S>) -> f32x4<S>;
+    fn mix<S: Simd>(&self, src: Channels<S>, bg: Channels<S>) -> Channels<S>;
 }
 
 impl MixExt for BlendMode {
-    fn mix<S: Simd>(&self, src: f32x4<S>, bg: f32x4<S>) -> f32x4<S> {
+    fn mix<S: Simd>(&self, src: Channels<S>, bg: Channels<S>) -> Channels<S> {
         match self.mix {
             Mix::Normal => src,
             // Same as `Normal`.
@@ -120,8 +144,12 @@ macro_rules! separable_mix {
 
         impl $name {
             #[inline(always)]
-            fn mix<S: Simd>(src: f32x4<S>, bg: f32x4<S>) -> f32x4<S> {
-                $calc(src, bg)
+            fn mix<S: Simd>(mut src: Channels<S>, bg: Channels<S>) -> Channels<S> {
+                src.r = $calc(src.r, bg.r);
+                src.g = $calc(src.g, bg.g);
+                src.b = $calc(src.b, bg.b);
+                
+                src
             }
         }
     };
@@ -205,7 +233,7 @@ macro_rules! non_separable_mix {
 
         impl $name {
             #[inline(always)]
-            fn mix<S: Simd>(mut src: f32x16<S>, bg: f32x16<S>) -> f32x16<S> {
+            fn mix<S: Simd>(mut src: f32x4<S>, bg: f32x4<S>, r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x16<S> {
                 for (src, bg) in (src.val.chunks_exact_mut(4)).zip(bg.val.chunks_exact(4)) {
                     let src_val = src.try_into().unwrap();
                     src.copy_from_slice(&$calc(src_val, bg.try_into().unwrap()));
@@ -216,78 +244,77 @@ macro_rules! non_separable_mix {
         }
     };
 }
-
-non_separable_mix!(Hue, |cs, cb| set_lum(set_sat(cs, sat(cb)), lum(cb)));
-non_separable_mix!(Saturation, |cs, cb| set_lum(set_sat(cb, sat(cs)), lum(cb)));
-non_separable_mix!(Color, |cs, cb| set_lum(cs, lum(cb)));
-non_separable_mix!(Luminosity, |cs, cb| set_lum(cb, lum(cs)));
-
-fn lum(c: [f32; 4]) -> f32 {
-    0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
-}
-
-fn sat(c: [f32; 4]) -> f32 {
-    c[0].max(c[1]).max(c[2]) - c[0].min(c[1]).min(c[2])
-}
-
-fn clip_color(color: [f32; 4]) -> [f32; 4] {
-    let mut c_new = color;
-
-    let l = lum(c_new);
-    let n = c_new[0].min(c_new[1].min(c_new[2]));
-    let x = c_new[0].max(c_new[1].max(c_new[2]));
-
-    for c in &mut c_new {
-        if n < 0.0 {
-            *c = l + (((*c - l) * l) / (l - n));
-        }
-
-        if x > 1.0 {
-            *c = l + (((*c - l) * (1.0 - l)) / (x - l));
-        }
-    }
-
-    c_new
-}
-
-fn set_lum(mut c: [f32; 4], l: f32) -> [f32; 4] {
-    let d = l - lum(c);
-    c[0] += d;
-    c[1] += d;
-    c[2] += d;
-
-    clip_color(c)
-}
-
-fn set_sat(mut c: [f32; 4], s: f32) -> [f32; 4] {
-    let (min, tail) = c.split_at_mut(1);
-    let (mid, max) = tail.split_at_mut(1);
-
-    let mut min = &mut min[0];
-    let mut mid = &mut mid[0];
-    let mut max = &mut max[0];
-
-    if *min > *mid {
-        core::mem::swap(&mut min, &mut mid);
-    }
-
-    if *min > *max {
-        core::mem::swap(&mut min, &mut max);
-    }
-
-    if *mid > *max {
-        core::mem::swap(&mut mid, &mut max);
-    }
-
-    if *max > *min {
-        *mid = ((*mid - *min) * s) / (*max - *min);
-        *max = s;
-    } else {
-        *mid = 0.0;
-        *max = 0.0;
-    }
-
-    *min = 0.0;
-
-    c
-}
+// 
+// non_separable_mix!(Hue, |cs, cb| set_lum(set_sat(cs, sat(cb)), lum(cb)));
+// non_separable_mix!(Saturation, |cs, cb| set_lum(set_sat(cb, sat(cs)), lum(cb)));
+// non_separable_mix!(Color, |cs, cb| set_lum(cs, lum(cb)));
+// non_separable_mix!(Luminosity, |cs, cb| set_lum(cb, lum(cs)));
+// 
+// fn lum<S: Simd>(r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
+//     0.3 * r + 0.59 * g + 0.11 * b
+// }
+// 
+// fn sat<S: Simd>(r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
+//     r.max(g).max(b) - r.min(g).min(b)
+// }
+// 
+// fn clip_color<S: Simd>(src: f32x4<S>, r: f32x4<S>, g: f32x4<S>, b: f32x4<S>) -> f32x4<S> {
+//     let simd = src.simd;
+//     let mut c_new = src;
+// 
+//     let l = lum(r, g, b);
+//     let n = r.min(g.min(b));
+//     let x = r.max(g.max(b));
+// 
+//     c_new = simd.select_f32x4(
+//         simd.simd_le_f32x4(n, f32x4::splat(simd, 0.0)),
+//         l + (((c_new - l) * l) / (l - n)),
+//         c_new
+//     );
+// 
+//     simd.select_f32x4(
+//         simd.simd_gt_f32x4(x, f32x4::splat(simd, 1.0)),
+//         l + (((c_new - l) * (1.0 - l)) / (x - l)),
+//         c_new
+//     )
+// }
+// 
+// fn set_lum<S: Simd>(mut src: f32x4<S>, r: f32x4<S>, g: f32x4<S>, b: f32x4<S>, l: f32x4<S>) -> f32x4<S> {
+//     let d = l - lum(r, g, b);
+//     src = src + d;
+// 
+//     clip_color(src, r, g, b)
+// }
+// 
+// fn set_sat<S: Simd>(mut c: [f32; 4], s: f32) -> [f32; 4] {
+//     let (min, tail) = c.split_at_mut(1);
+//     let (mid, max) = tail.split_at_mut(1);
+// 
+//     let mut min = &mut min[0];
+//     let mut mid = &mut mid[0];
+//     let mut max = &mut max[0];
+// 
+//     if *min > *mid {
+//         core::mem::swap(&mut min, &mut mid);
+//     }
+// 
+//     if *min > *max {
+//         core::mem::swap(&mut min, &mut max);
+//     }
+// 
+//     if *mid > *max {
+//         core::mem::swap(&mut mid, &mut max);
+//     }
+// 
+//     if *max > *min {
+//         *mid = ((*mid - *min) * s) / (*max - *min);
+//         *max = s;
+//     } else {
+//         *mid = 0.0;
+//         *max = 0.0;
+//     }
+// 
+//     *min = 0.0;
+// 
+//     c
+// }
