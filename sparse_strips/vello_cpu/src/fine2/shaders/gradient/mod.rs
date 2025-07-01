@@ -1,7 +1,7 @@
 use crate::fine2::{PosExt, ShaderResultF32, ShaderType};
 use crate::kurbo::Point;
 use core::slice::ChunksExact;
-use vello_common::encode::{EncodedGradient, GradientLut, GradientRange};
+use vello_common::encode::{EncodedGradient, GradientLut};
 use vello_common::fearless_simd::*;
 
 pub(crate) mod linear;

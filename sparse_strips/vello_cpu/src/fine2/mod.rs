@@ -26,14 +26,10 @@ pub const SCRATCH_BUF_SIZE: usize =
 use crate::fine2::shaders::gradient::linear::SimdLinearKind;
 use crate::fine2::shaders::gradient::radial::SimdRadialKind;
 use crate::fine2::shaders::gradient::sweep::SimdSweepKind;
-use crate::fine2::shaders::gradient::{GradientFiller, calculate_t_vals};
-use crate::fine2::shaders::image::SimpleImageFiller;
-use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller};
-use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
+use crate::fine2::shaders::gradient::calculate_t_vals;
 use crate::util::{BlendModeExt, EncodedImageExt, InlineMapExt};
 pub use highp::F32Kernel;
 pub use lowp::U8Kernel;
-use vello_common::blurred_rounded_rect::BlurredRoundedRectangle;
 use vello_common::fearless_simd::{
     Simd, SimdBase, SimdFloat, SimdInto, f32x4, f32x8, f32x16, u8x16, u8x32, u32x4, u32x8,
 };
@@ -711,7 +707,7 @@ mod macros {
                 }
 
                 fn paint_f32(&mut self, buf: &mut [f32]) {
-                    use vello_common::fearless_simd::*;
+                    
 
                     for chunk in buf.chunks_exact_mut(16) {
                         let next = self.next().unwrap();

@@ -171,7 +171,7 @@ separable_mix!(ColorBurn, |cs: f32x16<S>, cb: f32x16<S>| {
             mask_2,
             f32x16::splat(cs.simd, 0.0),
             // else
-            (1.0 - f32x16::splat(cs.simd, 1.0).min((1.0 - cb) / cs)),
+            1.0 - f32x16::splat(cs.simd, 1.0).min((1.0 - cb) / cs),
         ),
     )
 });

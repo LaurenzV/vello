@@ -1,15 +1,15 @@
 use crate::fine2::shaders::gradient::SimdGradientKind;
 use core::marker::PhantomData;
 use vello_common::encode::LinearKind;
-use vello_common::fearless_simd::{Simd, f32x4, f32x8, f32x16};
+use vello_common::fearless_simd::{Simd, f32x8};
 
 #[derive(Debug)]
-pub struct SimdLinearKind<S: Simd> {
+pub(crate) struct SimdLinearKind<S: Simd> {
     phantom_data: PhantomData<S>,
 }
 
 impl<S: Simd> SimdLinearKind<S> {
-    pub fn new(_: S, _: &LinearKind) -> Self {
+    pub(crate) fn new(_: S, _: &LinearKind) -> Self {
         Self {
             phantom_data: PhantomData::default(),
         }

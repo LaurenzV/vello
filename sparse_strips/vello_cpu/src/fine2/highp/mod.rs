@@ -2,7 +2,7 @@ use crate::fine2::shaders::gradient::GradientFiller;
 use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller, SimpleImageFiller};
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::fine2::{COLOR_COMPONENTS, Painter};
-use crate::fine2::{FineKernel, ShaderType, u8_to_f32};
+use crate::fine2::FineKernel;
 use crate::peniko::BlendMode;
 use crate::region::Region;
 use alloc::boxed::Box;
@@ -189,7 +189,7 @@ mod fill {
     use crate::fine2::highp::blend;
     use crate::fine2::highp::compose::ComposeExt;
     use crate::peniko::BlendMode;
-    use crate::util::BlendModeExt;
+    
     use vello_common::fearless_simd::*;
     // Careful: From my experiments, inlining these functions can have drastic (negative)
     // consequences on performance.

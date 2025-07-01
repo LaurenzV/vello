@@ -1,17 +1,16 @@
 use crate::fine2::shaders::gradient::SimdGradientKind;
-use core::marker::PhantomData;
-use vello_common::encode::{FocalData, GradientLike, LinearKind, RadialKind};
+use vello_common::encode::{FocalData, GradientLike, RadialKind};
 use vello_common::fearless_simd::{Simd, SimdBase, f32x8, mask32x4};
 
 #[derive(Debug, Copy, Clone)]
-pub struct SimdFocalData<S: Simd> {
+pub(crate) struct SimdFocalData<S: Simd> {
     fr1: f32x8<S>,
     f_focal_x: f32x8<S>,
     f_is_swapped: mask32x4<S>,
     focal_data: FocalData,
 }
 
-pub enum SimdRadialKindInner<S: Simd> {
+pub(crate) enum SimdRadialKindInner<S: Simd> {
     Radial {
         bias: f32x8<S>,
         scale: f32x8<S>,
@@ -26,13 +25,13 @@ pub enum SimdRadialKindInner<S: Simd> {
     },
 }
 
-pub struct SimdRadialKind<S: Simd> {
+pub(crate) struct SimdRadialKind<S: Simd> {
     inner: SimdRadialKindInner<S>,
     has_undefined: bool,
 }
 
 impl<S: Simd> SimdRadialKind<S> {
-    pub fn new(simd: S, kind: &RadialKind) -> Self {
+    pub(crate) fn new(simd: S, kind: &RadialKind) -> Self {
         let inner = match kind {
             RadialKind::Radial { bias, scale } => SimdRadialKindInner::Radial {
                 bias: f32x8::splat(simd, *bias),

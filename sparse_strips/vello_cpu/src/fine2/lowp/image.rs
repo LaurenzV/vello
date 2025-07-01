@@ -3,7 +3,7 @@ use crate::fine2::macros::u8_iter;
 use crate::fine2::shaders::image::{ImageFillerData, extend_simd, sample};
 use crate::fine2::{PosExt, f32_to_u8};
 use vello_common::encode::EncodedImage;
-use vello_common::fearless_simd::{Simd, SimdBase, f32x4, f32x16, u8x16};
+use vello_common::fearless_simd::{Simd, SimdBase, f32x4, u8x16};
 
 #[derive(Debug)]
 pub(crate) struct BilinearImageFiller<'a, S: Simd> {
@@ -70,8 +70,8 @@ impl<S: Simd> Iterator for BilinearImageFiller<'_, S> {
             self.simd,
             fract(y_positions + 0.5) * 256.0,
         ));
-        let fx_inv = self.simd.widen_u8x16((u8x16::splat(self.simd, 255) - fx));
-        let fy_inv = self.simd.widen_u8x16((u8x16::splat(self.simd, 255) - fy));
+        let fx_inv = self.simd.widen_u8x16(u8x16::splat(self.simd, 255) - fx);
+        let fy_inv = self.simd.widen_u8x16(u8x16::splat(self.simd, 255) - fy);
 
         let fx = self.simd.widen_u8x16(fx);
         let fy = self.simd.widen_u8x16(fy);
