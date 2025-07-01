@@ -109,7 +109,7 @@ pub(crate) fn vello_test_inner(attr: TokenStream, item: TokenStream) -> TokenStr
         cpu_u8_tolerance,
         mut hybrid_tolerance,
         transparent,
-        mut skip_cpu,
+        skip_cpu,
         mut skip_hybrid,
         ignore_reason,
         no_ref,
