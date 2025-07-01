@@ -1,8 +1,10 @@
 mod compose;
+mod image;
+mod gradient;
 
-use crate::fine2::ShaderType;
+use crate::fine2::{shaders, ShaderType};
 use crate::fine2::lowp::compose::ComposeExt;
-use crate::fine2::shaders::gradient::GradientFiller;
+use crate::fine2::lowp;
 use crate::fine2::shaders::image::{FilteredImageFiller, ImageFiller, SimpleImageFiller};
 use crate::fine2::shaders::rounded_blurred_rect::BlurredRoundedRectFiller;
 use crate::fine2::{COLOR_COMPONENTS, Painter, SCRATCH_BUF_SIZE};
@@ -12,8 +14,6 @@ use crate::region::Region;
 use crate::util::{BlendModeExt, Div255Ext};
 use alloc::boxed::Box;
 use bytemuck::cast_slice;
-mod image;
-use vello_common::blurred_rounded_rect::BlurredRoundedRectangle;
 use vello_common::coarse::WideTile;
 use vello_common::encode::{EncodedBlurredRoundedRectangle, EncodedGradient, EncodedImage};
 use vello_common::fearless_simd::*;
@@ -60,7 +60,11 @@ impl<S: Simd> FineKernel<S> for U8Kernel {
         has_undefined: bool,
         t_vals: &'a [f32],
     ) -> Box<dyn Painter + 'a> {
-        Box::new(GradientFiller::new(simd, gradient, has_undefined, t_vals))
+        if has_undefined {
+            Box::new(shaders::gradient::GradientFiller::new(simd, gradient, has_undefined, t_vals))
+        }   else {
+            Box::new(gradient::GradientFiller::new(simd, gradient, has_undefined, t_vals))
+        }
     }
 
     fn simple_image_painter<'a>(
