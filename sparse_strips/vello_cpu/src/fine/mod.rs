@@ -134,27 +134,48 @@ pub(crate) fn u8_to_f32<S: Simd>(val: u8x16<S>) -> f32x16<S> {
     let simd = val.simd;
     let zeroes = u8x16::splat(simd, 0);
 
-    let zip1 = simd.zip_high_u8x16(val, zeroes);
-    let zip2 = simd.zip_low_u8x16(val, zeroes);
+    #[cfg(target_endian = "little")]
+    let widen = |val| {
+        (
+            simd.zip_low_u8x16(val, zeroes),
+            simd.zip_high_u8x16(val, zeroes),
+        )
+    };
+    #[cfg(target_endian = "big")]
+    let widen = |val| {
+        (
+            simd.zip_low_u8x16(zeroes, val),
+            simd.zip_high_u8x16(zeroes, val),
+        )
+    };
 
-    let p1 = simd
-        .zip_low_u8x16(zip2, zeroes)
-        .bitcast::<u32x4<S>>()
-        .to_float::<f32x4<S>>();
-    let p2 = simd
-        .zip_high_u8x16(zip2, zeroes)
-        .bitcast::<u32x4<S>>()
-        .to_float::<f32x4<S>>();
-    let p3 = simd
-        .zip_low_u8x16(zip1, zeroes)
-        .bitcast::<u32x4<S>>()
-        .to_float::<f32x4<S>>();
-    let p4 = simd
-        .zip_high_u8x16(zip1, zeroes)
-        .bitcast::<u32x4<S>>()
-        .to_float::<f32x4<S>>();
+    let (lo, hi) = widen(val);
+    let (p1, p2) = widen(lo);
+    let (p3, p4) = widen(hi);
+    let p1 = p1.bitcast::<u32x4<S>>().to_float::<f32x4<S>>();
+    let p2 = p2.bitcast::<u32x4<S>>().to_float::<f32x4<S>>();
+    let p3 = p3.bitcast::<u32x4<S>>().to_float::<f32x4<S>>();
+    let p4 = p4.bitcast::<u32x4<S>>().to_float::<f32x4<S>>();
 
     simd.combine_f32x8(simd.combine_f32x4(p1, p2), simd.combine_f32x4(p3, p4))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::u8_to_f32;
+    use vello_common::fearless_simd::{Fallback, SimdBase, u8x16};
+
+    #[test]
+    fn u8_to_f32_preserves_values() {
+        let simd = Fallback::new();
+        let values = [
+            0, 1, 2, 3, 15, 16, 31, 32, 63, 64, 127, 128, 192, 253, 254, 255,
+        ];
+        let expected = values.map(f32::from);
+        let actual: [f32; 16] = u8_to_f32(u8x16::from_slice(simd, &values)).into();
+
+        assert_eq!(actual, expected);
+    }
 }
 
 /// Trait for SIMD vector types used in compositing and blending operations.
